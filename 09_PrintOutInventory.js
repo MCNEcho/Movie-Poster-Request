@@ -73,6 +73,6 @@ function refreshPrintOut() {
   );
 
   // Basic formatting
-  print.setFrozenRows(0);
+  print.setFrozenRows(startRow);
   print.setColumnWidths(1, 2, 250);
 }
