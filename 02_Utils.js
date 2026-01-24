@@ -33,7 +33,7 @@ function ensureSheetWithHeaders_(ss, name, headers) {
     const needs = existing.join('') !== headers.join('');
     if (needs) {
       sh.getRange(1,1,1,headers.length).setValues([headers]);
-      sh.setFrozenRows(1);
+      sh.setFrozenRows(0);
     }
   }
   return sh;

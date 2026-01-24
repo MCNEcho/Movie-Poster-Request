@@ -164,4 +164,11 @@ function applyAdminFormatting_() {
   mp.hideColumns(COLS.MOVIE_POSTERS.POSTER_ID);
 
   setCheckboxColumn_(subs, COLS.SUBSCRIBERS.ACTIVE, 2, subs.getMaxRows());
+
+  // Hide internal audit sheets
+  const requestsSheet = ss.getSheetByName(CONFIG.SHEETS.REQUESTS);
+  if (requestsSheet) requestsSheet.hideSheet();
+  
+  const requestOrderSheet = ss.getSheetByName(CONFIG.SHEETS.REQUEST_ORDER);
+  if (requestOrderSheet) requestOrderSheet.hideSheet();
 }
