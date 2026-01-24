@@ -66,6 +66,14 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 - **Bulk Load Testing** - Simulate multiple submissions to measure quota usage
 - **System Health** - Monitor anomalies and unusual patterns
 
+### Data Protection & Backups
+- **Automated Nightly Backups** - Requests and Subscribers sheets backed up daily at 2 AM
+- **Google Drive Integration** - Backups stored in dedicated Drive folder
+- **Retention Management** - Automatic cleanup of backups older than 30 days
+- **Manual Backup** - Run backup anytime from admin menu
+- **Multiple Formats** - CSV (default) or Google Sheet format
+- **Analytics Logging** - All backup events tracked in Analytics sheet
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -431,6 +439,11 @@ Click **"🎬 Poster System"** in menu bar to see:
   - Measure performance with different N values
   - Validate quota usage before production stress
   - Generate sample data for testing
+### 10. Run Backup Now
+- Manually trigger backup of Requests and Subscribers sheets
+- Creates backups in Google Drive
+- Shows backup folder link when complete
+- Runs independently of nightly automated backup
 
 ### 11. Setup Employee View Spreadsheet
 - Creates separate read-only spreadsheet
@@ -628,8 +641,17 @@ poster-request-system/
 ├── 16_BulkSimulator.js          # Bulk submission simulator (NEW)
 ├── 99_Debuging.js               # Debug utilities & logging
 ├── 99_ErrorHandler.js           # Error handling & logging
+├── 15_DataIntegrity.js          # Data validation & integrity checks
+├── 16_BackupManager.js          # Nightly backup to Google Drive (NEW)
+├── 99_BackupTests.js            # Backup testing suite (NEW)
+├── 99_Debugging.js              # Debug utilities & logging
+├── 99_ErrorHandler.js           # Error logging & handling
+├── 04_Analytics.js              # Analytics & monitoring
+├── 02A_CacheManager.js          # Performance caching
 ├── appsscript.json              # Google Apps Script manifest
 ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
+├── BACKUP_TESTING_GUIDE.md      # Backup testing & verification (NEW)
+├── BACKUP_IMPLEMENTATION_SUMMARY.md  # Backup feature summary (NEW)
 └── README.md                    # This file
 ```
 
@@ -694,9 +716,12 @@ poster-request-system/
    - Keep messages concise
 
 5. **Backups**
-   - Google Sheets auto-saves (no action needed)
-   - Export Requests sheet monthly for archival
-   - Keep copy of Movie Posters master list
+   - **Automated Nightly Backups** - System automatically backs up Requests and Subscribers sheets to Google Drive at 2 AM daily
+   - **Manual Backups** - Run backup anytime from "Poster System → Run Backup Now" menu
+   - **30-Day Retention** - Old backups automatically deleted (configurable)
+   - **Google Sheets Auto-Save** - Google Sheets auto-saves all changes (no action needed)
+   - **Optional Manual Export** - Export any sheet monthly for extra archival if desired
+   - See `BACKUP_TESTING_GUIDE.md` for backup configuration and testing
 
 ### For Setup
 

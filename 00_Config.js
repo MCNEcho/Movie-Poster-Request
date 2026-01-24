@@ -54,6 +54,12 @@ const CONFIG = {
     WARNING_THRESHOLD: 50,       // Warn user if N >= this value
     MAX_ADD_PER_SIM: 3,         // Max posters to add in a single simulation
     MAX_REMOVE_PER_SIM: 3,      // Max posters to remove in a single simulation
+  // Backup configuration (Task 8 - Nightly Data Backup)
+  BACKUP: {
+    RETENTION_DAYS: 30,           // Keep backups for 30 days
+    FORMAT: 'CSV',                // 'CSV' or 'SHEET' (Google Sheet copy)
+    FOLDER_NAME: 'Poster System Backups', // Drive folder name
+    ENABLED: true,                // Set to false to disable backups
   },
 
   INVENTORY_LAST_UPDATED_CELL: 'J1',
@@ -76,6 +82,7 @@ const CONFIG = {
     ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
+    BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },
 };
 
