@@ -1,4 +1,4 @@
-/** 99_ErrorHandler.gs **/
+/** 03_ErrorHandler.js **/
 
 /**
  * Centralized error handling and logging system

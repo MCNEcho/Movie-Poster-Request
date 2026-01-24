@@ -1,4 +1,4 @@
-/** 16_BulkSimulator.gs **/
+/** 20_BulkSimulator.js **/
 
 /**
  * Bulk Submission Simulator for stress-testing and load metrics

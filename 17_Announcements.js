@@ -1,4 +1,4 @@
-/** 08_Announcements_And_Edit.gs **/
+/** 17_Announcements.js **/
 
 function handleSheetEdit(e) {
   const sh = e.range.getSheet();
