@@ -10,7 +10,7 @@ function buildDocumentationTab() {
   sh.clear({ contentsOnly: false });
   sh.setColumnWidths(1, 1, 900);
   sh.getRange(1, 1, sh.getMaxRows(), 1).setWrap(true).setVerticalAlignment('top');
-  sh.setFrozenRows(0);
+  sh.setFrozenRows(1);
 
   let r = 1;
 
