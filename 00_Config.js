@@ -64,6 +64,11 @@ const CONFIG = {
     FORMAT: 'CSV',                // 'CSV' or 'SHEET' (Google Sheet copy)
     FOLDER_NAME: 'Poster System Backups', // Drive folder name
     ENABLED: true,                // Set to false to disable backups
+    SHEETS_TO_BACKUP: [
+      'Requests',                 // Complete audit trail
+      'Request Order',            // Submission history
+      'Inventory'                 // Inventory tracking
+    ],
   },
 
   INVENTORY_LAST_UPDATED_CELL: 'J1',

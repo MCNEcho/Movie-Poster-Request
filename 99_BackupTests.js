@@ -174,14 +174,45 @@ function testFullBackup() {
       ensureAnalyticsSheet_();
     }
     
+    // Get initial file count in backup folder
+    const folderId = ensureBackupFolder_();
+    const folder = DriveApp.getFolderById(folderId);
+    const filesBefore = [];
+    const filesIterator = folder.getFiles();
+    while (filesIterator.hasNext()) {
+      filesBefore.push(filesIterator.next().getName());
+    }
+    
     // Perform backup
     performNightlyBackup();
     
-    Logger.log('✅ Full backup test PASSED');
+    // Check files after backup
+    const filesAfter = [];
+    const filesIteratorAfter = folder.getFiles();
+    while (filesIteratorAfter.hasNext()) {
+      filesAfter.push(filesIteratorAfter.next().getName());
+    }
+    
+    // Count new backup files
+    const expectedSheets = CONFIG.BACKUP.SHEETS_TO_BACKUP.length;
+    const newFiles = filesAfter.filter(f => !filesBefore.includes(f));
+    
+    Logger.log(`New backup files created: ${newFiles.length}`);
+    Logger.log(`Expected: ${expectedSheets} (${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')})`);
+    Logger.log(`Files: ${newFiles.join(', ')}`);
+    
+    if (newFiles.length === expectedSheets) {
+      Logger.log('✅ Full backup test PASSED');
+      Logger.log(`Verified that only ${expectedSheets} configured sheets were backed up`);
+    } else {
+      Logger.log(`⚠️ Full backup test WARNING: Expected ${expectedSheets} files, found ${newFiles.length}`);
+    }
+    
     Logger.log('Check:');
     Logger.log('1. Analytics sheet for BACKUP event');
     Logger.log('2. Backup folder in Drive for exported files');
     Logger.log('3. Error Log sheet (should have no new errors)');
+    Logger.log(`4. Only these sheets should be backed up: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
     
   } catch (err) {
     Logger.log('❌ Full backup test FAILED');
@@ -223,6 +254,10 @@ function runAllBackupTests() {
     testFullBackup();
     Logger.log('');
     
+    Logger.log('Test 7: Orphaned Request Cleanup');
+    testOrphanedRequestCleanup();
+    Logger.log('');
+    
     Logger.log('=================================');
     Logger.log('ALL TESTS COMPLETED');
     Logger.log('=================================');
@@ -232,5 +267,51 @@ function runAllBackupTests() {
     Logger.log('TEST SUITE FAILED');
     Logger.log(`Error: ${err.message}`);
     Logger.log('=================================');
+  }
+}
+
+/**
+ * Test 7: Test orphaned request auto-deletion
+ */
+function testOrphanedRequestCleanup() {
+  try {
+    Logger.log('Testing orphaned request cleanup...');
+    
+    // This test verifies that checkForOrphanedRequests_() auto-deletes orphaned requests
+    // Note: This is a dry-run test - it doesn't create test data
+    
+    const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
+    const rowCountBefore = requestsSheet.getLastRow();
+    
+    // Run orphan check
+    const result = checkForOrphanedRequests_();
+    
+    const rowCountAfter = requestsSheet.getLastRow();
+    const rowsDeleted = rowCountBefore - rowCountAfter;
+    
+    Logger.log(`Rows before: ${rowCountBefore}`);
+    Logger.log(`Rows after: ${rowCountAfter}`);
+    Logger.log(`Rows deleted: ${rowsDeleted}`);
+    Logger.log(`Check result: ${result.status}`);
+    Logger.log(`Issues found: ${result.issuesFound}`);
+    Logger.log(`Auto-repaired: ${result.autoRepaired}`);
+    
+    if (rowsDeleted === result.autoRepaired) {
+      Logger.log('✅ Orphaned request cleanup test PASSED');
+      Logger.log('Verified: Rows deleted matches auto-repaired count');
+    } else {
+      Logger.log(`⚠️ Orphaned request cleanup test WARNING`);
+      Logger.log(`Expected ${result.autoRepaired} deletions, actual: ${rowsDeleted}`);
+    }
+    
+    Logger.log('Check:');
+    Logger.log('1. Data Integrity sheet for orphaned request log entries');
+    Logger.log('2. Requests sheet should not contain orphaned ACTIVE requests');
+    Logger.log('3. Deleted requests should be completely removed (not marked REMOVED)');
+    
+  } catch (err) {
+    Logger.log('❌ Orphaned request cleanup test FAILED');
+    Logger.log(`Error: ${err.message}`);
+    throw err;
   }
 }

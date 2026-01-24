@@ -90,6 +90,7 @@ function runFullIntegrityCheck_() {
 
 /**
  * Check for orphaned requests (requests with deleted posters)
+ * Auto-deletes entire rows for orphaned ACTIVE requests
  * @returns {object} Check results
  */
 function checkForOrphanedRequests_() {
@@ -113,26 +114,34 @@ function checkForOrphanedRequests_() {
     );
 
     const orphanedRows = [];
+    const orphanedDetails = [];
     requestData.forEach((row, idx) => {
       const posterId = String(row[CONFIG.COLS.REQUESTS.POSTER_ID - 1] || '').trim();
       const status = String(row[CONFIG.COLS.REQUESTS.STATUS - 1] || '').trim();
+      const title = String(row[CONFIG.COLS.REQUESTS.TITLE_SNAP - 1] || '').trim();
+      const empEmail = String(row[CONFIG.COLS.REQUESTS.EMP_EMAIL - 1] || '').trim();
 
       if (status === 'ACTIVE' && !validPosterIds.has(posterId)) {
         orphanedRows.push(idx + 2); // +2 for header and 0-indexing
+        orphanedDetails.push(`${empEmail} - ${title} (${posterId})`);
         result.issuesFound++;
       }
     });
 
     if (orphanedRows.length > 0) {
-      result.status = 'FAILED';
+      result.status = 'REPAIRED';
       result.autoRepaired = orphanedRows.length;
-      result.details.push(`Removed ${orphanedRows.length} orphaned requests`);
+      result.details.push(`Deleted ${orphanedRows.length} orphaned request(s)`);
+      result.details.push(...orphanedDetails);
 
-      // Auto-repair: Mark as REMOVED
-      orphanedRows.forEach(rowNum => {
-        requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS).setValue('REMOVED');
-        requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS_TS).setValue(fmtDate_(now_(), CONFIG.DATE_FORMAT));
+      // Auto-repair: Delete entire rows (from bottom to top to maintain row numbers)
+      // Reverse order is critical: deleting from top would shift row numbers down,
+      // causing subsequent deletions to target wrong rows
+      orphanedRows.reverse().forEach(rowNum => {
+        requestsSheet.deleteRow(rowNum);
       });
+      
+      Logger.log(`[INTEGRITY] Deleted ${orphanedRows.length} orphaned requests`);
     }
 
   } catch (err) {
