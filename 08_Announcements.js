@@ -46,6 +46,9 @@ function processMoviePostersEdit_(e) {
 
   if (pid && active && title && release) {
     queueAnnouncement_(pid, title, release);
+    
+    // Process announcement queue immediately (event-driven)
+    processAnnouncementQueueEventDriven_();
   }
 }
 
@@ -74,6 +77,8 @@ function previewPendingAnnouncement() {
 }
 
 function sendAnnouncementNow() {
+  // Force send by clearing the batch window check
+  writeJsonProp_(CONFIG.PROPS.LAST_ANALYTICS_FLUSH, 0);
   processAnnouncementQueue(true);
 }
 
@@ -124,3 +129,82 @@ function getActiveSubscriberEmails_() {
     .map(r => String(r[COLS.SUBSCRIBERS.EMAIL - 1] || '').trim())
     .filter(Boolean);
 }
+
+/**
+ * Event-driven announcement processing with batching and exponential backoff.
+ * Processes announcements immediately when posters are activated.
+ * 
+ * @returns {void}
+ */
+function processAnnouncementQueueEventDriven_() {
+  try {
+    const queue = readJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+    const ids = Object.keys(queue);
+    
+    if (ids.length === 0) {
+      Logger.log('[processAnnouncementQueueEventDriven] No announcements in queue');
+      return;
+    }
+
+    // Check if we should batch announcements (if multiple posters activated in short time)
+    const lastProcessTime = readJsonProp_(CONFIG.PROPS.LAST_ANALYTICS_FLUSH, 0);
+    const now = Date.now();
+    const timeSinceLastProcess = now - lastProcessTime;
+    const batchWindowMs = 60000; // 1 minute batch window
+
+    Logger.log(`[processAnnouncementQueueEventDriven] Queue has ${ids.length} items, time since last: ${timeSinceLastProcess}ms`);
+
+    // If within batch window and fewer than 5 posters, wait for more
+    if (timeSinceLastProcess < batchWindowMs && ids.length < 5) {
+      Logger.log('[processAnnouncementQueueEventDriven] Batching - waiting for more posters');
+      return;
+    }
+
+    const recipients = getActiveSubscriberEmails_();
+    if (recipients.length === 0) {
+      Logger.log('[processAnnouncementQueueEventDriven] No active subscribers');
+      return;
+    }
+
+    // Send announcement with retry logic
+    const success = retryWithBackoff_(() => {
+      const formUrl = getOrCreateForm_().getPublishedUrl();
+      const lines = ids.map((id, i) => `${i+1}. ${queue[id].title}`).join('\n');
+
+      const subject = 'We Have Added More Posters to the Request Form!';
+      const body = [
+        'We Have Added More Posters to the Request Form!',
+        '',
+        lines,
+        '',
+        'Request here:',
+        formUrl
+      ].join('\n');
+
+      recipients.forEach(email => MailApp.sendEmail(email, subject, body));
+      return true;
+    }, 3, 2000);
+
+    if (success) {
+      // Mark posters as announced
+      const announced = readJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, {});
+      ids.forEach(id => announced[id] = true);
+      writeJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, announced);
+      
+      // Clear queue
+      writeJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+      
+      // Update last process time
+      writeJsonProp_(CONFIG.PROPS.LAST_ANALYTICS_FLUSH, now);
+      
+      // Track analytics
+      trackAnnouncement_(recipients.length, ids.length, true);
+      
+      Logger.log(`[processAnnouncementQueueEventDriven] Successfully sent announcements to ${recipients.length} recipients`);
+    }
+  } catch (error) {
+    logError_(error, 'processAnnouncementQueueEventDriven', 'Event-driven announcement processing', 'HIGH');
+    trackAnnouncement_(0, 0, false);
+  }
+}
+

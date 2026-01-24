@@ -93,10 +93,12 @@ function ensureTriggers_() {
       .create();
   }
 
+  // Time-based trigger for announcement queue (DEPRECATED - now event-driven)
+  // Keeping as fallback for any queued announcements that weren't sent immediately
   if (!has('processAnnouncementQueue')) {
     ScriptApp.newTrigger('processAnnouncementQueue')
       .timeBased()
-      .everyMinutes(15)
+      .everyHours(1) // Changed from 15 minutes to 1 hour as fallback only
       .create();
   }
 }

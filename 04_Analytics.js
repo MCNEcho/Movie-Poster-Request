@@ -274,3 +274,27 @@ function detectAnomalies_() {
     return { error: error.message };
   }
 }
+
+/**
+ * Get announcement queue status.
+ * 
+ * @returns {Object} Queue status with pending count and last process time
+ */
+function getAnnouncementQueueStatus_() {
+  try {
+    const queue = readJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+    const announced = readJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, {});
+    const lastProcessTime = readJsonProp_(CONFIG.PROPS.LAST_ANALYTICS_FLUSH, 0);
+    
+    return {
+      pending_count: Object.keys(queue).length,
+      pending_posters: Object.values(queue).map(p => p.title),
+      announced_count: Object.keys(announced).length,
+      last_process_time: lastProcessTime ? new Date(lastProcessTime) : null,
+      time_since_last_ms: lastProcessTime ? Date.now() - lastProcessTime : null
+    };
+  } catch (error) {
+    console.error(`[getAnnouncementQueueStatus] Error: ${error.message}`);
+    return { error: error.message };
+  }
+}
