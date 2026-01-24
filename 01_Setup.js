@@ -34,41 +34,50 @@ function setupPosterSystem() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = SpreadsheetApp.getActive();
+    const startTime = new Date().getTime();
     
-    ss.toast('Initializing sheets...', 'Setup Progress', 3);
-    ensureSheetSchemas_();
-    applyAdminFormatting_();
-
-    ss.toast('Creating/repairing form...', 'Setup Progress', 3);
-    ensureFormStructure_();
-
-    ss.toast('Syncing poster IDs...', 'Setup Progress', 3);
-    ensurePosterIds_();
-    syncInventoryCountsToMoviePosters_();
+    const tasks = [
+      { name: 'Initializing sheets', fn: ensureSheetSchemas_ },
+      { name: 'Applying formatting', fn: applyAdminFormatting_ },
+      { name: 'Setting up form', fn: ensureFormStructure_ },
+      { name: 'Ensuring poster IDs', fn: ensurePosterIds_ },
+      { name: 'Syncing inventory', fn: syncInventoryCountsToMoviePosters_ },
+      { name: 'Setting up triggers', fn: ensureTriggers_ },
+      { name: 'Syncing form options', fn: syncPostersToForm },
+      { name: 'Rebuilding boards', fn: rebuildBoards },
+      { name: 'Preparing print area', fn: prepareAndSelectPrintArea },
+      { name: 'Building documentation', fn: buildDocumentationTab },
+      { name: 'Running data integrity checks', fn: () => runDataIntegrityChecks_(true) },
+    ];
     
-    ss.toast('Setting up triggers...', 'Setup Progress', 3);
-    ensureTriggers_();
-
-    ss.toast('Syncing form options...', 'Setup Progress', 3);
-    syncPostersToForm();
+    let completed = 0;
+    tasks.forEach(task => {
+      try {
+        ss.toast(`${task.name}...`, 'Setup Progress', 3);
+        task.fn();
+        completed++;
+      } catch (err) {
+        logError_(err, 'setupPosterSystem', `Task: ${task.name}`, 'MEDIUM');
+        ss.toast(`⚠️ ${task.name} failed - see logs`, 'Error', 3);
+        // Continue despite error
+      }
+    });
     
-    ss.toast('Rebuilding boards...', 'Setup Progress', 3);
-    rebuildBoards();
+    const executionTime = new Date().getTime() - startTime;
+    ss.toast(`✓ Setup complete! (${completed}/${tasks.length} tasks, ${executionTime}ms)`, 'Success', 5);
     
-    ss.toast('Building documentation...', 'Setup Progress', 3);
-    buildDocumentationTab();
+    logAnalyticsEvent_(
+      'SETUP_REPAIR',
+      Session.getActiveUser().getEmail(),
+      { tasksCompleted: completed, totalTasks: tasks.length },
+      executionTime,
+      completed === tasks.length
+    );
     
-    ss.toast('Updating inventory...', 'Setup Progress', 3);
-    updateInventoryLastUpdated_();
-    
-    ss.toast('Building print layout...', 'Setup Progress', 3);
-    buildPrintOutLayout_();
-    
-    ss.toast('Running data integrity checks...', 'Setup Progress', 3);
-    runDataIntegrityChecks_(true);
-    
-    SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
+  } catch (err) {
+    logError_(err, 'setupPosterSystem', 'Critical setup error', 'CRITICAL');
+    SpreadsheetApp.getActive().toast('🚨 Setup failed - see logs', 'Critical Error', 5);
   } finally {
     lock.releaseLock();
   }
