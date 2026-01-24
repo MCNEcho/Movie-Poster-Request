@@ -31,14 +31,14 @@ function performNightlyBackup() {
     const folderId = getOrCreateBackupFolder_();
     
     // Only backup critical sheets with irreplaceable data
-    const sheetsToBakcup = [
+    const sheetsToBackup = [
       CONFIG.SHEETS.REQUESTS,       // Core audit ledger (irreplaceable)
       CONFIG.SHEETS.REQUEST_ORDER,  // Form submission history (irreplaceable)
       CONFIG.SHEETS.INVENTORY       // Physical stock counts (critical)
     ];
     
     let successCount = 0;
-    sheetsToBakcup.forEach(sheetName => {
+    sheetsToBackup.forEach(sheetName => {
       try {
         backupSheet_(sheetName, folderId, timestamp);
         successCount++;
@@ -56,12 +56,12 @@ function performNightlyBackup() {
     logAnalyticsEvent_(
       'BACKUP_COMPLETED',
       Session.getActiveUser().getEmail(),
-      { sheetsBackedUp: successCount, totalSheets: sheetsToBakcup.length },
+      { sheetsBackedUp: successCount, totalSheets: sheetsToBackup.length },
       executionTime,
-      successCount === sheetsToBakcup.length
+      successCount === sheetsToBackup.length
     );
     
-    Logger.log(`[performNightlyBackup] Backed up ${successCount}/${sheetsToBakcup.length} sheets in ${executionTime}ms`);
+    Logger.log(`[performNightlyBackup] Backed up ${successCount}/${sheetsToBackup.length} sheets in ${executionTime}ms`);
     
   } catch (error) {
     logError_(error, 'performNightlyBackup', 'Critical backup failure', 'CRITICAL');
