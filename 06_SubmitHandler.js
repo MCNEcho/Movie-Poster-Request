@@ -198,9 +198,10 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
     }
 
     // Check for duplicates by email
-    if (hasEverRequestedByEmail_(empEmail, pid)) {
-      deniedAdds.push(`${show}: duplicate (historical)`);
-      Logger.log(`[processAdditions] DENIED: "${show}" - already requested by this email`);
+    const dedupCheck = canRequestPoster_(empEmail, pid);
+    if (!dedupCheck.allowed) {
+      deniedAdds.push(`${show}: ${dedupCheck.reason}`);
+      Logger.log(`[processAdditions] DENIED: "${show}" - ${dedupCheck.reason}`);
       continue;
     }
 

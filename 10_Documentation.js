@@ -22,7 +22,7 @@ function buildDocumentationTab() {
     'Employees request posters through a Google Form. Requests are first-come-first-serve.',
     'Employees can have up to 5 ACTIVE requests at a time (5-slot system).',
     'If a submission includes Remove + Add, removals are applied first (freeing slots), then adds are processed.',
-    'Dedupe is permanent: an employee can request the same poster only once ever.',
+    getDedupSummary_(),
     'Inventory counts are FYI only and never block requests.',
     'Remove list is intentionally short: only posters with at least one ACTIVE request by anyone.',
   ]);
@@ -41,7 +41,7 @@ function buildDocumentationTab() {
   r = writeDocSection_(sh, r, 'System Rules', [
     '1. Maximum Active Requests: Each employee can have up to 5 ACTIVE posters at a time.',
     '2. Request Order: Removals are processed FIRST, then additions. This frees slots for new posters.',
-    '3. Deduplication: An employee can request each poster ONE TIME EVER. Historical requests block future requests.',
+    getDedupRuleDescription_(),
     '4. Active Posters Only: Only posters with Active? = TRUE in Movie Posters sheet appear in the form.',
     '5. Remove List: Only shows posters the employee has ACTIVE requests for.',
     '6. Inventory is FYI: Inventory counts never block requests. Form always accepts requests regardless of stock.',
@@ -57,6 +57,13 @@ function buildDocumentationTab() {
     'Close Queue: set Active? FALSE to end requesting for that poster.',
     'Subscribers tab: checked emails receive batched announcements every 15 minutes when new posters are activated.',
     'Print Out tab: print-friendly inventory list + QR codes (Form + Employees view).',
+  ]);
+
+  r = writeDocSection_(sh, r, 'Current Configuration', [
+    `Max Active Requests Per Employee: ${CONFIG.MAX_ACTIVE}`,
+    `Allow Re-requests After Removal: ${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL ? 'YES' : 'NO'}`,
+    `Re-request Cooldown Days: ${CONFIG.REREQUEST_COOLDOWN_DAYS} day${CONFIG.REREQUEST_COOLDOWN_DAYS === 1 ? '' : 's'}`,
+    'To change these settings, edit values in 00_Config.js and redeploy the script.',
   ]);
 
   r = writeDocSection_(sh, r, 'Admin Menu — Button Reference', [
@@ -122,4 +129,34 @@ function writeDocSection_(sh, r, title, bullets) {
 
   sh.getRange(r, 1).setValue('');
   return r + 1;
+}
+
+/**
+ * Generate dedup summary text based on CONFIG settings
+ */
+function getDedupSummary_() {
+  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
+    return 'Dedupe is permanent: an employee can request the same poster only once ever.';
+  }
+  
+  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
+    return `Re-requests allowed after removal with ${CONFIG.REREQUEST_COOLDOWN_DAYS}-day cooldown period.`;
+  }
+  
+  return 'Re-requests allowed: employees can request a poster again after removing it.';
+}
+
+/**
+ * Generate dedup rule description based on CONFIG settings
+ */
+function getDedupRuleDescription_() {
+  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
+    return '3. Deduplication: An employee can request each poster ONE TIME EVER. Historical requests block future requests.';
+  }
+  
+  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
+    return `3. Deduplication: Employees can re-request posters after removal. Cooldown period: ${CONFIG.REREQUEST_COOLDOWN_DAYS} day${CONFIG.REREQUEST_COOLDOWN_DAYS === 1 ? '' : 's'} after removal.`;
+  }
+  
+  return '3. Deduplication: Employees can re-request posters immediately after removing them. No historical blocking.';
 }
