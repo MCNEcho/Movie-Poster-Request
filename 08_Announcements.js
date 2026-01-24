@@ -1,25 +1,33 @@
 /** 08_Announcements_And_Edit.gs **/
 
 function handleSheetEdit(e) {
-  const sh = e.range.getSheet();
-  const name = sh.getName();
+  try {
+    const sh = e.range.getSheet();
+    const name = sh.getName();
 
-  if (name === CONFIG.SHEETS.INVENTORY) {
-    updateInventoryLastUpdated_();
-    syncInventoryCountsToMoviePosters_();
-    refreshPrintOut();
-    return;
-  }
+    if (name === CONFIG.SHEETS.INVENTORY) {
+      updateInventoryLastUpdated_();
+      syncInventoryCountsToMoviePosters_();
+      refreshPrintOut();
+      return;
+    }
 
-  if (name === CONFIG.SHEETS.MOVIE_POSTERS) {
-    ensurePosterIds_();
-    updateInventoryLastUpdated_();
-    processMoviePostersEdit_(e);
+    if (name === CONFIG.SHEETS.MOVIE_POSTERS) {
+      ensurePosterIds_();
+      updateInventoryLastUpdated_();
+      processMoviePostersEdit_(e);
 
-    syncPostersToForm();
-    rebuildBoards();
-    refreshPrintOut();
-    return;
+      // Invalidate poster-related caches
+      invalidateCachesAfterWrite_('poster');
+
+      syncPostersToForm();
+      rebuildBoards();
+      refreshPrintOut();
+      return;
+    }
+  } catch (error) {
+    logError_(error, 'handleSheetEdit', `Sheet: ${e.range.getSheet().getName()}`, 'MEDIUM');
+    console.error(`[handleSheetEdit] Error: ${error.message}`);
   }
 }
 
@@ -70,33 +78,42 @@ function sendAnnouncementNow() {
 }
 
 function processAnnouncementQueue(forceSend) {
-  const queue = readJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
-  const ids = Object.keys(queue);
-  if (ids.length === 0) return;
+  try {
+    const queue = readJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+    const ids = Object.keys(queue);
+    if (ids.length === 0) return;
 
-  const recipients = getActiveSubscriberEmails_();
-  if (recipients.length === 0) return;
+    const recipients = getActiveSubscriberEmails_();
+    if (recipients.length === 0) return;
 
-  const formUrl = getOrCreateForm_().getPublishedUrl();
-  const lines = ids.map((id, i) => `${i+1}. ${queue[id].title}`).join('\n');
+    const formUrl = getOrCreateForm_().getPublishedUrl();
+    const lines = ids.map((id, i) => `${i+1}. ${queue[id].title}`).join('\n');
 
-  const subject = 'We Have Added More Posters to the Request Form!';
-  const body = [
-    'We Have Added More Posters to the Request Form!',
-    '',
-    lines,
-    '',
-    'Request here:',
-    formUrl
-  ].join('\n');
+    const subject = 'We Have Added More Posters to the Request Form!';
+    const body = [
+      'We Have Added More Posters to the Request Form!',
+      '',
+      lines,
+      '',
+      'Request here:',
+      formUrl
+    ].join('\n');
 
-  recipients.forEach(email => MailApp.sendEmail(email, subject, body));
+    recipients.forEach(email => MailApp.sendEmail(email, subject, body));
 
-  const announced = readJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, {});
-  ids.forEach(id => announced[id] = true);
+    const announced = readJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, {});
+    ids.forEach(id => announced[id] = true);
 
-  writeJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, announced);
-  writeJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+    writeJsonProp_(CONFIG.PROPS.ANNOUNCED_IDS, announced);
+    writeJsonProp_(CONFIG.PROPS.ANNOUNCE_QUEUE, {});
+    
+    // Track analytics
+    trackAnnouncement_(recipients.length, ids.length, true);
+  } catch (error) {
+    logError_(error, 'processAnnouncementQueue', `Recipients: ${recipients ? recipients.length : 0}`, 'HIGH');
+    trackAnnouncement_(0, 0, false);
+    throw error;
+  }
 }
 
 function getActiveSubscriberEmails_() {
