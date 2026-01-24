@@ -88,6 +88,54 @@ const CONFIG = {
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },
+
+  // Announcement batching configuration
+  ANNOUNCEMENT: {
+    BATCH_ENABLED: true,
+    BATCH_SIZE: 5, // Max posters per email
+    THROTTLE_DELAY_MS: 1000, // Delay between emails
+    RETRY_ATTEMPTS: 3,
+    RETRY_INITIAL_DELAY_MS: 500,
+  },
+
+  // Email templates with variable support
+  TEMPLATES: {
+    DEFAULT: {
+      subject: 'We Have Added More Posters to the Request Form!',
+      body: `We Have Added More Posters to the Request Form!
+
+{{POSTER_LIST}}
+
+Total Active Posters: {{ACTIVE_COUNT}}
+
+Request here:
+{{FORM_LINK}}`
+    },
+    SINGLE_POSTER: {
+      subject: 'New Poster Available: {{TITLE}}',
+      body: `A new poster is now available!
+
+Title: {{TITLE}}
+Release Date: {{RELEASE}}
+Stock: {{STOCK}}
+
+Total Active Posters: {{ACTIVE_COUNT}}
+
+Request here:
+{{FORM_LINK}}`
+    },
+    BATCH: {
+      subject: 'New Posters Available - {{COUNT}} Added!',
+      body: `We've added {{COUNT}} new posters to the request form!
+
+{{POSTER_LIST}}
+
+Total Active Posters: {{ACTIVE_COUNT}}
+
+Request here:
+{{FORM_LINK}}`
+    }
+  },
 };
 
 // 1-based column indexes

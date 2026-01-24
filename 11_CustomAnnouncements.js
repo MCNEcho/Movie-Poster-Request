@@ -44,6 +44,17 @@ function queueCustomAnnouncement() {
   ui.alert('Queued! It will send on the next scheduled run (if enabled) or you can use "Send Custom Announcement Now".');
 }
 
+/**
+ * Sends all queued custom announcements in one batch run,
+ * then clears the custom queue.
+ */
+function sendCustomAnnouncementNow() {
+  processCustomAnnouncementQueue(true);
+}
+
+/**
+ * Preview custom announcements with template rendering
+ */
 function previewCustomAnnouncementQueue() {
   const ui = SpreadsheetApp.getUi();
   const queue = readJsonProp_(CONFIG.PROPS.CUSTOM_ANNOUNCE_QUEUE, []);
@@ -52,16 +63,21 @@ function previewCustomAnnouncementQueue() {
     return;
   }
 
-  const lines = queue.map((m, i) => `${i + 1}. ${m.subject}`).join('\n');
-  ui.alert('Pending Custom Announcements:\n\n' + lines);
-}
-
-/**
- * Sends all queued custom announcements in one batch run,
- * then clears the custom queue.
- */
-function sendCustomAnnouncementNow() {
-  processCustomAnnouncementQueue(true);
+  const recipients = getActiveSubscriberEmails_();
+  const formUrl = getOrCreateForm_().getPublishedUrl();
+  
+  // Generate preview with variable substitution
+  const previews = queue.map((msg, i) => {
+    let subject = String(msg.subject || '').trim();
+    let body = String(msg.body || '');
+    
+    // Substitute variables
+    body = substituteCustomVariables_(body, formUrl);
+    
+    return `${i + 1}. Subject: ${subject}\n   Preview:\n   ${body.substring(0, 100)}...`;
+  }).join('\n\n');
+  
+  ui.alert(`Pending Custom Announcements (${recipients.length} recipients):\n\n${previews}`);
 }
 
 /**
@@ -77,19 +93,59 @@ function processCustomAnnouncementQueue(forceSend) {
 
   const formUrl = getOrCreateForm_().getPublishedUrl();
 
-  queue.forEach(msg => {
-    const subject = String(msg.subject || '').trim();
-    if (!subject) return;
+  try {
+    queue.forEach((msg, index) => {
+      const subject = String(msg.subject || '').trim();
+      if (!subject) return;
 
-    let body = String(msg.body || '');
-    body = body.replaceAll('{{FORM_URL}}', formUrl);
-    body = body.replaceAll('{{EMPLOYEES_URL}}', getEmployeeViewEmployeesUrl_());
+      let body = substituteCustomVariables_(String(msg.body || ''), formUrl);
 
-    recipients.forEach(email => {
-      MailApp.sendEmail(email, subject, body);
+      // Send with retry and throttling
+      recipients.forEach(email => {
+        try {
+          retryWithBackoff_(
+            () => MailApp.sendEmail(email, subject, body),
+            CONFIG.ANNOUNCEMENT.RETRY_ATTEMPTS,
+            CONFIG.ANNOUNCEMENT.RETRY_INITIAL_DELAY_MS
+          );
+        } catch (err) {
+          logError_(err, 'processCustomAnnouncementQueue', {
+            recipient: email,
+            subject: subject
+          });
+        }
+      });
+      
+      // Throttle between messages
+      if (index < queue.length - 1) {
+        Utilities.sleep(CONFIG.ANNOUNCEMENT.THROTTLE_DELAY_MS);
+      }
     });
-  });
 
-  // Clear queue after sending
-  writeJsonProp_(CONFIG.PROPS.CUSTOM_ANNOUNCE_QUEUE, []);
+    // Log event
+    logAnnouncementEvent_(queue.length, recipients.length, 'CUSTOM_SUCCESS');
+    
+    // Clear queue after sending
+    writeJsonProp_(CONFIG.PROPS.CUSTOM_ANNOUNCE_QUEUE, []);
+  } catch (err) {
+    logError_(err, 'processCustomAnnouncementQueue', { queueSize: queue.length });
+    throw err;
+  }
+}
+
+/**
+ * Substitute custom announcement variables
+ * @param {string} body - Template body
+ * @param {string} formUrl - Form URL
+ * @returns {string} Substituted body
+ */
+function substituteCustomVariables_(body, formUrl) {
+  let result = body;
+  result = result.replaceAll('{{FORM_URL}}', formUrl);
+  result = result.replaceAll('{{EMPLOYEES_URL}}', getEmployeeViewEmployeesUrl_());
+  
+  // Also support FORM_LINK for consistency with regular announcements
+  result = result.replaceAll('{{FORM_LINK}}', formUrl);
+  
+  return result;
 }

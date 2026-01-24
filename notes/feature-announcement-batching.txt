@@ -1,0 +1,3 @@
+Feature: Announcement batching with templates, variables, dry-run preview
+Status: scaffold
+Notes: add template variables (title, release, stock, active count, form link), batch multiple posters, dry-run preview, throttle/backoff, log to Analytics/Error Log.
