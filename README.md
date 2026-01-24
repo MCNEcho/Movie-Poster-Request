@@ -211,8 +211,9 @@ If new poster is activated:
 |------|---------|
 | **Name Format** | Must be "FirstName LastInitial" (e.g., "Gavin N" or "Sarah K.") |
 | **Email** | Auto-collected from Google Account (can't be manually entered) |
-| **5-Poster Limit** | Maximum 5 ACTIVE posters per employee at any time |
-| **No Duplicates** | Employee can't request same poster twice (ever) |
+| **7-Poster Limit** | Maximum 7 ACTIVE posters per employee at any time |
+| **Re-request Policy** | Configurable: By default, employees cannot re-request posters they've removed |
+| **Multiple Employees** | Multiple employees CAN request the same poster simultaneously |
 | **Active Only** | Form only shows posters with Active? = TRUE |
 | **Removal First** | Removals processed before additions (allows swaps) |
 
@@ -431,7 +432,16 @@ Click **"🎬 Poster System"** in menu bar to see:
 
 #### Change Max Posters Per Employee
 ```javascript
-CONFIG.MAX_ACTIVE = 5;  // Change 5 to desired number (e.g., 3 or 10)
+CONFIG.MAX_ACTIVE = 7;  // Change 7 to desired number (e.g., 3 or 10)
+```
+
+#### Configure Re-request Policy
+```javascript
+// Allow employees to re-request posters they've previously removed
+CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL = false;  // Set to true to allow
+
+// Days employee must wait before re-requesting same poster
+CONFIG.REREQUEST_COOLDOWN_DAYS = 0;  // Set to 7 for 7-day cooldown, etc.
 ```
 
 #### Change Form Title & Description
@@ -445,6 +455,16 @@ CONFIG.FORM_META = {
 #### Change Timezone
 ```javascript
 CONFIG.TIMEZONE = "America/Los_Angeles";  // or your timezone
+```
+
+#### Configure Cache TTL (Time To Live)
+```javascript
+CONFIG.CACHE = {
+  DEFAULT_TTL: 5 * 60 * 1000,           // 5 minutes default
+  EMPLOYEE_COUNT_TTL: 5 * 60 * 1000,    // 5 minutes for employee counts
+  POSTER_AVAILABILITY_TTL: 10 * 60 * 1000,  // 10 minutes for poster maps
+  BOARD_SNAPSHOT_TTL: 5 * 60 * 1000,    // 5 minutes for board data
+};
 ```
 
 ### Sheet Names
