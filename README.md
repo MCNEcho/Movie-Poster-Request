@@ -2,7 +2,7 @@
 
 A Google Apps Script system for employee poster requests. It enforces a strict per-employee slot limit (default 7), prevents duplicate requests per poster, keeps a ledger for auditability, batches announcement emails, runs nightly backups, and optimizes read limits via a TTL cache.
 
-**👉 NEW: Comprehensive Guides Folder**
+** NEW: Comprehensive Guides Folder**
 
 For detailed, beginner-friendly tutorials on every aspect of the system, see the [**Guides folder**](Guides/README.md). Topics include:
 - Getting started with setup
