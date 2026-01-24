@@ -1,0 +1,3 @@
+Feature: Config flags for dedup rules (re-request after removal)
+Status: scaffold
+Notes: add CONFIG flags for dedup/cooldown and wire into submission validation; update docs and tests.
