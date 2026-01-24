@@ -39,7 +39,7 @@ const CONFIG = {
   MAX_ACTIVE: 7,
 
   // Deduplication configuration (Feature: Config flags for dedup rules)
-  ALLOW_REREQUEST_AFTER_REMOVAL: false, // Allow re-requesting a poster after removal
+  ALLOW_REREQUEST_AFTER_REMOVAL: true, // Allow re-requesting a poster after removal
   REREQUEST_COOLDOWN_DAYS: 0, // Days to wait before re-request (0 = immediate if ALLOW_REREQUEST_AFTER_REMOVAL is true)
 
   // Cache configuration (Task 2 - Performance Optimization)

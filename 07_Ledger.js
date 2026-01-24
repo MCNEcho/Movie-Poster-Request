@@ -31,7 +31,8 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
 
 /**
  * Check if an employee can request a specific poster based on dedup rules.
- * Respects CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL and CONFIG.REREQUEST_COOLDOWN_DAYS.
+ * Simplified logic: Only blocks if employee has ACTIVE request for this poster.
+ * Historical requests are ignored (allows immediate re-requests).
  * 
  * @param {string} empEmail - Employee email
  * @param {string} posterId - Poster ID
@@ -58,42 +59,7 @@ function canRequestPoster_(empEmail, posterId) {
     return { allowed: false, reason: 'duplicate (already active)' };
   }
   
-  // If re-requests after removal are not allowed, deny
-  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
-    return { allowed: false, reason: 'duplicate (historical)' };
-  }
-  
-  // Re-requests are allowed - check cooldown period
-  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
-    // Find the most recent removal timestamp
-    const removedRequests = requests.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.REMOVED);
-    
-    if (removedRequests.length > 0) {
-      // Get the most recent removal timestamp
-      let mostRecentRemoval = null;
-      removedRequests.forEach(r => {
-        const statusTs = r[COLS.REQUESTS.STATUS_TS - 1];
-        if (statusTs && (!mostRecentRemoval || statusTs > mostRecentRemoval)) {
-          mostRecentRemoval = statusTs;
-        }
-      });
-      
-      if (mostRecentRemoval) {
-        const now = now_();
-        const daysSinceRemoval = (now - mostRecentRemoval) / (1000 * 60 * 60 * 24);
-        
-        if (daysSinceRemoval < CONFIG.REREQUEST_COOLDOWN_DAYS) {
-          const daysRemaining = Math.ceil(CONFIG.REREQUEST_COOLDOWN_DAYS - daysSinceRemoval);
-          return { 
-            allowed: false, 
-            reason: `cooldown (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)` 
-          };
-        }
-      }
-    }
-  }
-  
-  // All checks passed - re-request is allowed
+  // No ACTIVE request - allowed (ignore historical requests)
   return { allowed: true, reason: '' };
 }
 
