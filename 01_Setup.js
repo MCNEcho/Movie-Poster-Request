@@ -76,8 +76,11 @@ function setupPosterSystem() {
     );
     
   } catch (err) {
+    // Critical errors at the function level (e.g., lock acquisition failure)
+    // Individual task errors are caught separately and logged, allowing setup to continue
     logError_(err, 'setupPosterSystem', 'Critical setup error', 'CRITICAL');
     SpreadsheetApp.getActive().toast('🚨 Setup failed - see logs', 'Critical Error', 5);
+    throw err;  // Re-throw for caller to handle
   } finally {
     lock.releaseLock();
   }

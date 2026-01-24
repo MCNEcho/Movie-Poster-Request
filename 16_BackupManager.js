@@ -138,7 +138,7 @@ function cleanupOldBackups_(folderId) {
     const folder = DriveApp.getFolderById(folderId);
     const files = folder.getFiles();
     const now = new Date();
-    const retentionDays = CONFIG.BACKUP.RETENTION_DAYS;
+    const retentionDays = (CONFIG.BACKUP && CONFIG.BACKUP.RETENTION_DAYS) || 30;
     const millisecondsPerDay = 24 * 60 * 60 * 1000;
     const cutoffDate = new Date(now.getTime() - (retentionDays * millisecondsPerDay));
     
@@ -188,12 +188,18 @@ function manualBackupTrigger() {
  * @returns {void}
  */
 function setupBackupTrigger() {
-  // Check if trigger already exists
+  // Check if trigger already exists for this function and schedule
   const existing = ScriptApp.getProjectTriggers();
-  const hasBackupTrigger = existing.some(t => t.getHandlerFunction() === 'performNightlyBackup');
+  const backupHour = (CONFIG.BACKUP && CONFIG.BACKUP.BACKUP_HOUR) || 2;
+  
+  // Check if a time-based trigger for this function already exists
+  const hasBackupTrigger = existing.some(t => {
+    if (t.getHandlerFunction() !== 'performNightlyBackup') return false;
+    const eventType = t.getEventType();
+    return eventType === ScriptApp.EventType.CLOCK;
+  });
   
   if (!hasBackupTrigger) {
-    const backupHour = CONFIG.BACKUP.BACKUP_HOUR;
     ScriptApp.newTrigger('performNightlyBackup')
       .timeBased()
       .atHour(backupHour)
