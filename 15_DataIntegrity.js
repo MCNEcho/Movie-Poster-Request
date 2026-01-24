@@ -406,7 +406,7 @@ function runDataIntegrityChecksMenu() {
  */
 function notifyAdminOfAutoRepair_(checkType, issuesFixed, details) {
   try {
-    const adminEmail = Session.getActiveUser().getEmail();
+    const adminEmail = CONFIG.ADMIN_EMAIL || Session.getActiveUser().getEmail();
     const subject = `[AUTO-REPAIR] Poster System Data Integrity: ${checkType}`;
     const body = [
       'The Poster Request System automatically repaired data integrity issues:',

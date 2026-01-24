@@ -1,5 +1,20 @@
 /** 05_Ledger.gs **/
 
+/**
+ * Convert a value to timestamp in milliseconds.
+ * @param {Date|string|number} value - Date value
+ * @returns {number} Timestamp in milliseconds
+ */
+function getTimestamp_(value) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  return new Date(value).getTime();
+}
+
 function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);
 }
@@ -76,14 +91,14 @@ function canRequestPoster_(empEmail, posterId) {
         statusTs: r[COLS.REQUESTS.STATUS_TS - 1]
       }))
       .sort((a, b) => {
-        const aTime = a.statusTs instanceof Date ? a.statusTs.getTime() : new Date(a.statusTs).getTime();
-        const bTime = b.statusTs instanceof Date ? b.statusTs.getTime() : new Date(b.statusTs).getTime();
+        const aTime = getTimestamp_(a.statusTs);
+        const bTime = getTimestamp_(b.statusTs);
         return bTime - aTime; // Most recent first
       });
     
     if (sortedRequests.length > 0) {
       const mostRecentRemoval = sortedRequests[0].statusTs;
-      const removalTime = mostRecentRemoval instanceof Date ? mostRecentRemoval.getTime() : new Date(mostRecentRemoval).getTime();
+      const removalTime = getTimestamp_(mostRecentRemoval);
       const now = Date.now();
       const daysSinceRemoval = (now - removalTime) / (1000 * 60 * 60 * 24);
       

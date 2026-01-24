@@ -2,6 +2,9 @@
 
 const CONFIG = {
   TIMEZONE: 'America/Los_Angeles',
+  
+  // Admin Configuration
+  ADMIN_EMAIL: '',  // Leave blank to use Session.getActiveUser().getEmail()
 
   // Leave blank to auto-create form + store its ID in Script Properties.
   // If you WANT to force a specific form, paste its /d/<ID>/ here.
@@ -9,8 +12,8 @@ const CONFIG = {
 
   FORM_META: {
     TITLE: 'Poster Request Form - Pasco',
-    DESCRIPTION:
-      'You can only have your name on 7 posters at a time. If you already have all 7 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
+    // Description is generated dynamically - see getFormDescription_()
+    DESCRIPTION: '',
   },
 
   FORM: {

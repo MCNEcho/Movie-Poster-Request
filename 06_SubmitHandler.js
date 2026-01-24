@@ -229,7 +229,7 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
 
     // Check slot availability
     if (available <= 0) {
-      deniedAdds.push(`${show}: limit (7-slot)`);
+      deniedAdds.push(`${show}: limit (${CONFIG.MAX_ACTIVE}-slot)`);
       Logger.log(`[processAdditions] DENIED: "${show}" - no available slots`);
       continue;
     }

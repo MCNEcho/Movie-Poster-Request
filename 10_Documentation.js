@@ -20,7 +20,7 @@ function buildDocumentationTab() {
 
   r = writeDocSection_(sh, r, 'Quick Summary', [
     'Employees request posters through a Google Form. Requests are first-come-first-serve.',
-    'Employees can have up to 7 ACTIVE requests at a time (7-slot system).',
+    `Employees can have up to ${CONFIG.MAX_ACTIVE} ACTIVE requests at a time (${CONFIG.MAX_ACTIVE}-slot system).`,
     'If a submission includes Remove + Add, removals are applied first (freeing slots), then adds are processed.',
     `Dedupe policy: ${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL ? 'Employees can re-request posters after removing them' : 'Once removed, employees cannot re-request the same poster'}${CONFIG.REREQUEST_COOLDOWN_DAYS > 0 ? ` (after ${CONFIG.REREQUEST_COOLDOWN_DAYS} day cooldown)` : ''}.`,
     'Multiple employees can request the same poster - dedup is per employee, not per poster.',
@@ -36,11 +36,11 @@ function buildDocumentationTab() {
     'To request posters: check titles under "Request Posters (Add)" and submit.',
     'Optionally check "Subscribe to Notifications" to receive email announcements when new posters are added.',
     'To swap posters: select posters to remove AND posters to add in the same submission. Removals happen first.',
-    'Check the Employees tab to see your ACTIVE posters and slot count (used/7).',
+    `Check the Employees tab to see your ACTIVE posters and slot count (used/${CONFIG.MAX_ACTIVE}).`,
   ]);
 
   r = writeDocSection_(sh, r, 'System Rules', [
-    '1. Maximum Active Requests: Each employee can have up to 7 ACTIVE posters at a time.',
+    `1. Maximum Active Requests: Each employee can have up to ${CONFIG.MAX_ACTIVE} ACTIVE posters at a time.`,
     '2. Request Order: Removals are processed FIRST, then additions. This frees slots for new posters.',
     `3. Deduplication: ${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL ? 'Employees can re-request posters they previously removed' : 'Once an employee removes a poster, they cannot request it again'}${CONFIG.REREQUEST_COOLDOWN_DAYS > 0 ? ` (after ${CONFIG.REREQUEST_COOLDOWN_DAYS} day cooldown)` : ''}.`,
     '4. Multiple Employees: Multiple employees CAN request the same poster - there is no per-poster limit.',
