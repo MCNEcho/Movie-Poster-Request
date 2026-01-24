@@ -47,6 +47,14 @@ const CONFIG = {
   // Admin email for error notifications (Task 1 - Error Handling)
   ADMIN_EMAIL: '', // Leave blank to use spreadsheet owner
 
+  // Backup configuration (Task 8 - Nightly Data Backup)
+  BACKUP: {
+    RETENTION_DAYS: 30,           // Keep backups for 30 days
+    FORMAT: 'CSV',                // 'CSV' or 'SHEET' (Google Sheet copy)
+    FOLDER_NAME: 'Poster System Backups', // Drive folder name
+    ENABLED: true,                // Set to false to disable backups
+  },
+
   INVENTORY_LAST_UPDATED_CELL: 'J1',
 
   PRINT: {
@@ -67,6 +75,7 @@ const CONFIG = {
     ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
+    BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },
 
   // Announcement batching configuration

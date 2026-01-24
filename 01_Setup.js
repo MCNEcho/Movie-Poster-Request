@@ -20,6 +20,7 @@ function buildAdminMenu_() {
     .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
     .addItem('Send Announcement Now', 'sendAnnouncementNow')
     .addSeparator()
+    .addItem('Run Backup Now', 'manualBackupTrigger')
     .addSeparator()
     .addItem('Setup Employee View Spreadsheet', 'setupEmployeeViewSpreadsheet')
     .addItem('Sync Employee View Now', 'syncEmployeeViewSpreadsheet_')
@@ -92,6 +93,14 @@ function ensureTriggers_() {
     ScriptApp.newTrigger('processAnnouncementQueue')
       .timeBased()
       .everyMinutes(15)
+      .create();
+  }
+
+  if (!has('performNightlyBackup')) {
+    ScriptApp.newTrigger('performNightlyBackup')
+      .timeBased()
+      .atHour(2)  // Run at 2 AM
+      .everyDays(1)
       .create();
   }
 }
