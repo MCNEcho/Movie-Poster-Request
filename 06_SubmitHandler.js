@@ -164,7 +164,9 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
   const idToCurrent = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
   const activePosterMap = getActivePosterIdMap_();
 
-  Logger.log(`[processAdditions] Starting with ${addLabels.length} labels to add`);
+  const addQueue = Array.from(new Set((addLabels || []).map(lbl => String(lbl || '').trim()).filter(Boolean)));
+
+  Logger.log(`[processAdditions] Starting with ${addQueue.length} labels to add`);
   Logger.log(`[processAdditions] ID to Current Label map: ${JSON.stringify(idToCurrent)}`);
   Logger.log(`[processAdditions] Active Poster Map: ${JSON.stringify(activePosterMap)}`);
 
@@ -175,7 +177,7 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
   const deniedAdds = [];
   const addedAccepted = [];
 
-  for (const lbl of addLabels) {
+  for (const lbl of addQueue) {
     const pid = decode(lbl);
     const show = pid ? (idToCurrent[pid] || String(lbl).trim()) : String(lbl).trim();
 
@@ -204,7 +206,7 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
 
     // Check slot availability
     if (available <= 0) {
-      deniedAdds.push(`${show}: limit (5-slot)`);
+      deniedAdds.push(`${show}: limit (${CONFIG.MAX_ACTIVE}-slot)`);
       Logger.log(`[processAdditions] DENIED: "${show}" - no available slots`);
       continue;
     }

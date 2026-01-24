@@ -10,7 +10,7 @@ const CONFIG = {
   FORM_META: {
     TITLE: 'Poster Request Form - Pasco',
     DESCRIPTION:
-      'You can only have your name on 5 posters at a time. If you already have all 5 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
+      'You can only have your name on 7 posters at a time. If you already have all 7 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
   },
 
   FORM: {
@@ -36,7 +36,7 @@ const CONFIG = {
     DATA_INTEGRITY: 'Data Integrity', // script-created - Task 5
   },
 
-  MAX_ACTIVE: 5,
+  MAX_ACTIVE: 7,
 
   // Cache configuration (Task 2 - Performance Optimization)
   CACHE_TTL_MINUTES: 5, // Cache time-to-live in minutes
