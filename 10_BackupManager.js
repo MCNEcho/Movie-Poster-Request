@@ -31,7 +31,12 @@ function performNightlyBackup() {
     CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
       try {
         const result = backupSheet_(sheetName, folderId, timestamp);
-        backupResults.push(result.name);
+        if (result && result.name) {
+          backupResults.push(result.name);
+        } else {
+          Logger.log(`[BACKUP] Warning: backup returned invalid result for ${sheetName}`);
+          backupErrors.push({ sheet: sheetName, error: 'Invalid result structure' });
+        }
       } catch (sheetErr) {
         Logger.log(`[BACKUP] Failed to backup ${sheetName}: ${sheetErr.message}`);
         backupErrors.push({ sheet: sheetName, error: sheetErr.message });
