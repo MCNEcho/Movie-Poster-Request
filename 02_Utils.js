@@ -132,8 +132,5 @@ function getPostersWithLabels_() {
 function getActiveRequests_() {
   const sh = getSheet_(CONFIG.SHEETS.REQUESTS);
   const data = getNonEmptyData_(sh, 10);
-  return data.filter(r => {
-    const status = String(r[COLS.REQUESTS.STATUS - 1]);
-    return status === STATUS.ACTIVE;
-  });
+  return data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
 }

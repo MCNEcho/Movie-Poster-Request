@@ -71,7 +71,8 @@ function checkPendingRebuild() {
       Logger.log('[checkPendingRebuild] Executing pending rebuild');
       writeJsonProp_(CONFIG.PROPS.PENDING_REBUILD, false);
       rebuildBoards();
-      getProps_().setProperty(CONFIG.PROPS.LAST_BOARD_REBUILD_TS, String(new Date().getTime()));
+      const now = new Date().getTime();
+      getProps_().setProperty(CONFIG.PROPS.LAST_BOARD_REBUILD_TS, String(now));
     }
   } finally {
     // Always clean up triggers, even if rebuild fails
