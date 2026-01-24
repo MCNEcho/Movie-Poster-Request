@@ -47,6 +47,15 @@ const CONFIG = {
   // Admin email for error notifications (Task 1 - Error Handling)
   ADMIN_EMAIL: '', // Leave blank to use spreadsheet owner
 
+  // Bulk Simulator configuration (Task 5 - Bulk Submission Simulator)
+  BULK_SIMULATOR: {
+    MAX_SIMULATIONS: 100,        // Hard cap on number of simulations per run
+    DEFAULT_SIMULATIONS: 10,     // Default number if not specified
+    WARNING_THRESHOLD: 50,       // Warn user if N >= this value
+    MAX_ADD_PER_SIM: 3,         // Max posters to add in a single simulation
+    MAX_REMOVE_PER_SIM: 3,      // Max posters to remove in a single simulation
+  },
+
   INVENTORY_LAST_UPDATED_CELL: 'J1',
 
   PRINT: {

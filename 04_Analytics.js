@@ -21,6 +21,7 @@ function ensureAnalyticsSheet_() {
     'Execution Time (ms)',
     'Sheet Reads',
     'Cache Hits',
+    'Lock Wait Time (ms)',
     'Notes'
   ];
   return ensureSheetWithHeaders_(ss, CONFIG.SHEETS.ANALYTICS, headers);
@@ -58,6 +59,7 @@ function logSubmissionEvent_(submission) {
       submission.executionTime || 0,
       submission.sheetReads || 0,
       submission.cacheHits || 0,
+      submission.lockWaitTime || 0,
       submission.notes || ''
     ]);
   } catch (err) {
@@ -86,6 +88,7 @@ function logBoardRebuildEvent_(executionTime, sheetReads, cacheHits) {
       executionTime || 0,
       sheetReads || 0,
       cacheHits || 0,
+      0, // No lock wait for board rebuild
       'Automatic board update'
     ]);
   } catch (err) {
@@ -113,6 +116,7 @@ function logFormSyncEvent_(executionTime, posterCount) {
       executionTime || 0,
       0,
       0,
+      0, // No lock wait for form sync
       `Synced ${posterCount || 0} posters to form`
     ]);
   } catch (err) {
@@ -126,7 +130,7 @@ function logFormSyncEvent_(executionTime, posterCount) {
 function updateAnalyticsSummary_() {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
-    const data = getNonEmptyData_(analytics, 11);
+    const data = getNonEmptyData_(analytics, 12);
     if (data.length === 0) return;
 
     const summarySheet = getSheet_(CONFIG.SHEETS.ANALYTICS_SUMMARY);
@@ -137,6 +141,7 @@ function updateAnalyticsSummary_() {
     const totalSubmissions = data.filter(r => r[1] === 'FORM_SUBMISSION').length;
     const totalBoardRebuilds = data.filter(r => r[1] === 'BOARD_REBUILD').length;
     const totalFormSyncs = data.filter(r => r[1] === 'FORM_SYNC').length;
+    const totalBulkSims = data.filter(r => r[1] === 'BULK_SIMULATION').length;
 
     // Average execution times
     const submissions = data.filter(r => r[1] === 'FORM_SUBMISSION');
@@ -149,12 +154,21 @@ function updateAnalyticsSummary_() {
       ? rebuilds.reduce((sum, r) => sum + (Number(r[7]) || 0), 0) / rebuilds.length
       : 0;
 
+    const bulkSims = data.filter(r => r[1] === 'BULK_SIMULATION');
+    const avgBulkSimTime = bulkSims.length > 0
+      ? bulkSims.reduce((sum, r) => sum + (Number(r[7]) || 0), 0) / bulkSims.length
+      : 0;
+
     // Sheet read stats
     const totalSheetReads = data.reduce((sum, r) => sum + (Number(r[8]) || 0), 0);
     const totalCacheHits = data.reduce((sum, r) => sum + (Number(r[9]) || 0), 0);
     const cacheHitRate = (totalSheetReads + totalCacheHits) > 0
       ? ((totalCacheHits / (totalSheetReads + totalCacheHits)) * 100).toFixed(1)
       : 0;
+
+    // Lock wait time stats
+    const totalLockWaitTime = data.reduce((sum, r) => sum + (Number(r[10]) || 0), 0);
+    const avgLockWaitTime = data.length > 0 ? (totalLockWaitTime / data.length).toFixed(0) : 0;
 
     // Unique employees
     const uniqueEmployees = new Set(
@@ -166,11 +180,15 @@ function updateAnalyticsSummary_() {
     summarySheet.appendRow(['Total Form Submissions', 'All Time', totalSubmissions, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Total Board Rebuilds', 'All Time', totalBoardRebuilds, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Total Form Syncs', 'All Time', totalFormSyncs, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
+    summarySheet.appendRow(['Total Bulk Simulations', 'All Time', totalBulkSims, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Avg Submission Time (ms)', 'Last Period', avgSubmissionTime.toFixed(0), fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Avg Board Rebuild Time (ms)', 'Last Period', avgRebuildTime.toFixed(0), fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
+    summarySheet.appendRow(['Avg Bulk Simulation Time (ms)', 'Last Period', avgBulkSimTime.toFixed(0), fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Total Sheet Reads', 'All Time', totalSheetReads, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Total Cache Hits', 'All Time', totalCacheHits, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Cache Hit Rate (%)', 'All Time', cacheHitRate, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
+    summarySheet.appendRow(['Total Lock Wait Time (ms)', 'All Time', totalLockWaitTime, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
+    summarySheet.appendRow(['Avg Lock Wait Time (ms)', 'All Time', avgLockWaitTime, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
     summarySheet.appendRow(['Unique Employees', 'All Time', uniqueEmployees, fmtDate_(now_(), CONFIG.DATE_FORMAT)]);
 
   } catch (err) {
@@ -312,7 +330,7 @@ For detailed metrics, see the Analytics Summary sheet.
 function archiveOldAnalytics_() {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
-    const data = getNonEmptyData_(analytics, 11);
+    const data = getNonEmptyData_(analytics, 12);
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -337,5 +355,35 @@ function archiveOldAnalytics_() {
     }
   } catch (err) {
     Logger.log(`[WARN] Failed to archive old analytics: ${err.message}`);
+  }
+}
+
+/**
+ * Log a bulk simulation event
+ * @param {object} simulationMetrics - Simulation metrics
+ */
+function logBulkSimulationEvent_(simulationMetrics) {
+  try {
+    const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
+    
+    analytics.appendRow([
+      fmtDate_(now_(), CONFIG.DATE_FORMAT),
+      'BULK_SIMULATION',
+      '',
+      '',
+      simulationMetrics.totalAdds || 0,
+      simulationMetrics.totalRemoves || 0,
+      simulationMetrics.dryRun ? 'DRY_RUN' : 'COMPLETE',
+      simulationMetrics.totalExecutionTime || 0,
+      simulationMetrics.totalSheetReads || 0,
+      simulationMetrics.totalCacheHits || 0,
+      simulationMetrics.totalLockWaitTime || 0,
+      `N=${simulationMetrics.simulationCount}, Avg=${simulationMetrics.avgExecutionTime}ms, Errors=${simulationMetrics.errorCount}`
+    ]);
+    
+    // Update summary after bulk simulation
+    updateAnalyticsSummary_();
+  } catch (err) {
+    Logger.log(`[WARN] Failed to log bulk simulation event: ${err.message}`);
   }
 }
