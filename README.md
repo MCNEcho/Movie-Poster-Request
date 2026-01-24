@@ -52,10 +52,19 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 - **Auto-Sync** - Updates automatically with new requests
 
 ### Admin Tools
-- **Admin Menu** - 12 easy-to-click management buttons
+- **Admin Menu** - 13 easy-to-click management buttons
 - **Manual Entry** - Add historical requests for migration
 - **Repair Function** - One-click system recovery
 - **Complete Logging** - Request Order sheet shows all submissions
+- **Analytics & Monitoring** - Track system performance and usage
+- **Bulk Simulator** - Stress-test system with N randomized submissions
+
+### Analytics & Performance
+- **Performance Metrics** - Track execution time, sheet reads, cache hits, lock waits
+- **Analytics Sheet** - Detailed event logging with timestamps
+- **Analytics Summary** - Aggregated metrics including cache hit rate, avg times
+- **Bulk Load Testing** - Simulate multiple submissions to measure quota usage
+- **System Health** - Monitor anomalies and unusual patterns
 
 ## 🚀 Quick Start
 
@@ -407,18 +416,34 @@ Click **"🎬 Poster System"** in menu bar to see:
 - Sends immediately (doesn't wait 15 minutes)
 - Good for urgent announcements
 
-### 10. Setup Employee View Spreadsheet
+### 10. Run Bulk Submission Simulator
+- **NEW**: Stress-test the system with randomized submissions
+- Simulates N submissions with random add/remove poster selections
+- Tracks performance metrics: execution time, sheet reads, cache hits, lock waits
+- **Dry-run mode**: Test without modifying data (recommended first)
+- **Live mode**: Actually processes submissions
+- Safety guardrails:
+  - Hard cap at 100 simulations per run
+  - Warning prompt for N >= 50 in live mode
+- Results logged to Analytics sheet
+- Use to:
+  - Test system under load
+  - Measure performance with different N values
+  - Validate quota usage before production stress
+  - Generate sample data for testing
+
+### 11. Setup Employee View Spreadsheet
 - Creates separate read-only spreadsheet
 - One-time setup only
 - Copies Main and Employees sheets
 - Can be safely shared with all employees
 
-### 11. Sync Employee View Now
+### 12. Sync Employee View Now
 - Manually update employee view spreadsheet
 - Useful if auto-sync is delayed
 - Clears old data and copies fresh
 
-### 12. Show Employee View Link
+### 13. Show Employee View Link
 - Displays URL of employee view spreadsheet
 - Easy to copy and share
 - Updates automatically in Print Out sheet
@@ -585,7 +610,9 @@ poster-request-system/
 ├── 00_Config.js                 # Configuration & constants
 ├── 01_Setup.js                  # Setup & initialization
 ├── 02_Utils.js                  # Utility functions
+├── 02A_CacheManager.js          # Caching layer for performance
 ├── 03_FormManager.js            # Form creation & management
+├── 04_Analytics.js              # Analytics & logging
 ├── 04_SyncForm.js               # Form option syncing
 ├── 05_Ledger.js                 # Request ledger queries
 ├── 06_SubmitHandler.js          # Form submission processing
@@ -596,7 +623,11 @@ poster-request-system/
 ├── 11_CustomAnnouncements.js    # Custom message handling
 ├── 12_PrintSelection.js         # Print area preparation
 ├── 13_EmployeeViewSync.js       # Employee view spreadsheet sync
-├── 99_Debugging.js              # Debug utilities & logging
+├── 14_ManualRequestEntry.js     # Manual request entry dialog
+├── 15_DataIntegrity.js          # Data integrity checks
+├── 16_BulkSimulator.js          # Bulk submission simulator (NEW)
+├── 99_Debuging.js               # Debug utilities & logging
+├── 99_ErrorHandler.js           # Error handling & logging
 ├── appsscript.json              # Google Apps Script manifest
 ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
 └── README.md                    # This file
@@ -608,6 +639,19 @@ poster-request-system/
 - `handleFormSubmit()` - Processes form submissions
 - `handleSheetEdit()` - Handles sheet changes
 - `processAnnouncementQueue()` - Sends emails every 15 min
+
+### Analytics & Monitoring (NEW)
+- `logSubmissionEvent_()` - Log form submission metrics
+- `logBulkSimulationEvent_()` - Log bulk simulation results
+- `updateAnalyticsSummary_()` - Update aggregated metrics
+- `getCacheStats_()` - Get cache hit rates and performance
+
+### Bulk Simulator (NEW)
+- `runBulkSimulator()` - Main simulator function with N parameter and dry-run mode
+- `generateTestEmployee_()` - Create randomized test employees
+- `generateRandomSubmissionData_()` - Generate random add/remove sets
+- `simulateSingleSubmission_()` - Simulate one submission with metrics tracking
+- `showBulkSimulatorDialog()` - Display admin dialog UI
 
 ### Form Processing
 - `processSubmission_()` - Main submission processor
