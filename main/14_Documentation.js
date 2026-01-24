@@ -85,6 +85,12 @@ function buildDocumentationTab() {
     '📋 Show Employee View Link: Displays URL of employee-view spreadsheet (share this with employees).',
   ]);
 
+  r = writeDocSection_(sh, r, 'System Health & Links', getSystemHealthSection_());
+
+  r++;
+  r = writeDocFormLink_(sh, r);
+
+  r++;
   r = writeDocSection_(sh, r, 'Troubleshooting', [
     'Poster not in Add list: ensure Movie Posters Active? TRUE and Title + Release Date filled; then run Sync Form Options.',
     'No Remove options: only posters with ACTIVE requests appear there.',
@@ -163,4 +169,103 @@ function getDedupRuleDescription_() {
   }
   
   return '3. Deduplication: You can request the same poster again immediately after removing it. No waiting period.';
+}
+
+/**
+ * Generate system health section for documentation
+ */
+function getSystemHealthSection_() {
+  try {
+    const health = collectHealthData_();
+    
+    if (!health || !health.triggers) {
+      return [
+        'System Health: Data loading...',
+        'Click "Refresh Documentation" to refresh this section.'
+      ];
+    }
+    
+    const lines = [];
+    
+    // Triggers
+    lines.push(`Triggers Installed: ${health.triggers.triggersInstalled || '?'} (${health.triggers.status || 'UNKNOWN'})`);
+    if (health.triggers.details) {
+      lines.push(`  • Form Submissions: ${health.triggers.details.formSubmit.installed ? '✅' : '❌'}`);
+      lines.push(`  • Sheet Edits: ${health.triggers.details.sheetEdit.installed ? '✅' : '❌'}`);
+      lines.push(`  • Announcements: ${health.triggers.details.announcementQueue.installed ? '✅' : '❌'}`);
+    }
+    
+    // Cache
+    if (health.cache) {
+      lines.push(`Cache Health: ${health.cache.validCaches || '?'}/${health.cache.totalCaches || '?'} valid (${health.cache.status || 'UNKNOWN'})`);
+    }
+    
+    // Errors
+    if (health.lastError) {
+      if (health.lastError.status === 'HEALTHY') {
+        lines.push(`Last Error: None (✅ System clean)`);
+      } else if (health.lastError.error && health.lastError.error.includes('Missing sheet')) {
+        lines.push(`Last Error: Error Log sheet not yet created (will be created on first error)`);
+      } else {
+        lines.push(`Last Error: ${health.lastError.errorType || 'Unknown'} - ${health.lastError.message || 'No details'}`);
+        if (health.lastError.ageInHours) {
+          lines.push(`  Logged: ${health.lastError.ageInHours} hours ago`);
+        }
+        lines.push(`  Status: ${health.lastError.resolved ? 'Resolved' : 'UNRESOLVED'}`);
+      }
+    }
+    
+    // Queue
+    if (health.queue) {
+      lines.push(`Announcement Queue: ${health.queue.queueSize || '0'} item${(health.queue.queueSize || 0) !== 1 ? 's' : ''} pending`);
+    }
+    
+    lines.push('');
+    lines.push('Click "Refresh Documentation" from admin menu to update this section.');
+    
+    return lines;
+  } catch (err) {
+    return [
+      `System Health: ${err.message}`,
+      '(Health data will refresh after first operations)'
+    ];
+  }
+}
+
+/**
+ * Write form edit link section
+ */
+function writeDocFormLink_(sh, r) {
+  const formId = getEffectiveFormId_();
+  
+  if (!formId) {
+    sh.getRange(r, 1).setValue('Form Link')
+      .setFontSize(13).setFontWeight('bold')
+      .setBackground('#cfe2f3');
+    r++;
+    sh.getRange(r, 1).setValue('Form not yet created. Run "Setup / Repair" to create it.');
+    r++;
+    sh.getRange(r, 1).setValue('');
+    return r + 1;
+  }
+  
+  const formUrl = `https://docs.google.com/forms/d/${formId}/edit`;
+  
+  sh.getRange(r, 1).setValue('Form Link')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#cfe2f3');
+  r++;
+  
+  const linkText = 'Click here to edit the Poster Request Form';
+  const richText = SpreadsheetApp.newRichTextValue()
+    .setText(linkText)
+    .setLinkUrl(0, linkText.length, formUrl)
+    .build();
+  
+  sh.getRange(r, 1).setRichTextValue(richText);
+  
+  r++;
+  
+  sh.getRange(r, 1).setValue('');
+  return r + 1;
 }

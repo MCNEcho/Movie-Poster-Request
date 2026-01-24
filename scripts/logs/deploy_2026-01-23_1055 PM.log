@@ -1,0 +1,23 @@
+ 
+===== Movie Poster Request - Deploy Log ===== 
+Date: 2026-01-23 Time: 1055 PM 
+============================================== 
+ 
+[Step 1] Checking dependencies... 
+[Dependencies OK] 
+ 
+[Step 2] Script ID entered: 1X1xMzifQou79K33mlbhvdPHWL6C576JN2-qgUUqV0ydFp4HtxdkPeq8Q 
+ 
+ 
+[Step 3] Creating .clasp.json and pushing code... 
+.clasp.json already exists - backing up 
+Creating .clasp.json... 
+.clasp.json created successfully 
+.clasp.json contents: 
+{
+  "scriptId": "1X1xMzifQou79K33mlbhvdPHWL6C576JN2-qgUUqV0ydFp4HtxdkPeq8Q",
+  "rootDir": "main"
+}
+ 
+Checking main folder contents... 
+ERROR: main folder not found 

@@ -227,71 +227,13 @@ function collectHealthData_() {
 
 /**
  * Render health banner on MAIN sheet
- * Banner appears at the top in columns D-F to avoid disrupting board layout
+ * DEPRECATED: Health banner is now shown in Documentation tab instead.
+ * This function is kept for backwards compatibility but does not render.
  */
 function renderHealthBanner_() {
-  try {
-    const main = getSheet_(CONFIG.SHEETS.MAIN);
-    const healthData = collectHealthData_();
-    
-    // Use columns D-F for banner to avoid board layout in A-B
-    const bannerStartCol = 4; // Column D
-    const bannerWidth = 3;
-    
-    // Build banner content
-    const statusEmoji = {
-      'HEALTHY': '✅',
-      'WARNING': '⚠️',
-      'ERROR': '🚨'
-    };
-    
-    const bannerRows = [
-      ['System Health', statusEmoji[healthData.overall] || '❓', healthData.lastRefresh],
-      ['Triggers', statusEmoji[healthData.triggers.status] || '❓', `${healthData.triggers.triggersInstalled} installed`],
-      ['Cache', statusEmoji[healthData.cache.status] || '❓', `${healthData.cache.validCaches}/${healthData.cache.totalCaches} valid`],
-      ['Last Error', statusEmoji[healthData.errors.status] || '❓', healthData.errors.lastErrorTime ? healthData.errors.lastErrorTime : 'None'],
-      ['Announcements', statusEmoji[healthData.queue.status] || '❓', `${healthData.queue.queueSize} queued`]
-    ];
-    
-    // Write banner to sheet
-    const bannerRange = main.getRange(1, bannerStartCol, bannerRows.length, bannerWidth);
-    bannerRange.setValues(bannerRows);
-    
-    // Apply formatting
-    bannerRange.setBackground('#f0f0f0');
-    bannerRange.setBorder(true, true, true, true, true, true);
-    bannerRange.setFontWeight('normal');
-    
-    // Format header row
-    const headerRow = main.getRange(1, bannerStartCol, 1, bannerWidth);
-    headerRow.setBackground('#4a86e8');
-    headerRow.setFontColor('#ffffff');
-    headerRow.setFontWeight('bold');
-    
-    // Apply color coding to status indicators
-    for (let i = 1; i < bannerRows.length; i++) {
-      const statusCell = main.getRange(i + 1, bannerStartCol + 1);
-      const status = [
-        healthData.triggers.status,
-        healthData.cache.status,
-        healthData.errors.status,
-        healthData.queue.status
-      ][i - 1];
-      
-      if (status === 'HEALTHY') {
-        statusCell.setBackground('#d9ead3');
-      } else if (status === 'WARNING') {
-        statusCell.setBackground('#fff2cc');
-      } else if (status === 'ERROR') {
-        statusCell.setBackground('#f4cccc');
-      }
-    }
-    
-    Logger.log('[HEALTH_BANNER] Banner rendered successfully');
-  } catch (err) {
-    Logger.log(`[ERROR] renderHealthBanner_: ${err.message}`);
-    // Don't throw - banner should fail gracefully
-  }
+  // Health banner rendering moved to Documentation tab via getSystemHealthSection_()
+  // This function is deprecated but kept to avoid breaking existing code
+  Logger.log('[HEALTH_BANNER] (Deprecated - health info now in Documentation tab)');
 }
 
 /**

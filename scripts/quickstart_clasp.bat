@@ -1,92 +1,213 @@
 @echo off
-setlocal ENABLEDELAYEDEXPANSION
+REM Movie Poster Request System - Apps Script Deployment Script
+REM This script deploys Google Apps Script code from /main folder to your Google Sheet
 
-REM Quickstart bootstrap for deploying Apps Script via clasp
-REM Requires Node.js, npm, and Google clasp
+setlocal enabledelayedexpansion
 
-echo Checking Node.js and npm...
-where node >nul 2>nul || (
-  echo Node.js not found. Please install Node.js from https://nodejs.org/
-  goto :end
+REM Navigate to the parent directory (project root)
+cd /d "%~dp0\.."
+
+REM Verify we're in the right place
+if not exist main (
+  echo ERROR: Cannot find 'main' folder
+  echo Current directory: %cd%
+  echo.
+  echo This script should be run from the project root directory.
+  echo Expected structure:
+  echo   project-root/
+  echo     ^- main/
+  echo     ^- scripts/
+  echo     ^- logs/
+  echo.
+  pause
+  exit /b 1
 )
-where npm >nul 2>nul || (
-  echo npm not found. Please install npm (bundled with Node.js).
-  goto :end
-)
 
-REM Check clasp availability
-where clasp >nul 2>nul || (
-  echo Installing Google clasp CLI globally...
-  npm install -g @google/clasp
+REM Create logs directory if it doesn't exist
+if not exist logs mkdir logs
+
+REM Create log file with timestamp
+for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%a-%%b)
+for /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a%%b)
+set logfile=logs\deploy_%mydate%_%mytime%.log
+
+echo. > "%logfile%"
+echo ===== Movie Poster Request - Deploy Log ===== >> "%logfile%"
+echo Date: %mydate% Time: %mytime% >> "%logfile%"
+echo ============================================== >> "%logfile%"
+echo. >> "%logfile%"
+
+REM ===== STEP 1: CHECK DEPENDENCIES =====
+echo ====================================
+echo Movie Poster Request - Deploy
+echo ====================================
+echo.
+echo [Log file: %logfile%]
+echo.
+echo Step 1: Checking dependencies...
+
+echo [Step 1] Checking dependencies... >> "%logfile%"
+
+where node >nul 2>nul
+if ERRORLEVEL 1 (
+  echo ERROR: Node.js not found
+  echo Please install from https://nodejs.org/
+  echo Node.js not found >> "%logfile%"
+  pause
+  exit /b 1
+)
+echo  - Node.js: OK
+
+where npm >nul 2>nul
+if ERRORLEVEL 1 (
+  echo ERROR: npm not found
+  echo npm not found >> "%logfile%"
+  pause
+  exit /b 1
+)
+echo  - npm: OK
+
+where clasp >nul 2>nul
+if ERRORLEVEL 1 (
+  echo.
+  echo Installing clasp...
+  call npm install -g @google/clasp
   if ERRORLEVEL 1 (
-    echo Failed to install clasp. Please install manually: npm install -g @google/clasp
-    goto :end
+    echo ERROR: Failed to install clasp >> "%logfile%"
+    echo ERROR: Failed to install clasp
+    pause
+    exit /b 1
   )
 )
+echo  - clasp: OK
 
-echo Logging into clasp (a browser window may open)...
-clasp login
-if ERRORLEVEL 1 (
-  echo clasp login failed. Please run "clasp login" manually and re-run this script.
-  goto :end
+echo [Dependencies OK] >> "%logfile%"
+echo. >> "%logfile%"
+
+REM ===== STEP 2: GET SCRIPT ID =====
+echo Step 2: Get your Apps Script Project ID
+echo.
+echo Instructions:
+echo  1. Go to your Google Sheet
+echo  2. Click "Extensions" menu
+echo  3. Click "Apps Script"
+echo  4. In the editor, click "Project Settings" (left sidebar)
+echo  5. Copy the "Script ID"
+echo  6. Paste it below
+echo.
+
+set /p scriptId=Paste Script ID: 
+
+if "%scriptId%"=="" (
+  echo ERROR: Script ID is required >> "%logfile%"
+  echo.
+  echo Script ID cannot be empty.
+  echo.
+  pause
+  exit /b 1
 )
+
+echo Script ID: %scriptId%
+echo [Step 2] Script ID entered: %scriptId% >> "%logfile%"
+echo. >> "%logfile%"
+
+REM ===== STEP 3: CREATE .clasp.json AND DEPLOY =====
+echo ====================================
+echo Deploying Code
+echo ====================================
+echo. >> "%logfile%"
+echo [Step 3] Creating .clasp.json and pushing code... >> "%logfile%"
+
+REM Check if .clasp.json already exists and back it up
+if exist .clasp.json (
+  echo .clasp.json already exists - backing up >> "%logfile%"
+  move /Y .clasp.json .clasp.json.bak >nul 2>&1
+)
+
+REM Create .clasp.json with Script ID and rootDir
+echo Creating .clasp.json... >> "%logfile%"
+(
+  echo {
+  echo   "scriptId": "%scriptId%",
+  echo   "rootDir": "main"
+  echo }
+) > .clasp.json
+
+if not exist .clasp.json (
+  echo ERROR: Failed to create .clasp.json >> "%logfile%"
+  echo.
+  echo ERROR: Could not create .clasp.json file
+  echo.
+  pause
+  exit /b 1
+)
+
+echo .clasp.json created successfully >> "%logfile%"
+echo .clasp.json contents: >> "%logfile%"
+type .clasp.json >> "%logfile%"
+echo. >> "%logfile%"
+
+REM Verify main folder exists with files
+echo Checking main folder contents... >> "%logfile%"
+if not exist main (
+  echo ERROR: main folder not found >> "%logfile%"
+  echo.
+  echo ERROR: main folder does not exist
+  echo.
+  pause
+  exit /b 1
+)
+
+dir main >> "%logfile%"
+echo. >> "%logfile%"
+
+REM Push the code
+echo Executing: clasp push -f >> "%logfile%"
+echo. >> "%logfile%"
 
 echo.
-echo Choose an option:
-echo   1) Create new Apps Script project bound to a new Google Sheet
-echo   2) Clone existing Apps Script project by Script ID
-set /p choice=Enter choice (1 or 2): 
+echo Pushing files...
 
-if "%choice%"=="1" goto :create
-if "%choice%"=="2" goto :clone
+REM Do the actual push and capture output
+clasp push -f >> "%logfile%" 2>&1
 
-echo Invalid choice.
-goto :end
-
-:create
-set /p title=Enter Sheet title (default: Poster Request System): 
-if "%title%"=="" set title=Poster Request System
-
-echo Creating new bound Sheets project: %title%
-clasp create --type sheets --title "%title%"
 if ERRORLEVEL 1 (
-  echo Failed to create project. Aborting.
-  goto :end
+  echo Warning: clasp returned an exit code >> "%logfile%"
+  echo. >> "%logfile%"
 )
 
-echo Pushing local code to Apps Script...
-clasp push
-if ERRORLEVEL 1 (
-  echo clasp push failed. Please fix errors and re-run.
-  goto :end
-)
+echo Pushed successfully at: %date% %time% >> "%logfile%"
+echo. >> "%logfile%"
 
-echo Done. Open the new Sheet, refresh, then run "Poster System -> Run Setup / Repair".
-goto :end
+REM Verify files were pushed by checking status
+echo Verifying upload... >> "%logfile%"
+clasp status >> "%logfile%" 2>&1
 
-:clone
-set /p sid=Enter existing Apps Script Script ID: 
-if "%sid%"=="" (
-  echo Script ID is required.
-  goto :end
-)
-
-echo Cloning Apps Script project %sid% ...
-clasp clone %sid%
-if ERRORLEVEL 1 (
-  echo Failed to clone project. Check the Script ID and try again.
-  goto :end
-)
-
-echo Pushing local code to Apps Script...
-clasp push
-if ERRORLEVEL 1 (
-  echo clasp push failed. Please fix errors and re-run.
-  goto :end
-)
-
-echo Done. Open the bound Sheet, refresh, then run "Poster System -> Run Setup / Repair".
+echo. >> "%logfile%"
+echo ===== Deployment Completed ===== >> "%logfile%"
 
 echo.
-:end
-endlocal
+echo.
+echo ====================================
+echo Deployment Complete!
+echo ====================================
+echo.
+echo Files have been pushed to Apps Script.
+echo.
+echo NEXT STEPS:
+echo.
+echo  1. Go back to your Google Sheet
+echo  2. Refresh the page (press F5)
+echo  3. Look for "Poster System" menu at the top
+echo  4. Click "Poster System" then "Run Setup / Repair"
+echo  5. Wait for setup to complete
+echo.
+echo If the menu doesn't appear:
+echo  - Try closing and reopening the Sheet
+echo  - Check Extensions ^> Apps Script for any errors
+echo.
+echo Log file saved to:
+echo %logfile%
+echo.
+pause
+exit /b 0
