@@ -291,6 +291,7 @@ function processIndividualAnnouncements_(queue, ids, recipients) {
 function substituteVariables_(template, variables) {
   let result = template;
   
+  // First, substitute provided variables
   Object.keys(variables).forEach(key => {
     const placeholder = `{{${key}}}`;
     const value = variables[key] !== undefined && variables[key] !== null 
@@ -298,6 +299,9 @@ function substituteVariables_(template, variables) {
       : '[N/A]'; // Fallback for missing data
     result = result.replaceAll(placeholder, value);
   });
+  
+  // Then, replace any remaining unsubstituted variables with fallback
+  result = result.replace(/\{\{[A-Z_]+\}\}/g, '[N/A]');
   
   return result;
 }
