@@ -1,4 +1,4 @@
-/** 04_SyncForm.gs **/
+/** 05_SyncForm.js **/
 
 function syncPostersToForm() {
   const lock = LockService.getScriptLock();

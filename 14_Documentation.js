@@ -1,4 +1,4 @@
-/** 10_Documentation.gs **/
+/** 14_Documentation.js **/
 
 function buildDocumentationTab() {
   const ss = SpreadsheetApp.getActive();

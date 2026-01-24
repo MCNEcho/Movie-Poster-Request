@@ -30,6 +30,6 @@ Inline admin health banner on MAIN sheet showing real-time system health indicat
 
 ## Integration Points
 - `01_Setup.js`: Menu item, onOpen, setup initialization
-- `07_Boards.js`: Auto-refresh after board rebuild
-- Uses existing functions from: `02A_CacheManager.js`, `99_ErrorHandler.js`, `04_Analytics.js`
+- `11_Boards.js`: Auto-refresh after board rebuild
+- Uses existing functions from: `02A_CacheManager.js`, `03_ErrorHandler.js`, `08_Analytics.js`
 

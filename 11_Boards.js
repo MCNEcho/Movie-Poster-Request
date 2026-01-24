@@ -1,4 +1,4 @@
-/** 07_Boards.gs **/
+/** 11_Boards.js **/
 
 function rebuildBoards() {
   buildMainBoard_();

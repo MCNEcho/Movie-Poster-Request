@@ -1,4 +1,4 @@
-/** 03_FormManager.gs **/
+/** 04_FormManager.js **/
 
 function getEffectiveFormId_() {
   const cfg = String(CONFIG.FORM_ID || '').trim();

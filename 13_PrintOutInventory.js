@@ -1,4 +1,4 @@
-/** 09_PrintOut_And_InventorySync.gs**/
+/** 13_PrintOutInventory.js **/
 
 function updateInventoryLastUpdated_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);

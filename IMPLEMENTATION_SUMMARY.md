@@ -40,7 +40,7 @@ Successfully enhanced the announcement system with batching, template variables,
 
 ### 2. ✅ Announcement Batching
 
-**Location:** `08_Announcements.js`
+**Location:** `17_Announcements.js`
 
 **Features:**
 - Configurable batch size (default: 5 posters per email)
@@ -66,7 +66,7 @@ CONFIG.ANNOUNCEMENT = {
 
 ### 3. ✅ Dry-Run Preview
 
-**Location:** `08_Announcements.js` - `previewPendingAnnouncement()`
+**Location:** `17_Announcements.js` - `previewPendingAnnouncement()`
 
 **Features:**
 - Shows fully rendered email before sending
@@ -82,7 +82,7 @@ CONFIG.ANNOUNCEMENT = {
 
 ### 4. ✅ Throttling and Backoff
 
-**Location:** `08_Announcements.js`
+**Location:** `17_Announcements.js`
 
 **Features:**
 - Email throttling between sends (configurable delay)
@@ -98,7 +98,7 @@ CONFIG.ANNOUNCEMENT = {
 
 ### 5. ✅ Analytics and Error Logging
 
-**Location:** `08_Announcements.js`, `11_CustomAnnouncements.js`
+**Location:** `17_Announcements.js`, `18_CustomAnnouncements.js`
 
 **Features:**
 - All announcement sends logged to Analytics sheet
@@ -117,11 +117,11 @@ Timestamp | Event Type         | Status         | Notes
 **Implementation:**
 - `logAnnouncementEvent_()` - Logs to Analytics
 - Uses existing `logError_()` for error tracking
-- Integrates with existing 04_Analytics.js module
+- Integrates with existing 08_Analytics.js module
 
 ### 6. ✅ Custom Announcements Enhancement
 
-**Location:** `11_CustomAnnouncements.js`
+**Location:** `18_CustomAnnouncements.js`
 
 **Features:**
 - Enhanced preview with variable substitution
@@ -144,7 +144,7 @@ Timestamp | Event Type         | Status         | Notes
    - Added CONFIG.TEMPLATES with three templates
    - All configuration centralized
 
-2. **08_Announcements.js** (+326 lines, -42 deleted)
+2. **17_Announcements.js** (+326 lines, -42 deleted)
    - Enhanced processAnnouncementQueue() with batching
    - Added dry-run preview generation
    - Added template variable substitution
@@ -152,7 +152,7 @@ Timestamp | Event Type         | Status         | Notes
    - Added retry and throttling logic
    - Added analytics logging
 
-3. **11_CustomAnnouncements.js** (+98 lines, -5 deleted)
+3. **18_CustomAnnouncements.js** (+98 lines, -5 deleted)
    - Enhanced preview with variable substitution
    - Added retry logic and throttling
    - Extended variable support
@@ -320,8 +320,8 @@ All settings can be adjusted in `00_Config.js`:
 
 ### Quick Links
 - Configuration: `00_Config.js` (lines 72-119)
-- Main Implementation: `08_Announcements.js` (lines 56-385)
-- Custom Announcements: `11_CustomAnnouncements.js` (lines 58-151)
+- Main Implementation: `17_Announcements.js` (lines 56-385)
+- Custom Announcements: `18_CustomAnnouncements.js` (lines 58-151)
 - Documentation: `ANNOUNCEMENT_BATCHING.md`
 
 ---
@@ -403,7 +403,7 @@ Successfully implemented a bulk submission simulator feature to stress-test the 
 
 ## Changes Made
 
-### 1. New File: 16_BulkSimulator.js
+### 1. New File: 20_BulkSimulator.js
 **Purpose**: Core simulator functionality
 **Key Functions**:
 - `runBulkSimulator(N, dryRun)` - Main simulator with safety guardrails
@@ -424,7 +424,7 @@ Successfully implemented a bulk submission simulator feature to stress-test the 
 - HTML dialog with real-time status updates
 - Integration with existing submission processing logic
 
-### 2. Modified: 04_Analytics.js
+### 2. Modified: 08_Analytics.js
 **Changes**:
 - Added `ANALYTICS_COLUMNS` constant (12 columns) for maintainability
 - Extended Analytics sheet header with "Lock Wait Time (ms)" column
@@ -528,11 +528,11 @@ Each simulation tracks:
 Modified Files (4):
 - 00_Config.js (added BULK_SIMULATOR config)
 - 01_Setup.js (added menu item)
-- 04_Analytics.js (added metrics tracking)
+- 08_Analytics.js (added metrics tracking)
 - README.md (added documentation)
 
 New Files (2):
-- 16_BulkSimulator.js (simulator implementation)
+- 20_BulkSimulator.js (simulator implementation)
 - BULK_SIMULATOR_GUIDE.md (usage guide)
 ```
 
@@ -627,7 +627,7 @@ Potential improvements not included in this implementation:
 ## Related Issues & PRs
 - Issue: #5 - Feature: Bulk submission simulator + quota/load metrics in Analytics
 - Branch: feature/bulk-simulator (renamed to copilot/add-bulk-submission-simulator)
-- Related Modules: 04_Analytics.js, 06_SubmitHandler.js, 01_Setup.js
+- Related Modules: 08_Analytics.js, 06_SubmitHandler.js, 01_Setup.js
 
 ## Deployment Notes
 

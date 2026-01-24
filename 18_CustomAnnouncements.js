@@ -1,4 +1,4 @@
-/** 11_CustomAnnouncements.gs **/
+/** 18_CustomAnnouncements.js **/
 
 /**
  * Queue a custom announcement (subject + body) using prompts.

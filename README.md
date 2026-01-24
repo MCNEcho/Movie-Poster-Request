@@ -126,17 +126,26 @@ clasp push
    - `00_Config.js`
    - `01_Setup.js`
    - `02_Utils.js`
-   - `03_FormManager.js`
-   - `04_SyncForm.js`
-   - `05_Ledger.js`
+   - `02A_CacheManager.js`
+   - `03_ErrorHandler.js`
+   - `04_FormManager.js`
+   - `05_SyncForm.js`
    - `06_SubmitHandler.js`
-   - `07_Boards.js`
-   - `08_Announcements.js`
-   - `09_PrintOutInventory.js`
-   - `10_Documentation.js`
-   - `11_CustomAnnouncements.js`
+   - `07_Ledger.js`
+   - `08_Analytics.js`
+   - `09_DataIntegrity.js`
+   - `10_BackupManager.js`
+   - `11_Boards.js`
    - `12_PrintSelection.js`
-   - `13_EmployeeViewSync.js`
+   - `13_PrintOutInventory.js`
+   - `14_Documentation.js`
+   - `15_EmployeeViewSync.js`
+   - `16_AdminHealthBanner.js`
+   - `17_Announcements.js`
+   - `18_CustomAnnouncements.js`
+   - `19_ManualRequestEntry.js`
+   - `20_BulkSimulator.js`
+   - `99_BackupTests.js`
    - `99_Debugging.js`
 4. Save the project
 
@@ -625,44 +634,49 @@ These are constants in `STATUS` object and shouldn't be changed.
 
 ```
 poster-request-system/
-├── 00_Config.js                 # Configuration & constants
-├── 01_Setup.js                  # Setup & initialization
-├── 02A_CacheManager.js          # Performance caching layer
-├── 02_Utils.js                  # Utility functions
-├── 02A_CacheManager.js          # Caching layer for performance
-├── 03_FormManager.js            # Form creation & management
-├── 04_Analytics.js              # Analytics tracking & monitoring
-├── 04_Analytics.js              # Analytics & logging
-├── 04_SyncForm.js               # Form option syncing
-├── 05_Ledger.js                 # Request ledger queries
-├── 06_SubmitHandler.js          # Form submission processing
-├── 07_Boards.js                 # Main & Employees board building
-├── 08_Announcements.js          # Email batching, templates & sending
-├── 09_PrintOutInventory.js      # Print layout generation
-├── 10_Documentation.js          # Documentation sheet building
-├── 11_CustomAnnouncements.js    # Custom message handling
-├── 12_PrintSelection.js         # Print area preparation
-├── 13_EmployeeViewSync.js       # Employee view spreadsheet sync
-├── 14_ManualRequestEntry.js     # Manual request entry tool
-├── 15_DataIntegrity.js          # Data validation & integrity checks
-├── 99_Debuging.js               # Debug utilities & logging
-├── 99_ErrorHandler.js           # Error handling & retry logic
-├── 14_ManualRequestEntry.js     # Manual request entry dialog
-├── 15_DataIntegrity.js          # Data integrity checks
-├── 16_BulkSimulator.js          # Bulk submission simulator (NEW)
-├── 99_Debuging.js               # Debug utilities & logging
-├── 99_ErrorHandler.js           # Error handling & logging
-├── 15_DataIntegrity.js          # Data validation & integrity checks
-├── 16_BackupManager.js          # Nightly backup to Google Drive (NEW)
-├── 99_BackupTests.js            # Backup testing suite (NEW)
-├── 99_Debugging.js              # Debug utilities & logging
-├── 99_ErrorHandler.js           # Error logging & handling
-├── 04_Analytics.js              # Analytics & monitoring
-├── 02A_CacheManager.js          # Performance caching
-├── appsscript.json              # Google Apps Script manifest
-├── ANNOUNCEMENT_BATCHING.md     # Announcement batching documentation
-├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
-├── BACKUP_TESTING_GUIDE.md      # Backup testing & verification (NEW)
+├── Core System (Execution & Config)
+│   ├── 00_Config.js                 # Configuration & constants
+│   ├── 01_Setup.js                  # Setup & initialization
+│   ├── 02_Utils.js                  # Utility functions
+│   ├── 02A_CacheManager.js          # Performance caching layer
+│   └── 03_ErrorHandler.js           # Error handling & logging
+│
+├── Form & Submission Processing
+│   ├── 04_FormManager.js            # Form creation & management
+│   ├── 05_SyncForm.js               # Form option syncing
+│   ├── 06_SubmitHandler.js          # Form submission processing
+│   └── 07_Ledger.js                 # Request ledger queries
+│
+├── Data Operations
+│   ├── 08_Analytics.js              # Analytics tracking & monitoring
+│   ├── 09_DataIntegrity.js          # Data validation & integrity checks
+│   └── 10_BackupManager.js          # Nightly backup to Google Drive
+│
+├── Display & UI
+│   ├── 11_Boards.js                 # Main & Employees board building
+│   ├── 12_PrintSelection.js         # Print area preparation
+│   ├── 13_PrintOutInventory.js      # Print layout generation
+│   ├── 14_Documentation.js          # Documentation sheet building
+│   ├── 15_EmployeeViewSync.js       # Employee view spreadsheet sync
+│   └── 16_AdminHealthBanner.js      # System health metrics display
+│
+├── Announcements & Notifications
+│   ├── 17_Announcements.js          # Email batching, templates & sending
+│   └── 18_CustomAnnouncements.js    # Custom message handling
+│
+├── Admin Tools & Utilities
+│   ├── 19_ManualRequestEntry.js     # Manual request entry dialog
+│   └── 20_BulkSimulator.js          # Bulk submission simulator
+│
+├── Testing & Debug
+│   ├── 99_BackupTests.js            # Backup testing suite
+│   └── 99_Debuging.js               # Debug utilities & logging
+│
+├── Configuration & Documentation
+│   ├── appsscript.json              # Google Apps Script manifest
+│   ├── ANNOUNCEMENT_BATCHING.md     # Announcement batching documentation
+│   ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
+│   └── BACKUP_TESTING_GUIDE.md      # Backup testing & verification
 ├── BACKUP_IMPLEMENTATION_SUMMARY.md  # Backup feature summary (NEW)
 └── README.md                    # This file
 ```

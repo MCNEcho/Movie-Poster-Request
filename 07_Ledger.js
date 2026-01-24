@@ -1,4 +1,4 @@
-/** 05_Ledger.gs **/
+/** 07_Ledger.js **/
 
 function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);
