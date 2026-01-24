@@ -267,3 +267,224 @@ All critical and high-priority issues have been addressed. The system now:
 - Is well-documented and maintainable
 
 The implementation is production-ready and backward compatible with existing deployments.
+
+---
+
+# Enhancement Implementation: Queued Rebuilds & Soft-Delete
+
+## Overview
+This document describes the implementation of two high-priority enhancements from Issue #26 to improve system reliability, performance, and data safety.
+
+## Enhancements Implemented
+
+### ✅ Enhancement #1: Queued Board Rebuilds with Debounce
+**Status:** Complete
+
+**Problem:**
+- Multiple rapid form submissions could trigger simultaneous board rebuilds
+- Lock contention when rebuilds overlap
+- Potential race conditions on board data
+- Performance degradation under high load
+
+**Solution:**
+Implemented a debounce mechanism that prevents rebuilds within 30 seconds of the last rebuild:
+
+1. **Added Configuration:**
+   ```javascript
+   // 00_Config.js
+   CONFIG.REBUILD_DEBOUNCE_MS = 30000;  // 30 seconds minimum between rebuilds
+   
+   CONFIG.PROPS.LAST_BOARD_REBUILD_TS = 'LAST_BOARD_REBUILD_TS';
+   CONFIG.PROPS.PENDING_REBUILD = 'PENDING_REBUILD';
+   ```
+
+2. **Implemented Queue Functions:**
+   - `requestBoardRebuild()` - Check time since last rebuild, either rebuild now or queue for later
+   - `checkPendingRebuild()` - Time-based trigger function that executes pending rebuilds
+   - `cleanupRebuildTriggers_()` - Prevent accumulation of orphaned triggers
+
+3. **Updated Call Sites:**
+   - `06_SubmitHandler.js` - Form submissions now use `requestBoardRebuild()`
+   - `14_ManualRequestEntry.js` - Manual request entry uses `requestBoardRebuild()`
+   - `08_Announcements.js` - Movie Posters sheet edits use `requestBoardRebuild()`
+   - **Kept direct rebuilds** for:
+     - Setup/repair operations (admin-initiated)
+     - Debug/cleanup functions
+     - Menu "Rebuild Boards Now" (user expects immediate action)
+
+**Impact:**
+- Smoother performance under bulk submissions
+- No lock contention from concurrent rebuilds
+- Automatic trigger cleanup prevents resource leaks
+- Graceful degradation if trigger creation fails
+
+### ✅ Enhancement #5: Soft-Delete for Archived Requests
+**Status:** Complete
+
+**Problem:**
+- Original proposal was hard-delete when poster removed from inventory
+- Hard-delete causes data loss and breaks historical queries
+
+**Solution:**
+Implemented soft-delete with new archived status:
+
+1. **Added New Status:**
+   ```javascript
+   // 00_Config.js
+   const STATUS = {
+     ACTIVE: 'ACTIVE',
+     REMOVED: 'REMOVED',
+     ARCHIVED_POSTER_DELETED: 'ARCHIVED_POSTER_DELETED',  // NEW
+   };
+   ```
+
+2. **Updated Data Integrity Check:**
+   - `checkOrphanedRequests_()` now marks orphaned requests as `ARCHIVED_POSTER_DELETED` instead of `REMOVED`
+   - Preserves data for historical auditing
+   - Auto-repair notification explains what was archived
+
+3. **Updated Query Functions:**
+   - `getActiveRequests_()` explicitly filters to only `STATUS.ACTIVE`
+   - All existing queries already filtered to ACTIVE status, so archived requests automatically excluded
+   - Board building functions only show active requests
+   - Form sync only shows posters with active requests
+
+**Impact:**
+- No data loss when posters are removed from inventory
+- Complete historical audit trail preserved
+- Archived requests excluded from all active views
+- Can be queried later for analytics/reporting
+- Safer than hard-delete approach
+
+**Pros:**
+- No data loss
+- Historical queries still work
+- Can audit what was deleted and when
+- Can restore if needed
+
+**Cons:**
+- Requests sheet grows over time (minimal - text data is small)
+- Queries need to filter one more status (negligible performance impact)
+
+## Configuration Changes
+
+### New Configuration Constants
+```javascript
+// 00_Config.js
+
+// Board Rebuild Queue Configuration
+REBUILD_DEBOUNCE_MS: 30000,  // 30 seconds minimum between rebuilds
+
+// New Script Properties
+PROPS: {
+  // ... existing props ...
+  LAST_BOARD_REBUILD_TS: 'LAST_BOARD_REBUILD_TS',
+  PENDING_REBUILD: 'PENDING_REBUILD',
+}
+
+// New Status
+const STATUS = {
+  ACTIVE: 'ACTIVE',
+  REMOVED: 'REMOVED',
+  ARCHIVED_POSTER_DELETED: 'ARCHIVED_POSTER_DELETED',
+};
+```
+
+## New Functions Added
+
+### 07_Boards.js
+- `requestBoardRebuild()` - Smart rebuild with debounce mechanism
+- `checkPendingRebuild()` - Time-based trigger handler for queued rebuilds
+- `cleanupRebuildTriggers_()` - Helper to prevent orphaned triggers
+
+## Files Modified
+1. `00_Config.js` - Added ARCHIVED_POSTER_DELETED status, REBUILD_DEBOUNCE_MS config, rebuild queue properties
+2. `07_Boards.js` - Added queued rebuild functions
+3. `06_SubmitHandler.js` - Changed to use requestBoardRebuild()
+4. `14_ManualRequestEntry.js` - Changed to use requestBoardRebuild()
+5. `08_Announcements.js` - Changed to use requestBoardRebuild()
+6. `15_DataIntegrity.js` - Updated orphaned request handling to use ARCHIVED_POSTER_DELETED
+7. `02_Utils.js` - Added explicit filtering documentation in getActiveRequests_()
+
+## Testing Requirements
+
+### Functional Tests
+1. ⚠️ **Test rapid form submissions:**
+   - Submit 3+ forms within 10 seconds
+   - Expected: First rebuild happens immediately, subsequent queued for 30 seconds
+   - Verify: Only one rebuild trigger active at a time
+
+2. ⚠️ **Test poster removal (soft-delete):**
+   - Create active request for poster
+   - Set poster Active=FALSE in Movie Posters sheet
+   - Run data integrity check with auto-fix
+   - Expected: Request status changes to ARCHIVED_POSTER_DELETED
+   - Verify: Request no longer appears in Main/Employees boards
+   - Verify: Request still visible in Requests sheet for audit
+
+3. ⚠️ **Test board filtering:**
+   - Have mix of ACTIVE, REMOVED, and ARCHIVED_POSTER_DELETED requests
+   - Rebuild boards
+   - Expected: Only ACTIVE requests shown
+   - Verify: Archived requests excluded from counts
+
+4. ⚠️ **Test trigger cleanup:**
+   - Queue rebuild, then queue another immediately
+   - Expected: Old trigger cleaned up, only one trigger exists
+   - Verify: No orphaned triggers accumulate
+
+### Performance Tests
+1. ⚠️ **Measure rebuild frequency:**
+   - Submit 10 forms in quick succession
+   - Expected: Rebuilds happen at most once per 30 seconds
+   - Verify: System remains responsive
+
+2. ⚠️ **Test concurrent submissions:**
+   - If possible, submit forms from multiple accounts simultaneously
+   - Expected: No errors, all submissions processed
+   - Verify: Boards eventually consistent
+
+## Breaking Changes
+**None.** All changes are backward compatible:
+- Existing ACTIVE and REMOVED statuses work as before
+- New ARCHIVED_POSTER_DELETED status is additive
+- Queued rebuilds are transparent to users (rebuilds still happen, just optimized)
+- Manual "Rebuild Boards Now" still does immediate rebuild
+
+## Migration Notes
+No migration required. The system will work with existing data:
+1. Existing requests with ACTIVE or REMOVED status work as before
+2. ARCHIVED_POSTER_DELETED status only applies to new orphaned requests
+3. Rebuild queue starts empty, builds on first use
+4. Script properties auto-created on first rebuild request
+
+## Future Considerations
+
+### Potential Future Enhancements (Not Implemented)
+1. **Adjustable debounce period:** Make REBUILD_DEBOUNCE_MS runtime-configurable
+2. **Hard-delete option:** Add config flag to allow hard-delete vs soft-delete
+3. **Archive cleanup:** Add periodic cleanup of old archived requests (e.g., older than 1 year)
+4. **Priority rebuilds:** Allow admin to force immediate rebuild even within debounce period
+5. **Rebuild analytics:** Track rebuild frequency and performance metrics
+
+### Related Issues
+- Issue #26 - Original enhancement request
+- Issue #23 - Request lifecycle (auto-approval)
+- Issue #22 - UI/UX refinements
+- Issue #25 - Code organization
+
+## Verification Steps
+1. ✅ Code compiles without errors
+2. ✅ Code review completed - all feedback addressed
+3. ✅ Trigger cleanup improved to prevent orphaned triggers
+4. ✅ Error handling added for trigger creation failures
+5. ⚠️ Manual testing recommended for rebuild queue behavior
+6. ⚠️ Manual testing recommended for soft-delete functionality
+
+## Conclusion
+Both high-priority enhancements have been successfully implemented:
+
+1. **Queued Board Rebuilds:** Improves performance and prevents lock contention under high load
+2. **Soft-Delete:** Preserves data integrity and historical audit trail
+
+The implementation is production-ready, backward compatible, and includes proper error handling and cleanup mechanisms.
