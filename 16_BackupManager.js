@@ -128,7 +128,7 @@ function getOrCreateBackupFolder_() {
 }
 
 /**
- * Clean up backups older than retention period (30 days).
+ * Clean up backups older than retention period (configurable, default 30 days).
  * 
  * @param {string} folderId - ID of the backup folder
  * @returns {void}
@@ -138,8 +138,9 @@ function cleanupOldBackups_(folderId) {
     const folder = DriveApp.getFolderById(folderId);
     const files = folder.getFiles();
     const now = new Date();
-    const retentionDays = 30;
-    const cutoffDate = new Date(now.getTime() - (retentionDays * 24 * 60 * 60 * 1000));
+    const retentionDays = CONFIG.BACKUP.RETENTION_DAYS;
+    const millisecondsPerDay = 24 * 60 * 60 * 1000;
+    const cutoffDate = new Date(now.getTime() - (retentionDays * millisecondsPerDay));
     
     let deletedCount = 0;
     while (files.hasNext()) {
@@ -182,7 +183,7 @@ function manualBackupTrigger() {
 
 /**
  * Setup time-based trigger for nightly backups.
- * Run this once to schedule automatic backups at 2 AM daily.
+ * Run this once to schedule automatic backups at configured hour (default 2 AM) daily.
  * 
  * @returns {void}
  */
@@ -192,13 +193,14 @@ function setupBackupTrigger() {
   const hasBackupTrigger = existing.some(t => t.getHandlerFunction() === 'performNightlyBackup');
   
   if (!hasBackupTrigger) {
+    const backupHour = CONFIG.BACKUP.BACKUP_HOUR;
     ScriptApp.newTrigger('performNightlyBackup')
       .timeBased()
-      .atHour(2)  // 2 AM
+      .atHour(backupHour)
       .everyDays(1)
       .create();
     
-    Logger.log('[setupBackupTrigger] Created nightly backup trigger');
+    Logger.log(`[setupBackupTrigger] Created nightly backup trigger at ${backupHour}:00`);
   } else {
     Logger.log('[setupBackupTrigger] Backup trigger already exists');
   }

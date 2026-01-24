@@ -35,7 +35,7 @@ function setupPosterSystem() {
   lock.waitLock(30000);
   try {
     const ss = SpreadsheetApp.getActive();
-    const startTime = new Date().getTime();
+    const startTime = Date.now();
     
     const tasks = [
       { name: 'Initializing sheets', fn: ensureSheetSchemas_ },
@@ -64,7 +64,7 @@ function setupPosterSystem() {
       }
     });
     
-    const executionTime = new Date().getTime() - startTime;
+    const executionTime = Date.now() - startTime;
     ss.toast(`✓ Setup complete! (${completed}/${tasks.length} tasks, ${executionTime}ms)`, 'Success', 5);
     
     logAnalyticsEvent_(

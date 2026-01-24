@@ -52,6 +52,12 @@ const CONFIG = {
     BOARD_SNAPSHOT_TTL: 5 * 60 * 1000,    // 5 minutes for board data
   },
 
+  // Backup Configuration
+  BACKUP: {
+    RETENTION_DAYS: 30,   // Keep backups for 30 days
+    BACKUP_HOUR: 2,       // Run backups at 2 AM (in configured timezone)
+  },
+
   INVENTORY_LAST_UPDATED_CELL: 'J1',
 
   PRINT: {
