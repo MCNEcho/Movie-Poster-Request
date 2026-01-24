@@ -132,10 +132,10 @@ function getLastErrorInfo_() {
     
     // Determine status based on error age and resolution
     let status = 'HEALTHY';
-    if (!isResolved && ageInHours < 24) {
-      status = 'WARNING';
-    } else if (!isResolved && ageInHours < 1) {
+    if (!isResolved && ageInHours < 1) {
       status = 'ERROR';
+    } else if (!isResolved && ageInHours < 24) {
+      status = 'WARNING';
     }
     
     return {
