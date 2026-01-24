@@ -167,6 +167,8 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs) {
  * This is a soft-delete approach that preserves historical data.
  * Only archives ACTIVE requests - REMOVED requests are already removed by users.
  * 
+ * IMPORTANT: This function immediately writes changes to the spreadsheet and cannot be undone.
+ * 
  * @param {string} posterId - Poster ID that was deleted
  * @returns {number} Number of requests archived
  */

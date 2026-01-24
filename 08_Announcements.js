@@ -45,7 +45,9 @@ function processMoviePostersEdit_(e) {
   const closeQueue = r[COLS.MOVIE_POSTERS.CLOSE_QUEUE - 1] === true;
 
   // Check if poster was effectively deleted (poster ID exists but both title and release are empty)
-  // This indicates intentional deletion rather than temporary editing
+  // This indicates intentional deletion rather than temporary editing.
+  // Note: If users clear both fields while editing, archival may occur prematurely.
+  // To avoid this, edit one field at a time or use the row delete operation.
   if (pid && !title && !release) {
     Logger.log(`[processMoviePostersEdit_] Poster ${pid} appears to have been deleted, archiving requests`);
     const archivedCount = archiveRequestsForPoster_(pid);
