@@ -5,29 +5,46 @@ function onOpen() {
 }
 
 function buildAdminMenu_() {
-  SpreadsheetApp.getUi()
-    .createMenu('Poster System')
-    .addItem('Prepare Print Area (Select & Print)', 'prepareAndSelectPrintArea')
-    .addItem('Run Setup / Repair', 'setupPosterSystem')
-    .addSeparator()
-    .addItem('Sync Form Options Now', 'syncPostersToForm')
-    .addItem('Rebuild Boards Now', 'rebuildBoards')
-    .addItem('Refresh Print Out', 'refreshPrintOut')
-    .addItem('Refresh Documentation', 'buildDocumentationTab')
-    .addSeparator()
-    .addItem('Manually Add Request (for migration)', 'showManualRequestDialog')
-    .addSeparator()
-    .addItem('Run Data Integrity Checks', 'runDataIntegrityChecksMenu')
-    .addSeparator()
-    .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
-    .addItem('Send Announcement Now', 'sendAnnouncementNow')
-    .addSeparator()
-    .addSeparator()
-    .addItem('Setup Employee View Spreadsheet', 'setupEmployeeViewSpreadsheet')
-    .addItem('Sync Employee View Now', 'syncEmployeeViewSpreadsheet_')
-    .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet')
-
-    .addToUi();
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('📋 Poster System');
+  
+  // Daily operations
+  menu.addSubMenu(
+    ui.createMenu('🔄 Daily Operations')
+      .addItem('Sync Form Options Now', 'syncPostersToForm')
+      .addItem('Rebuild Boards Now', 'rebuildBoards')
+      .addItem('Refresh Print Out', 'refreshPrintOut')
+      .addItem('Refresh Documentation', 'buildDocumentationTab')
+  );
+  
+  // Announcements
+  menu.addSubMenu(
+    ui.createMenu('📧 Announcements')
+      .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
+      .addItem('Send Announcement Now', 'sendAnnouncementNow')
+      .addSeparator()
+      .addItem('Queue Custom Announcement', 'queueCustomAnnouncement')
+      .addItem('Send Custom Announcement Now', 'sendCustomAnnouncementNow')
+  );
+  
+  // Admin tools
+  menu.addSubMenu(
+    ui.createMenu('🔧 Admin Tools')
+      .addItem('Prepare Print Area (Select & Print)', 'prepareAndSelectPrintArea')
+      .addItem('Manually Add Request', 'showManualRequestDialog')
+      .addItem('Run Data Integrity Check', 'runDataIntegrityChecksMenu')
+  );
+  
+  // Setup (rare)
+  menu.addSubMenu(
+    ui.createMenu('⚙️ Setup & Advanced')
+      .addItem('Run Setup / Repair', 'setupPosterSystem')
+      .addItem('Setup Employee View Spreadsheet', 'setupEmployeeViewSpreadsheet')
+      .addItem('Sync Employee View Now', 'syncEmployeeViewSpreadsheet_')
+      .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet')
+  );
+  
+  menu.addToUi();
 }
 
 function setupPosterSystem() {
