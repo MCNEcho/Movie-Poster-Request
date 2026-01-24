@@ -55,7 +55,8 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 - **Auto-Sync** - Updates automatically with new requests
 
 ### Admin Tools
-- **Admin Menu** - 13 easy-to-click management buttons
+- **Organized Admin Menu** - Streamlined menu with nested submenus (Reports, Print & Layout, Announcements, Advanced)
+- **Refresh All Button** - One-click to rebuild boards, sync form, and refresh health banner
 - **Manual Entry** - Add historical requests for migration
 - **Repair Function** - One-click system recovery
 - **Complete Logging** - Request Order sheet shows all submissions
@@ -383,97 +384,45 @@ If your submission is denied:
 
 ## 🎯 Admin Menu
 
-Click **"🎬 Poster System"** in menu bar to see:
+Click **"Poster System"** in menu bar to see the organized menu with submenus:
 
-### 1. Prepare Print Area (Select & Print)
-- Generates print-friendly sheet with movie list
-- Includes QR codes for Form and Employee View
-- Automatically selects best print area
-- Ready to print and post
+### Main Menu Items
 
-### 2. Run Setup / Repair
+#### 🔧 Run Setup / Repair
 - One-time: Initializes entire system
 - Fix: Repairs broken sheets or form
 - Creates missing triggers
 - Rebuilds everything from scratch
 
-### 3. Sync Form Options Now
-- Updates form with current active posters
-- Updates Remove list based on current requests
-- Runs automatically after submissions
-- Use if form seems out of sync
+#### 🔄 Refresh All (NEW!)
+- **One-click convenience button** that executes all 3 main refresh operations:
+  1. Rebuilds Main and Employees boards
+  2. Syncs form options
+  3. Refreshes health banner
+- Saves time vs running each refresh separately
+- Shows progress toasts for each step
 
-### 4. Rebuild Boards Now
-- Refreshes Main and Employees sheets
-- Pulls data fresh from Requests sheet
-- Clears orphaned rows
-- Useful if data looks wrong
+### 📊 Reports Submenu
+- **Rebuild Boards** - Refreshes Main and Employees sheets from Requests ledger
+- **Sync Form Options** - Updates form with current active posters
+- **Refresh Documentation** - Auto-generates Documentation sheet
+- **Refresh Health Banner** - Updates system health metrics display
 
-### 5. Refresh Print Out
-- Updates Print Out sheet with current posters
-- Refreshes movie list and inventory counts
-- Adds current form and employee view URLs
+### 🖨️ Print & Layout Submenu
+- **Prepare Print Area** - Generates print-friendly sheet with QR codes and auto-selects print area
+- **Refresh Print Out** - Updates Print Out sheet with current posters and inventory
 
-### 6. Refresh Documentation
-- Auto-generates Documentation sheet
-- Shows system rules
-- Explains all admin menu buttons
-- Employee-friendly guide
+### 📧 Announcements Submenu
+- **Preview Pending** - Shows draft of queued announcement email
+- **Send Now** - Manually trigger email to all subscribers (bypasses 15-minute timer)
 
-### 7. Manually Add Request (for migration)
-- Dialog to manually add historical requests
-- Useful when migrating from old system
-- Adds directly to Requests ledger
-- Shows what would be added before confirming
-
-### 8. Preview Pending Announcement
-- Shows draft of email that will be sent
-- Displays fully rendered template with substituted variables
-- Shows recipient count and poster list
-- Dry-run preview with actual email body
-- Helps catch typos before sending
-
-### 9. Send Announcement Now
-- Manually trigger email to all subscribers
-- Sends immediately (doesn't wait 15 minutes)
-- Good for urgent announcements
-
-### 10. Run Bulk Submission Simulator
-- **NEW**: Stress-test the system with randomized submissions
-- Simulates N submissions with random add/remove poster selections
-- Tracks performance metrics: execution time, sheet reads, cache hits, lock waits
-- **Dry-run mode**: Test without modifying data (recommended first)
-- **Live mode**: Actually processes submissions
-- Safety guardrails:
-  - Hard cap at 100 simulations per run
-  - Warning prompt for N >= 50 in live mode
-- Results logged to Analytics sheet
-- Use to:
-  - Test system under load
-  - Measure performance with different N values
-  - Validate quota usage before production stress
-  - Generate sample data for testing
-### 10. Run Backup Now
-- Manually trigger backup of Requests and Subscribers sheets
-- Creates backups in Google Drive
-- Shows backup folder link when complete
-- Runs independently of nightly automated backup
-
-### 11. Setup Employee View Spreadsheet
-- Creates separate read-only spreadsheet
-- One-time setup only
-- Copies Main and Employees sheets
-- Can be safely shared with all employees
-
-### 12. Sync Employee View Now
-- Manually update employee view spreadsheet
-- Useful if auto-sync is delayed
-- Clears old data and copies fresh
-
-### 13. Show Employee View Link
-- Displays URL of employee view spreadsheet
-- Easy to copy and share
-- Updates automatically in Print Out sheet
+### ⚙️ Advanced Submenu
+- **Manually Add Request** - Dialog to add historical requests for migration
+- **Run Bulk Simulator** - Stress-test system with randomized submissions
+- **Run Backup Now** - Manually trigger backup to Google Drive
+- **Setup Employee View** - Create separate read-only spreadsheet for employees
+- **Sync Employee View** - Manually update employee view spreadsheet
+- **Show Employee View Link** - Display URL of employee view spreadsheet
 
 ## ⚙️ Configuration
 
