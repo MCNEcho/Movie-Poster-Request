@@ -68,8 +68,8 @@ function handleFormSubmit(e) {
     // Invalidate caches after write
     invalidateCachesAfterWrite_('request');
     
-    rebuildBoards();
-    Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
+    requestBoardRebuild();
+    Logger.log(`[handleFormSubmit] Board rebuild requested`);
     syncPostersToForm();
     
     success = true;

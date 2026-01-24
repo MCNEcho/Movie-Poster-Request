@@ -1,5 +1,65 @@
 /** 07_Boards.gs **/
 
+/**
+ * Request a board rebuild with debounce mechanism.
+ * Prevents concurrent rebuilds by enforcing a minimum time between rebuilds.
+ * If a rebuild is requested within the debounce period, it queues for later.
+ */
+function requestBoardRebuild() {
+  const lastRebuild = Number(getProps_().getProperty(CONFIG.PROPS.LAST_BOARD_REBUILD_TS) || 0);
+  const now = new Date().getTime();
+  const timeSinceRebuild = now - lastRebuild;
+  
+  if (timeSinceRebuild > CONFIG.REBUILD_DEBOUNCE_MS) {
+    // Enough time has passed - rebuild now
+    rebuildBoards();
+    getProps_().setProperty(CONFIG.PROPS.LAST_BOARD_REBUILD_TS, String(now));
+  } else {
+    // Too soon - queue for later
+    const pendingRebuild = readJsonProp_(CONFIG.PROPS.PENDING_REBUILD, false);
+    if (!pendingRebuild) {
+      writeJsonProp_(CONFIG.PROPS.PENDING_REBUILD, true);
+      Logger.log('[requestBoardRebuild] Rebuild queued - will check in 30 seconds');
+      
+      // Schedule check after debounce period
+      try {
+        ScriptApp.newTrigger('checkPendingRebuild')
+          .timeBased()
+          .after(CONFIG.REBUILD_DEBOUNCE_MS)
+          .create();
+      } catch (error) {
+        // If trigger creation fails, log but don't fail the submission
+        Logger.log(`[requestBoardRebuild] Failed to create trigger: ${error.message}`);
+      }
+    } else {
+      Logger.log('[requestBoardRebuild] Rebuild already queued');
+    }
+  }
+}
+
+/**
+ * Check if there's a pending rebuild and execute it.
+ * This function is called by time-based trigger.
+ */
+function checkPendingRebuild() {
+  const pendingRebuild = readJsonProp_(CONFIG.PROPS.PENDING_REBUILD, false);
+  
+  if (pendingRebuild) {
+    Logger.log('[checkPendingRebuild] Executing pending rebuild');
+    writeJsonProp_(CONFIG.PROPS.PENDING_REBUILD, false);
+    rebuildBoards();
+    getProps_().setProperty(CONFIG.PROPS.LAST_BOARD_REBUILD_TS, String(new Date().getTime()));
+  }
+  
+  // Clean up the trigger that invoked this function
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'checkPendingRebuild') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
 function rebuildBoards() {
   const startTime = Date.now();
   try {

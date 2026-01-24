@@ -127,9 +127,13 @@ function getPostersWithLabels_() {
 /**
  * Gets all ACTIVE requests from Requests sheet.
  * Returns array of request rows with full data.
+ * Filters out archived requests (ARCHIVED_POSTER_DELETED).
  */
 function getActiveRequests_() {
   const sh = getSheet_(CONFIG.SHEETS.REQUESTS);
   const data = getNonEmptyData_(sh, 10);
-  return data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+  return data.filter(r => {
+    const status = String(r[COLS.REQUESTS.STATUS - 1]);
+    return status === STATUS.ACTIVE;
+  });
 }

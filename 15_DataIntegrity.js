@@ -81,9 +81,9 @@ function checkOrphanedRequests_(autoFix) {
         result.details.push(`Row ${idx + 2}: Active request for deleted poster ${posterId}`);
         result.status = 'FAIL';
         
-        // Auto-fix by marking as REMOVED
+        // Auto-fix by marking as ARCHIVED_POSTER_DELETED (soft-delete)
         if (autoFix) {
-          r[COLS.REQUESTS.STATUS - 1] = STATUS.REMOVED;
+          r[COLS.REQUESTS.STATUS - 1] = STATUS.ARCHIVED_POSTER_DELETED;
           r[COLS.REQUESTS.STATUS_TS - 1] = now_();
           result.issues_fixed++;
         }
@@ -94,7 +94,7 @@ function checkOrphanedRequests_(autoFix) {
     if (autoFix && result.issues_fixed > 0) {
       const range = requestsSheet.getRange(2, 1, requestsData.length, requestsSheet.getLastColumn());
       range.setValues(requestsData);
-      result.details.push(`Auto-fixed: Marked ${result.issues_fixed} orphaned requests as REMOVED`);
+      result.details.push(`Auto-fixed: Marked ${result.issues_fixed} orphaned requests as ARCHIVED_POSTER_DELETED`);
       
       // Notify admin of auto-repair
       notifyAdminOfAutoRepair_('orphaned_requests', result.issues_fixed, result.details);

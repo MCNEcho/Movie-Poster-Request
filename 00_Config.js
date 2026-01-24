@@ -44,6 +44,9 @@ const CONFIG = {
   ALLOW_REREQUEST_AFTER_REMOVAL: false,  // Allow employees to re-request posters they previously removed
   REREQUEST_COOLDOWN_DAYS: 0,            // Days to wait before re-requesting (0 = no cooldown)
 
+  // Board Rebuild Queue Configuration
+  REBUILD_DEBOUNCE_MS: 30000,             // 30 seconds minimum between rebuilds
+
   // Cache Configuration
   CACHE: {
     DEFAULT_TTL: 5 * 60 * 1000,           // 5 minutes default
@@ -75,6 +78,10 @@ const CONFIG = {
 
     CACHE_PREFIX: 'CACHE_',
     LAST_ANALYTICS_FLUSH: 'LAST_ANALYTICS_FLUSH',
+    
+    // Board rebuild queue properties
+    LAST_BOARD_REBUILD_TS: 'LAST_BOARD_REBUILD_TS',
+    PENDING_REBUILD: 'PENDING_REBUILD',
   },
 };
 
@@ -153,4 +160,5 @@ const COLS = {
 const STATUS = {
   ACTIVE: 'ACTIVE',
   REMOVED: 'REMOVED',
+  ARCHIVED_POSTER_DELETED: 'ARCHIVED_POSTER_DELETED',
 };
