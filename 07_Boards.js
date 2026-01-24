@@ -1,9 +1,20 @@
 /** 07_Boards.gs **/
 
 function rebuildBoards() {
-  buildMainBoard_();
-  buildEmployeesBoard_();
-  syncEmployeeViewSpreadsheet_();
+  const startTime = Date.now();
+  try {
+    buildMainBoard_();
+    buildEmployeesBoard_();
+    syncEmployeeViewSpreadsheet_();
+    
+    // Track analytics
+    const requests = getActiveRequests_();
+    const executionTime = Date.now() - startTime;
+    trackBoardRebuild_('both', requests.length, executionTime);
+  } catch (error) {
+    logError_(error, 'rebuildBoards', 'Board rebuild failed', 'HIGH');
+    throw error;
+  }
 }
 
 function resetBoardArea_(sheet, colsToClear) {

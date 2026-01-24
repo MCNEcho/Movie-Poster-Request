@@ -17,6 +17,8 @@ function buildAdminMenu_() {
     .addSeparator()
     .addItem('Manually Add Request (for migration)', 'showManualRequestDialog')
     .addSeparator()
+    .addItem('Run Data Integrity Checks', 'runDataIntegrityChecksMenu')
+    .addSeparator()
     .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
     .addItem('Send Announcement Now', 'sendAnnouncementNow')
     .addSeparator()
@@ -63,6 +65,9 @@ function setupPosterSystem() {
     ss.toast('Building print layout...', 'Setup Progress', 3);
     buildPrintOutLayout_();
     
+    ss.toast('Running data integrity checks...', 'Setup Progress', 3);
+    runDataIntegrityChecks_(true);
+    
     SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
   } finally {
     lock.releaseLock();
@@ -88,10 +93,12 @@ function ensureTriggers_() {
       .create();
   }
 
+  // Time-based trigger for announcement queue (DEPRECATED - now event-driven)
+  // Keeping as fallback for any queued announcements that weren't sent immediately
   if (!has('processAnnouncementQueue')) {
     ScriptApp.newTrigger('processAnnouncementQueue')
       .timeBased()
-      .everyMinutes(15)
+      .everyHours(1) // Changed from 15 minutes to 1 hour as fallback only
       .create();
   }
 }
@@ -125,6 +132,18 @@ function ensureSheetSchemas_() {
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.SUBSCRIBERS, [
     'Active?','Email','Name'
+  ]);
+
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.ERROR_LOG, [
+    'Timestamp','Error Type','Function Name','Error Message','Stack Trace','Context','Severity'
+  ]);
+
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.ANALYTICS, [
+    'Timestamp','Event Type','User Email','Details','Execution Time (ms)','Success'
+  ]);
+
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DATA_INTEGRITY, [
+    'Check Time','Check Type','Status','Issues Found','Auto Fixed','Details'
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);

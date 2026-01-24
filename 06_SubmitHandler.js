@@ -4,12 +4,16 @@ function handleFormSubmit(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
 
+  const startTime = Date.now();
+  let empEmail = '';
+  let success = false;
+
   try {
     Logger.log(`[handleFormSubmit] TRIGGERED - processing form submission`);
     const formTs = e && e.response ? e.response.getTimestamp() : now_();
     const answers = readFormAnswers_(e);
 
-    const empEmail = String(answers.empEmail || '').trim().toLowerCase();
+    empEmail = String(answers.empEmail || '').trim().toLowerCase();
     const nameRaw = String(answers.empName || '').trim();
     const subscribeChecked = answers.subscribe === true;
 
@@ -24,6 +28,7 @@ function handleFormSubmit(e) {
     const nameCheck = normalizeEmployeeName_(nameRaw);
     if (!nameCheck.ok) {
       Logger.log(`Invalid name format from ${empEmail}: ${nameRaw}. Reason: ${nameCheck.reason}`);
+      trackFormSubmission_(empEmail, false, { reason: 'invalid_name_format' }, Date.now() - startTime);
       return; // Don't save requests with invalid names
     }
 
@@ -59,10 +64,27 @@ function handleFormSubmit(e) {
     });
 
     Logger.log(`[handleFormSubmit] About to rebuild boards. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
+    
+    // Invalidate caches after write
+    invalidateCachesAfterWrite_('request');
+    
     rebuildBoards();
     Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
     syncPostersToForm();
+    
+    success = true;
+    
+    // Track successful submission
+    const executionTime = Date.now() - startTime;
+    trackFormSubmission_(empEmail, true, {
+      added: result.addedAccepted.length,
+      removed: result.removedApplied.length,
+      denied: result.deniedAdds.length
+    }, executionTime);
+    
   } catch (err) {
+    logError_(err, 'handleFormSubmit', `Email: ${empEmail || 'unknown'}`, 'HIGH');
+    trackFormSubmission_(empEmail, false, { error: err.message }, Date.now() - startTime);
     console.error(err);
   } finally {
     lock.releaseLock();
@@ -148,6 +170,9 @@ function processRemovals_(empEmail, removeLabels, decode) {
     if (ok) {
       removedApplied.push(idToCurrent[pid] || String(lbl).trim());
       Logger.log(`[processRemovals] Successfully removed poster ${pid}`);
+      
+      // Track poster removal analytics
+      trackPosterRequest_(pid, idToCurrent[pid] || String(lbl).trim(), 'remove');
     } else {
       Logger.log(`[processRemovals] Failed to remove poster ${pid} (not found or not ACTIVE status)`);
     }
@@ -214,6 +239,9 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
     createLedgerRow_(empEmail, empName, pid, formTs);
     addedAccepted.push(show);
     available--;
+    
+    // Track poster request analytics
+    trackPosterRequest_(pid, show, 'add');
   }
 
   Logger.log(`[processAdditions] Final result: ${addedAccepted.length} accepted, ${deniedAdds.length} denied`);
