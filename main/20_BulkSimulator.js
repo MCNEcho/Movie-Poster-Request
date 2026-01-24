@@ -136,8 +136,26 @@ function simulateSingleSubmission_(empEmail, empName, addLabels, removeLabels, d
       if (!dryRun) {
         // Perform actual submission processing
         const formTs = now_();
+        const slotsBefore = countActiveSlotsByEmail_(empEmail);
         const result = processSubmission_(empEmail, empName, formTs, addLabels, removeLabels);
-        
+        const slotsAfter = countActiveSlotsByEmail_(empEmail);
+
+        invalidateCachesAfterWrite_({ empEmail });
+
+        appendRequestOrderLog_({
+          formTs,
+          empEmail,
+          empName,
+          addRaw: addLabels.join(', '),
+          removeRaw: removeLabels.join(', '),
+          slotsBefore,
+          slotsAfter,
+          addedAccepted: result.addedAccepted.join(', '),
+          removedApplied: result.removedApplied.join(', '),
+          deniedAdds: result.deniedAdds.join(' | '),
+          notes: result.notes.join(' | '),
+        });
+
         // Track sheet reads (approximate based on operations)
         metrics.sheetReads = 3 + removeLabels.length + addLabels.length;
         
@@ -261,6 +279,11 @@ function runBulkSimulator(N, dryRun) {
     results.avgExecutionTime = results.successCount > 0 
       ? Math.round(results.totalExecutionTime / results.successCount)
       : 0;
+
+    if (!dryRun && results.successCount > 0) {
+      rebuildBoards();
+      syncPostersToForm();
+    }
     
     // Log to Analytics
     logBulkSimulationEvent_(results);

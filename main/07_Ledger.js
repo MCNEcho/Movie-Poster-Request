@@ -41,25 +41,48 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
 function canRequestPoster_(empEmail, posterId) {
   const sh = getRequestsSheet_();
   const data = getNonEmptyData_(sh, 9);
-  
+
   // Find all requests for this email/poster combination
   const requests = data.filter(r =>
     String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
     String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
   );
-  
+
   // No previous requests - allowed
   if (requests.length === 0) {
     return { allowed: true, reason: '' };
   }
-  
+
   // Check if any request is currently ACTIVE
   const hasActive = requests.some(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
   if (hasActive) {
     return { allowed: false, reason: 'duplicate (already active)' };
   }
-  
-  // No ACTIVE request - allowed (ignore historical requests)
+
+  // If rerequests are disabled entirely, block on any historical request
+  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
+    return { allowed: false, reason: 'duplicate (historical)' };
+  }
+
+  // Cooldown enforcement (if configured)
+  const cooldownDays = Number(CONFIG.REREQUEST_COOLDOWN_DAYS || 0);
+  if (cooldownDays > 0) {
+    const mostRecentTs = requests
+      .map(r => r[COLS.REQUESTS.STATUS_TS - 1])
+      .filter(Boolean)
+      .map(ts => (ts instanceof Date ? ts.getTime() : new Date(ts).getTime()))
+      .filter(ts => !isNaN(ts))
+      .sort((a, b) => b - a)[0];
+
+    if (mostRecentTs) {
+      const ageMs = now_().getTime() - mostRecentTs;
+      const requiredMs = cooldownDays * 24 * 60 * 60 * 1000;
+      if (ageMs < requiredMs) {
+        return { allowed: false, reason: 'duplicate (cooldown)' };
+      }
+    }
+  }
+
   return { allowed: true, reason: '' };
 }
 

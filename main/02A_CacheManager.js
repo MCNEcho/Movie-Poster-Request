@@ -263,6 +263,24 @@ function invalidatePostersWithLabels_() {
 }
 
 /**
+ * Convenience invalidation after any write to Requests/Movie Posters/etc.
+ * Keeps slot counts, boards, and poster metadata caches fresh.
+ * @param {{empEmail?: string}} opts
+ */
+function invalidateCachesAfterWrite_(opts) {
+  try {
+    if (opts && opts.empEmail) invalidateEmployeeSlots_(opts.empEmail.toLowerCase().trim());
+  } catch (err) {
+    Logger.log(`[WARN] Cache invalidation (employee slots) failed: ${err.message}`);
+  }
+
+  invalidateBoardMain_();
+  invalidateBoardEmployees_();
+  invalidatePosterAvailability_();
+  invalidatePostersWithLabels_();
+}
+
+/**
  * Get cache statistics for monitoring
  * @returns {object} Cache stats
  */

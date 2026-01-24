@@ -1,13 +1,19 @@
 # Copilot Instructions: Movie Poster Request System
 
 ## Project Overview
-A **Google Apps Script** system that manages employee poster requests with strict validation, audit logging, and automated workflows. Built to prevent abuse (unlimited requests, duplicates) through per-employee slot limits (7 posters max) and deduplication rules.
+Google Apps Script system for employee poster requests with strict slot limits (7), deduplication, auditability, batching announcements, backups, and automation across Sheets/Forms.
 
-**Tech Stack:** Google Apps Script (V8 runtime), Google Forms, Google Sheets, ScriptProperties, Mail API, QuickChart API
+**Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, MailApp/GmailApp, DriveApp, UrlFetchApp (QuickChart)
 
 ---
 
 ## Architecture Essentials
+
+### Feature Highlights (from notes)
+- Announcement batching/templates/dry-run with throttled retries; variables {{TITLE}}, {{RELEASE}}, {{STOCK}}, {{ACTIVE_COUNT}}, {{FORM_LINK}}, {{COUNT}}, {{POSTER_LIST}}. Defaults: batching on, size 5, 1s throttle, 3 retries.
+- Nightly backups 2am to Drive folder (CSV or Sheet), 30-day retention, manual trigger available; log to Analytics/Error Log.
+- Bulk submission simulator (up to 100, warning ≥50 live) with dry-run, logs execution time/sheet reads/cache hits/lock waits to Analytics.
+- UI/UX: admin menu grouped (Reports/Print & Layout/Announcements/Advanced) plus Refresh All; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
 
 ### Module Organization (Numbered Files = Execution Order)
 - **00_Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
@@ -55,6 +61,12 @@ Queue announcements (if new poster activated)
 4. **Per-Employee Slot Limit:** MAX_ACTIVE (7) limits each employee, NOT per-poster quantities
 5. **Dedup by Email+Poster:** Each employee can request each poster once (historical block)
 6. **Lock-Based Concurrency:** 30-second lock on all sheet operations; no async parallelization
+
+### Operational Defaults
+- ANNOUNCEMENT: batching enabled (size 5), throttle 1s, 3 retries with backoff; preview available.
+- BACKUP: nightly 2am, 30-day retention, CSV default, dedicated Drive folder, manual "Run Backup Now".
+- BULK_SIMULATOR: max 100 runs, warn ≥50 live, dry-run default; metrics logged to Analytics.
+- CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate after writes to related data).
 
 ---
 
@@ -154,6 +166,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics
+- **Admin Menu Map:** Reports (boards/form/docs/health), Print & Layout (print area/print out), Announcements (preview/send), Advanced (manual add, bulk sim, backup, employee view, show link) plus top-level Refresh All.
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu

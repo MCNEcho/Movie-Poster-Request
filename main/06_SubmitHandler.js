@@ -35,6 +35,7 @@ function handleFormSubmit(e) {
     if (subscribeChecked) {
       Logger.log(`[handleFormSubmit] Adding subscriber: ${empEmail}`);
       addSubscriber_(empEmail, empName);
+      invalidateActiveSubscribers_();
       Logger.log(`[handleFormSubmit] Subscriber added successfully`);
     }
 
@@ -43,6 +44,9 @@ function handleFormSubmit(e) {
 
     const result = processSubmission_(empEmail, empName, formTs, addLabels, removeLabels);
     const slotsAfter = countActiveSlotsByEmail_(empEmail);
+
+    // Reset caches after write-heavy operations
+    invalidateCachesAfterWrite_({ empEmail });
 
     appendRequestOrderLog_({
       formTs,
@@ -63,7 +67,7 @@ function handleFormSubmit(e) {
     Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
     syncPostersToForm();
   } catch (err) {
-    console.error(err);
+    logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {
     lock.releaseLock();
   }

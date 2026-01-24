@@ -21,6 +21,10 @@ function syncPostersToForm() {
     writeJsonProp_(CONFIG.PROPS.LABEL_TO_ID, labelToId);
     writeJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, idToCurrent);
 
+    // Invalidate caches affected by poster label/availability changes
+    invalidatePostersWithLabels_();
+    invalidatePosterAvailability_();
+
     // Build Add choices (active posters, sorted by release)
     const addChoices = posters
       .filter(p => p.active)
@@ -36,6 +40,10 @@ function syncPostersToForm() {
 
     setCheckboxChoicesByTitle_(form, CONFIG.FORM.Q_ADD, addChoices, true);
     setCheckboxChoicesByTitle_(form, CONFIG.FORM.Q_REMOVE, removeChoices, false);
+
+    // Boards and form were updated; clear board caches for freshness
+    invalidateBoardMain_();
+    invalidateBoardEmployees_();
 
   } finally {
     lock.releaseLock();

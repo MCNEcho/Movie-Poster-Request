@@ -1,3 +1,0 @@
-Feature: Bulk submission simulator + quota/load metrics in Analytics
-Status: scaffold
-Notes: add admin menu entry to run simulated submissions with metrics logged to Analytics/Summary; include safety caps and dry-run.

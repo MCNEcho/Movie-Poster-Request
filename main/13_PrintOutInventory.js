@@ -48,6 +48,9 @@ function syncInventoryCountsToMoviePosters_() {
   });
 
   if (changed) range.setValues(values);
+
+  // Inventory sync impacts poster availability; clear related caches
+  invalidatePosterAvailability_();
 }
 
 function refreshPrintOut() {
