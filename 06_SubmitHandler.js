@@ -85,7 +85,6 @@ function handleFormSubmit(e) {
   } catch (err) {
     logError_(err, 'handleFormSubmit', `Email: ${empEmail || 'unknown'}`, 'HIGH');
     trackFormSubmission_(empEmail, false, { error: err.message }, Date.now() - startTime);
-    console.error(err);
   } finally {
     lock.releaseLock();
   }

@@ -95,6 +95,9 @@ function checkOrphanedRequests_(autoFix) {
       const range = requestsSheet.getRange(2, 1, requestsData.length, requestsSheet.getLastColumn());
       range.setValues(requestsData);
       result.details.push(`Auto-fixed: Marked ${result.issues_fixed} orphaned requests as REMOVED`);
+      
+      // Notify admin of auto-repair
+      notifyAdminOfAutoRepair_('orphaned_requests', result.issues_fixed, result.details);
     }
     
   } catch (error) {
@@ -147,6 +150,9 @@ function checkEmailFormats_(autoFix) {
       const range = subscribersSheet.getRange(2, 1, data.length, subscribersSheet.getLastColumn());
       range.setValues(data);
       result.details.push(`Auto-fixed: Deactivated ${result.issues_fixed} subscribers with invalid emails`);
+      
+      // Notify admin of auto-repair
+      notifyAdminOfAutoRepair_('email_formats', result.issues_fixed, result.details);
     }
     
   } catch (error) {
@@ -210,6 +216,9 @@ function checkDuplicateActiveRequests_(autoFix) {
       const range = requestsSheet.getRange(2, 1, data.length, requestsSheet.getLastColumn());
       range.setValues(data);
       result.details.push(`Auto-fixed: Removed ${result.issues_fixed} duplicate active requests`);
+      
+      // Notify admin of auto-repair
+      notifyAdminOfAutoRepair_('duplicate_active_requests', result.issues_fixed, result.details);
     }
     
   } catch (error) {
@@ -265,6 +274,9 @@ function checkRequestCounts_(autoFix) {
         rebuildBoards();
         result.issues_fixed++;
         result.details.push(`Auto-fixed: Rebuilt boards to sync counts`);
+        
+        // Notify admin of auto-repair
+        notifyAdminOfAutoRepair_('request_counts', 1, result.details);
       }
     }
     
@@ -382,4 +394,37 @@ function runDataIntegrityChecksMenu() {
   ].join('\n');
   
   ui.alert('Data Integrity Check Complete', message, ui.ButtonSet.OK);
+}
+
+/**
+ * Send email notification to admin when auto-repairs occur.
+ * 
+ * @param {string} checkType - Type of integrity check
+ * @param {number} issuesFixed - Number of issues fixed
+ * @param {Array} details - Details array from check
+ * @returns {void}
+ */
+function notifyAdminOfAutoRepair_(checkType, issuesFixed, details) {
+  try {
+    const adminEmail = Session.getActiveUser().getEmail();
+    const subject = `[AUTO-REPAIR] Poster System Data Integrity: ${checkType}`;
+    const body = [
+      'The Poster Request System automatically repaired data integrity issues:',
+      '',
+      `Check Type: ${checkType}`,
+      `Issues Fixed: ${issuesFixed}`,
+      `Time: ${fmtDate_(now_(), 'yyyy-MM-dd HH:mm:ss')}`,
+      '',
+      'Details:',
+      ...details.map(d => `  - ${d}`),
+      '',
+      'These repairs were made automatically. Please review the Data Integrity sheet for full details.',
+      '',
+      'If you see this frequently, consider investigating the root cause.'
+    ].join('\n');
+    
+    MailApp.sendEmail(adminEmail, subject, body);
+  } catch (emailError) {
+    console.error(`Failed to send auto-repair notification: ${emailError.message}`);
+  }
 }
