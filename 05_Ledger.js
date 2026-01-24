@@ -45,7 +45,8 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
 }
 
 /**
- * Check if an employee can request a poster, respecting re-request configuration.
+ * Check if an employee can request a poster.
+ * Simplified deduplication: only blocks if employee already has this poster ACTIVE.
  * 
  * @param {string} empEmail - Employee email
  * @param {string} posterId - Poster ID
@@ -53,66 +54,19 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
  */
 function canRequestPoster_(empEmail, posterId) {
   const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 10);
+  const data = getNonEmptyData_(sh, 9);
   
-  // Check if employee has any historical request for this poster
-  const historicalRequests = data.filter(r =>
+  // Check if THIS employee already has THIS poster ACTIVE
+  const hasActive = data.some(r =>
     String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
-    String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
-  );
-  
-  if (historicalRequests.length === 0) {
-    // No historical request - allowed
-    return { allowed: true, reason: '' };
-  }
-  
-  // Check if there's currently an ACTIVE request
-  const hasActiveRequest = historicalRequests.some(r =>
+    String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId) &&
     String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE
   );
   
-  if (hasActiveRequest) {
-    // Already has active request for this poster
-    return { allowed: false, reason: 'duplicate (active)' };
+  if (hasActive) {
+    return { allowed: false, reason: 'duplicate (already active)' };
   }
   
-  // Has historical request but not currently active - check re-request config
-  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
-    // Re-request not allowed after removal
-    return { allowed: false, reason: 'duplicate (historical)' };
-  }
-  
-  // Re-request is allowed, but check cooldown period
-  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
-    // Find the most recent removal timestamp
-    const sortedRequests = historicalRequests
-      .filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.REMOVED)
-      .map(r => ({
-        statusTs: r[COLS.REQUESTS.STATUS_TS - 1]
-      }))
-      .sort((a, b) => {
-        const aTime = getTimestamp_(a.statusTs);
-        const bTime = getTimestamp_(b.statusTs);
-        return bTime - aTime; // Most recent first
-      });
-    
-    if (sortedRequests.length > 0) {
-      const mostRecentRemoval = sortedRequests[0].statusTs;
-      const removalTime = getTimestamp_(mostRecentRemoval);
-      const now = Date.now();
-      const daysSinceRemoval = (now - removalTime) / (1000 * 60 * 60 * 24);
-      
-      if (daysSinceRemoval < CONFIG.REREQUEST_COOLDOWN_DAYS) {
-        const daysRemaining = Math.ceil(CONFIG.REREQUEST_COOLDOWN_DAYS - daysSinceRemoval);
-        return { 
-          allowed: false, 
-          reason: `cooldown (wait ${daysRemaining} more day${daysRemaining > 1 ? 's' : ''})` 
-        };
-      }
-    }
-  }
-  
-  // All checks passed - allowed to re-request
   return { allowed: true, reason: '' };
 }
 
@@ -206,6 +160,42 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs) {
   row[COLS.REQUESTS.STATUS_TS - 1] = requestTs;
 
   sh.appendRow(row);
+}
+
+/**
+ * Archive all requests for a deleted poster by marking them with ARCHIVED_POSTER_DELETED status.
+ * This is a soft-delete approach that preserves historical data.
+ * 
+ * @param {string} posterId - Poster ID that was deleted
+ * @returns {number} Number of requests archived
+ */
+function archiveRequestsForPoster_(posterId) {
+  const sh = getRequestsSheet_();
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const range = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn());
+  const values = range.getValues();
+  let archived = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+    const rPid = String(r[COLS.REQUESTS.POSTER_ID - 1]);
+    const rStatus = String(r[COLS.REQUESTS.STATUS - 1]);
+
+    if (rPid === String(posterId) && rStatus === STATUS.ACTIVE) {
+      r[COLS.REQUESTS.STATUS - 1] = STATUS.ARCHIVED_POSTER_DELETED;
+      r[COLS.REQUESTS.STATUS_TS - 1] = now_();
+      archived++;
+    }
+  }
+
+  if (archived > 0) {
+    range.setValues(values);
+    Logger.log(`[archiveRequestsForPoster_] Archived ${archived} requests for poster ${posterId}`);
+  }
+
+  return archived;
 }
 
 

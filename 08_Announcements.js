@@ -44,6 +44,22 @@ function processMoviePostersEdit_(e) {
   const release = r[COLS.MOVIE_POSTERS.RELEASE - 1];
   const closeQueue = r[COLS.MOVIE_POSTERS.CLOSE_QUEUE - 1] === true;
 
+  // Check if poster was effectively deleted (title is empty but poster ID exists)
+  if (pid && !title) {
+    Logger.log(`[processMoviePostersEdit_] Poster ${pid} appears to have been deleted, archiving requests`);
+    const archivedCount = archiveRequestsForPoster_(pid);
+    if (archivedCount > 0) {
+      Logger.log(`[processMoviePostersEdit_] Archived ${archivedCount} requests for deleted poster ${pid}`);
+      
+      // Track analytics event for poster deletion
+      logAnalyticsEvent_('poster_deleted', '', {
+        poster_id: pid,
+        requests_archived: archivedCount
+      }, 0, true);
+    }
+    return;
+  }
+
   if (pid && active && title && release) {
     queueAnnouncement_(pid, title, release);
     

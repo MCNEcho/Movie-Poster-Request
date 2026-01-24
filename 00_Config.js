@@ -41,8 +41,8 @@ const CONFIG = {
   MAX_ACTIVE: 7,
 
   // Deduplication & Re-request Configuration
-  ALLOW_REREQUEST_AFTER_REMOVAL: false,  // Allow employees to re-request posters they previously removed
-  REREQUEST_COOLDOWN_DAYS: 0,            // Days to wait before re-requesting (0 = no cooldown)
+  ALLOW_REREQUEST_AFTER_REMOVAL: true,  // Allow employees to re-request posters they previously removed
+  REREQUEST_COOLDOWN_DAYS: 0,           // Days to wait before re-requesting (0 = no cooldown)
 
   // Cache Configuration
   CACHE: {
@@ -153,4 +153,5 @@ const COLS = {
 const STATUS = {
   ACTIVE: 'ACTIVE',
   REMOVED: 'REMOVED',
+  ARCHIVED_POSTER_DELETED: 'ARCHIVED_POSTER_DELETED',
 };

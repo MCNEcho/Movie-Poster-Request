@@ -22,7 +22,7 @@ function buildDocumentationTab() {
     'Employees request posters through a Google Form. Requests are first-come-first-serve.',
     `Employees can have up to ${CONFIG.MAX_ACTIVE} ACTIVE requests at a time (${CONFIG.MAX_ACTIVE}-slot system).`,
     'If a submission includes Remove + Add, removals are applied first (freeing slots), then adds are processed.',
-    `Dedupe policy: ${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL ? 'Employees can re-request posters after removing them' : 'Once removed, employees cannot re-request the same poster'}${CONFIG.REREQUEST_COOLDOWN_DAYS > 0 ? ` (after ${CONFIG.REREQUEST_COOLDOWN_DAYS} day cooldown)` : ''}.`,
+    'Dedupe policy: Employees can immediately re-request posters after removing them. Only blocked if already ACTIVE.',
     'Multiple employees can request the same poster - dedup is per employee, not per poster.',
     'Inventory counts are FYI only and never block requests.',
     'Remove list is intentionally short: only posters with at least one ACTIVE request by anyone.',
@@ -42,14 +42,14 @@ function buildDocumentationTab() {
   r = writeDocSection_(sh, r, 'System Rules', [
     `1. Maximum Active Requests: Each employee can have up to ${CONFIG.MAX_ACTIVE} ACTIVE posters at a time.`,
     '2. Request Order: Removals are processed FIRST, then additions. This frees slots for new posters.',
-    `3. Deduplication: ${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL ? 'Employees can re-request posters they previously removed' : 'Once an employee removes a poster, they cannot request it again'}${CONFIG.REREQUEST_COOLDOWN_DAYS > 0 ? ` (after ${CONFIG.REREQUEST_COOLDOWN_DAYS} day cooldown)` : ''}.`,
+    '3. Deduplication: Employees can immediately re-request posters after removing them. Only blocked if they already have the poster ACTIVE.',
     '4. Multiple Employees: Multiple employees CAN request the same poster - there is no per-poster limit.',
     '5. Active Posters Only: Only posters with Active? = TRUE in Movie Posters sheet appear in the form.',
     '6. Remove List: Only shows posters the employee has ACTIVE requests for.',
     '7. Inventory is FYI: Inventory counts never block requests. Form always accepts requests regardless of stock.',
     '8. Name Format Required: Employees must enter "FirstName LastInitial" (e.g., "Gavin N"). Wrong format = submission rejected.',
     '9. Email Auto-Collected: Email comes from Google Account, not the form.',
-    '10. Status Lifecycle: ACTIVE → REMOVED (when employee removes) or kept ACTIVE (ongoing).',
+    '10. Status Lifecycle: ACTIVE → REMOVED (when employee removes) or ARCHIVED_POSTER_DELETED (when poster is deleted from inventory).',
   ]);
 
   r = writeDocSection_(sh, r, 'Manager/Admin Guide', [
@@ -92,8 +92,8 @@ function buildDocumentationTab() {
     'Movie Title (snapshot): Title of poster at request time.',
     'Release Date (snapshot): Release date at request time.',
     'Action Type: Always "ADD" (what was requested).',
-    'Status: ACTIVE = current request, REMOVED = employee deleted it.',
-    'Status Updated At: When status changed (when removed).',
+    'Status: ACTIVE = current request, REMOVED = employee deleted it, ARCHIVED_POSTER_DELETED = poster removed from inventory.',
+    'Status Updated At: When status changed (when removed or archived).',
   ]);
 
   sh.getRange(1, 1, r, 1).setFontFamily('Arial').setFontSize(11);
