@@ -1,0 +1,3 @@
+Feature: Nightly data backup/export to Drive (Requests & Subscribers)
+Status: scaffold
+Notes: nightly trigger exports Requests/Subscribers to Drive (CSV or Sheet), retention window, dedicated folder, logs to Analytics/Error Log, manual trigger option.
