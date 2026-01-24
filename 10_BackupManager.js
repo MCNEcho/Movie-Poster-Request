@@ -46,7 +46,8 @@ function performNightlyBackup() {
     
     // If all sheets failed, throw error
     if (backupResults.length === 0 && CONFIG.BACKUP.SHEETS_TO_BACKUP.length > 0) {
-      throw new Error(`All sheet backups failed. Errors: ${JSON.stringify(backupErrors)}`);
+      const errorSummary = backupErrors.map(e => `${e.sheet}: ${e.error}`).join('; ');
+      throw new Error(`All sheet backups failed. Errors: ${errorSummary}`);
     }
     
     // Apply retention policy
