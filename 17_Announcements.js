@@ -19,6 +19,9 @@ function handleSheetEdit(e) {
     syncPostersToForm();
     rebuildBoards();
     refreshPrintOut();
+    
+    // Check for and auto-delete orphaned requests
+    checkForOrphanedRequests_();
     return;
   }
 }

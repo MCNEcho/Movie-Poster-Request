@@ -6,7 +6,7 @@
  */
 
 /**
- * Main backup function - exports Requests and Subscribers to Drive
+ * Main backup function - exports configured sheets to Drive
  * Called by nightly trigger or manually from menu
  */
 function performNightlyBackup() {
@@ -24,11 +24,12 @@ function performNightlyBackup() {
     // Ensure backup folder exists
     const folderId = ensureBackupFolder_();
     
-    // Backup Requests sheet
-    const requestsBackup = backupSheet_(CONFIG.SHEETS.REQUESTS, folderId, timestamp);
-    
-    // Backup Subscribers sheet
-    const subscribersBackup = backupSheet_(CONFIG.SHEETS.SUBSCRIBERS, folderId, timestamp);
+    // Backup only configured sheets
+    const backupResults = [];
+    CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
+      const result = backupSheet_(sheetName, folderId, timestamp);
+      backupResults.push(result.name);
+    });
     
     // Apply retention policy
     const deletedCount = applyRetentionPolicy_(folderId);
@@ -38,13 +39,14 @@ function performNightlyBackup() {
     // Log success to Analytics
     logBackupEvent_({
       status: 'SUCCESS',
-      requestsFile: requestsBackup.name,
-      subscribersFile: subscribersBackup.name,
+      sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
+      files: backupResults,
       deletedCount: deletedCount,
       executionTime: executionTime
     });
     
     Logger.log(`[BACKUP] Completed successfully in ${executionTime}ms`);
+    Logger.log(`[BACKUP] Backed up ${backupResults.length} sheets: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
     Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
     
   } catch (err) {
@@ -224,7 +226,7 @@ function logBackupEvent_(details) {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
     
     const notes = details.status === 'SUCCESS'
-      ? `Backed up: ${details.requestsFile}, ${details.subscribersFile}. Deleted ${details.deletedCount} old backups.`
+      ? `Backed up ${details.sheets.length} sheet(s): ${details.sheets.join(', ')}. Deleted ${details.deletedCount} old backups.`
       : `Backup failed: ${details.error}`;
     
     analytics.appendRow([
@@ -260,8 +262,9 @@ function manualBackupTrigger() {
   }
   
   try {
+    const sheetList = CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ');
     ui.alert('🔄 Starting Backup', 
-      'Creating backups of Requests and Subscribers sheets...', 
+      `Creating backups of configured sheets:\n${sheetList}`, 
       ui.ButtonSet.OK);
     
     performNightlyBackup();
@@ -272,7 +275,7 @@ function manualBackupTrigger() {
     const folderUrl = folder.getUrl();
     
     ui.alert('✅ Backup Complete', 
-      `Backups created successfully!\n\nView backups in Drive:\n${folderUrl}`, 
+      `Backups created successfully!\n\nSheets backed up: ${sheetList}\n\nView backups in Drive:\n${folderUrl}`, 
       ui.ButtonSet.OK);
       
   } catch (err) {
