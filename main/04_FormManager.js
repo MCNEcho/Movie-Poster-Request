@@ -1,4 +1,4 @@
-/** 03_FormManager.gs **/
+/** 04_FormManager.js **/
 
 /**
  * Get the form description with dynamic MAX_ACTIVE value.

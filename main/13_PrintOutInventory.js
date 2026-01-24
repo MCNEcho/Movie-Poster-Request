@@ -1,4 +1,4 @@
-/** 09_PrintOut_And_InventorySync.gs**/
+/** 13_PrintOutInventory.js **/
 
 function updateInventoryLastUpdated_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
@@ -48,31 +48,23 @@ function syncInventoryCountsToMoviePosters_() {
   });
 
   if (changed) range.setValues(values);
+
+  // Inventory sync impacts poster availability; clear related caches
+  invalidatePosterAvailability_();
 }
 
 function refreshPrintOut() {
-  const print = getSheet_(CONFIG.SHEETS.PRINT_OUT);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
 
-  // Note: Last Updated date is now in cell B4 of the print layout (no longer needed here)
-  // Clear H1 if it has old data
-  print.getRange(CONFIG.PRINT.LAST_UPDATED_CELL).clearContent();
+  try {
+    const sh = getSheet_(CONFIG.SHEETS.PRINT_OUT);
+    const { empQrEndRow } = buildPrintOutLayout_();
 
-  // Headers at A6/B6 (or wherever LIST_START_ROW points)
-  const startRow = CONFIG.PRINT.LIST_START_ROW;
-  print.getRange(startRow, 1).setValue('Release Date');
-  print.getRange(startRow, 2).setValue('Movie Title');
-
-  // Clear any old spill area below the headers (prevents "would overwrite data" errors)
-  // Clears A(startRow+1):B down a reasonable range
-  const clearRows = Math.max(200, print.getMaxRows() - (startRow + 1));
-  print.getRange(startRow + 1, 1, clearRows, 2).clearContent();
-
-  // Put the spilling formula in A(startRow+1), not A(startRow)
-  print.getRange(startRow + 1, 1).setFormula(
-    `=SORT(FILTER(${CONFIG.SHEETS.INVENTORY}!A2:B, ${CONFIG.SHEETS.INVENTORY}!B2:B<>""), 1, TRUE)`
-  );
-
-  // Basic formatting
-  print.setFrozenRows(startRow);
-  print.setColumnWidths(1, 2, 250);
+    // Keep this lightweight: just rebuild layout; selection is handled by prepareAndSelectPrintArea()
+    sh.setActiveSelection(sh.getRange(4, 1, Math.max(2, empQrEndRow - 4 + 1), 3));
+    SpreadsheetApp.getActive().toast('Print Out refreshed. Use "Prepare Print Area" if you need selection.', 'Print Out', 5);
+  } finally {
+    lock.releaseLock();
+  }
 }

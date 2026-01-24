@@ -1,4 +1,4 @@
-/** 13_EmployeeViewSync.gs (CROSS-SPREADSHEET SAFE) **/
+/** 15_EmployeeViewSync.js (CROSS-SPREADSHEET SAFE) **/
 
 /**
  * Creates (if needed) and syncs the employee-view spreadsheet.

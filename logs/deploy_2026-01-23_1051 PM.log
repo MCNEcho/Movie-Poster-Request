@@ -1,0 +1,61 @@
+ 
+===== Movie Poster Request - Deploy Log ===== 
+Date: 2026-01-23 Time: 1051 PM 
+============================================== 
+ 
+[Step 1] Checking dependencies... 
+[Dependencies OK] 
+ 
+[Step 2] Script ID entered: 1X1xMzifQou79K33mlbhvdPHWL6C576JN2-qgUUqV0ydFp4HtxdkPeq8Q 
+ 
+ 
+[Step 3] Creating .clasp.json and pushing code... 
+.clasp.json already exists - backing up 
+Creating .clasp.json... 
+.clasp.json created successfully 
+.clasp.json contents: 
+{
+  "scriptId": "1X1xMzifQou79K33mlbhvdPHWL6C576JN2-qgUUqV0ydFp4HtxdkPeq8Q",
+  "rootDir": "main"
+}
+ 
+Checking main folder contents... 
+ Volume in drive C has no label.
+ Volume Serial Number is A0E9-7462
+
+ Directory of C:\Users\gavin\OneDrive\Desktop\GH Poster Repo\Movie-Poster-Request\main
+
+01/23/2026  08:29 PM    <DIR>          .
+01/23/2026  10:52 PM    <DIR>          ..
+01/23/2026  03:12 PM               291 .clasp.json
+01/23/2026  08:28 PM             5,586 00_Config.js
+01/23/2026  07:57 PM             7,660 01_Setup.js
+01/23/2026  08:53 PM             7,901 02A_CacheManager.js
+01/23/2026  07:57 PM             4,356 02_Utils.js
+01/23/2026  07:33 PM             6,674 03_ErrorHandler.js
+01/23/2026  07:33 PM             3,869 04_FormManager.js
+01/23/2026  08:55 PM             1,830 05_SyncForm.js
+01/23/2026  08:53 PM            10,483 06_SubmitHandler.js
+01/23/2026  08:53 PM             6,274 07_Ledger.js
+01/23/2026  07:33 PM            13,288 08_Analytics.js
+01/23/2026  08:28 PM            14,356 09_DataIntegrity.js
+01/23/2026  08:28 PM             9,660 10_BackupManager.js
+01/23/2026  07:33 PM             5,556 11_Boards.js
+01/23/2026  03:12 PM             6,726 12_PrintSelection.js
+01/23/2026  08:55 PM             2,350 13_PrintOutInventory.js
+01/23/2026  08:28 PM             8,747 14_Documentation.js
+01/23/2026  07:33 PM             5,232 15_EmployeeViewSync.js
+01/23/2026  05:47 PM             9,690 16_AdminHealthBanner.js
+01/23/2026  08:28 PM            11,907 17_Announcements.js
+01/23/2026  07:33 PM             4,652 18_CustomAnnouncements.js
+01/23/2026  08:53 PM             6,817 19_ManualRequestEntry.js
+01/23/2026  08:53 PM            13,989 20_BulkSimulator.js
+01/23/2026  08:28 PM            10,339 99_BackupTests.js
+01/23/2026  05:47 PM             7,309 99_Debuging.js
+01/23/2026  03:12 PM               133 appsscript.json
+              26 File(s)        185,675 bytes
+               2 Dir(s)  1,416,728,911,872 bytes free
+ 
+Executing: clasp push -f 
+ 
+Script is already up to date.

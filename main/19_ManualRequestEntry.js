@@ -1,4 +1,4 @@
-/** 14_ManualRequestEntry.gs **/
+/** 19_ManualRequestEntry.js **/
 /** Manual request entry for data migration from legacy systems **/
 
 function showManualRequestDialog() {
@@ -90,6 +90,9 @@ function getActivePostersForManualEntry() {
 }
 
 function addManualRequest(empEmail, empName, posterId, customTimestamp) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
   try {
     // Validate inputs
     if (!empEmail || !empName || !posterId) {
@@ -114,6 +117,17 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
       return { success: false, message: 'Poster is not active' };
     }
     
+    // Enforce dedup + slot limits
+    const dedup = canRequestPoster_(empEmail, posterId);
+    if (!dedup.allowed) {
+      return { success: false, message: `Cannot add request: ${dedup.reason}` };
+    }
+
+    const activeSlots = countActiveSlotsByEmail_(empEmail);
+    if (activeSlots >= CONFIG.MAX_ACTIVE) {
+      return { success: false, message: `Cannot add request: limit (${CONFIG.MAX_ACTIVE}-slot)` };
+    }
+
     // Use custom timestamp or current time
     let requestTs;
     if (customTimestamp && customTimestamp.trim()) {
@@ -148,6 +162,8 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
     row[COLS.REQUESTS.STATUS_TS - 1] = requestTs;
 
     sh.appendRow(row);
+
+    invalidateCachesAfterWrite_({ empEmail });
     
     // Rebuild boards to reflect new entry
     rebuildBoards();
@@ -159,5 +175,7 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
   } catch (err) {
     Logger.log(`[addManualRequest] Error: ${err.message}`);
     return { success: false, message: `Error: ${err.message}` };
+  } finally {
+    lock.releaseLock();
   }
 }
