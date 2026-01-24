@@ -10,7 +10,7 @@ const CONFIG = {
   FORM_META: {
     TITLE: 'Poster Request Form - Pasco',
     DESCRIPTION:
-      'You can only have your name on 5 posters at a time. If you already have all 5 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
+      'You can only have your name on 7 posters at a time. If you already have all 7 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
   },
 
   FORM: {
@@ -30,9 +30,24 @@ const CONFIG = {
     REQUESTS: 'Requests',       // script-created
     SUBSCRIBERS: 'Subscribers', // script-created
     DOCUMENTATION: 'Documentation',
+    ERROR_LOG: 'Error Log',     // script-created
+    ANALYTICS: 'Analytics',     // script-created
+    DATA_INTEGRITY: 'Data Integrity', // script-created
   },
 
-  MAX_ACTIVE: 5,
+  MAX_ACTIVE: 7,
+
+  // Deduplication & Re-request Configuration
+  ALLOW_REREQUEST_AFTER_REMOVAL: false,  // Allow employees to re-request posters they previously removed
+  REREQUEST_COOLDOWN_DAYS: 0,            // Days to wait before re-requesting (0 = no cooldown)
+
+  // Cache Configuration
+  CACHE: {
+    DEFAULT_TTL: 5 * 60 * 1000,           // 5 minutes default
+    EMPLOYEE_COUNT_TTL: 5 * 60 * 1000,    // 5 minutes for employee counts
+    POSTER_AVAILABILITY_TTL: 10 * 60 * 1000,  // 10 minutes for poster maps
+    BOARD_SNAPSHOT_TTL: 5 * 60 * 1000,    // 5 minutes for board data
+  },
 
   INVENTORY_LAST_UPDATED_CELL: 'J1',
 
@@ -54,6 +69,9 @@ const CONFIG = {
     ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
+
+    CACHE_PREFIX: 'CACHE_',
+    LAST_ANALYTICS_FLUSH: 'LAST_ANALYTICS_FLUSH',
   },
 };
 
@@ -99,6 +117,34 @@ const COLS = {
   },
 
   SUBSCRIBERS: { ACTIVE: 1, EMAIL: 2, NAME: 3 },
+
+  ERROR_LOG: {
+    TIMESTAMP: 1,
+    ERROR_TYPE: 2,
+    FUNCTION_NAME: 3,
+    ERROR_MESSAGE: 4,
+    STACK_TRACE: 5,
+    CONTEXT: 6,
+    SEVERITY: 7,
+  },
+
+  ANALYTICS: {
+    TIMESTAMP: 1,
+    EVENT_TYPE: 2,
+    USER_EMAIL: 3,
+    DETAILS: 4,
+    EXECUTION_TIME: 5,
+    SUCCESS: 6,
+  },
+
+  DATA_INTEGRITY: {
+    CHECK_TIME: 1,
+    CHECK_TYPE: 2,
+    STATUS: 3,
+    ISSUES_FOUND: 4,
+    AUTO_FIXED: 5,
+    DETAILS: 6,
+  },
 };
 
 const STATUS = {
