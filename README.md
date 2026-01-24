@@ -102,7 +102,7 @@ clasp push
 1. Open your Google Sheet
 2. Go to **Extensions > Apps Script**
 3. Delete any existing code
-4. Copy each `.js` file from this repo into separate script files:
+4. Copy each `.js` file from this repo into separate script files (in order):
    - `00_Config.js`
    - `01_Setup.js`
    - `02_Utils.js`
@@ -114,9 +114,14 @@ clasp push
    - `08_Announcements.js`
    - `09_PrintOutInventory.js`
    - `10_Documentation.js`
-   - `11_CustomAnnouncements.js`
    - `12_PrintSelection.js`
    - `13_EmployeeViewSync.js`
+   - `14_ManualRequestEntry.js`
+   - `30_CacheManager.js`
+   - `31_Analytics.js`
+   - `32_DataIntegrity.js`
+   - `33_ErrorHandler.js`
+   - `99_CustomAnnouncements.js`
    - `99_Debugging.js`
 4. Save the project
 
@@ -602,26 +607,33 @@ These are constants in `STATUS` object and shouldn't be changed.
 
 ```
 poster-request-system/
+CORE SYSTEM (00-09)
 ├── 00_Config.js                 # Configuration & constants
 ├── 01_Setup.js                  # Setup & initialization
 ├── 02_Utils.js                  # Utility functions
-├── 02A_CacheManager.js          # Request caching layer (NEW)
+
+CORE OPERATIONS (10-20)
 ├── 03_FormManager.js            # Form creation & management
-├── 04_Analytics.js              # Logging & audit dashboard (NEW)
 ├── 04_SyncForm.js               # Form option syncing
 ├── 05_Ledger.js                 # Request ledger queries
 ├── 06_SubmitHandler.js          # Form submission processing
 ├── 07_Boards.js                 # Main & Employees board building
-├── 08_Announcements.js          # Email queue & sending (ENHANCED)
+├── 08_Announcements.js          # Email queue & sending
 ├── 09_PrintOutInventory.js      # Print layout generation
 ├── 10_Documentation.js          # Documentation sheet building
-├── 11_CustomAnnouncements.js    # Custom message handling
 ├── 12_PrintSelection.js         # Print area preparation
 ├── 13_EmployeeViewSync.js       # Employee view spreadsheet sync
 ├── 14_ManualRequestEntry.js     # Manual request entry dialog
-├── 15_DataIntegrity.js          # Data validation framework (NEW)
+
+ADMIN FEATURES (30-39)
+├── 30_CacheManager.js           # Performance caching
+├── 31_Analytics.js              # Event logging & audit dashboard
+├── 32_DataIntegrity.js          # Data validation framework
+├── 33_ErrorHandler.js           # Error handling & recovery
+
+DEBUG/TEST (99_*)
+├── 99_CustomAnnouncements.js    # Custom message handler
 ├── 99_Debugging.js              # Debug utilities & logging
-├── 99_ErrorHandler.js           # Error handling & recovery (NEW)
 ├── appsscript.json              # Google Apps Script manifest
 ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
 └── README.md                    # This file
