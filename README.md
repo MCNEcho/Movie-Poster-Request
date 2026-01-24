@@ -52,10 +52,18 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 - **Auto-Sync** - Updates automatically with new requests
 
 ### Admin Tools
-- **Admin Menu** - 12 easy-to-click management buttons
+- **Admin Menu** - 13 easy-to-click management buttons
 - **Manual Entry** - Add historical requests for migration
 - **Repair Function** - One-click system recovery
 - **Complete Logging** - Request Order sheet shows all submissions
+
+### Data Protection & Backups
+- **Automated Nightly Backups** - Requests and Subscribers sheets backed up daily at 2 AM
+- **Google Drive Integration** - Backups stored in dedicated Drive folder
+- **Retention Management** - Automatic cleanup of backups older than 30 days
+- **Manual Backup** - Run backup anytime from admin menu
+- **Multiple Formats** - CSV (default) or Google Sheet format
+- **Analytics Logging** - All backup events tracked in Analytics sheet
 
 ## 🚀 Quick Start
 
@@ -407,18 +415,24 @@ Click **"🎬 Poster System"** in menu bar to see:
 - Sends immediately (doesn't wait 15 minutes)
 - Good for urgent announcements
 
-### 10. Setup Employee View Spreadsheet
+### 10. Run Backup Now
+- Manually trigger backup of Requests and Subscribers sheets
+- Creates backups in Google Drive
+- Shows backup folder link when complete
+- Runs independently of nightly automated backup
+
+### 11. Setup Employee View Spreadsheet
 - Creates separate read-only spreadsheet
 - One-time setup only
 - Copies Main and Employees sheets
 - Can be safely shared with all employees
 
-### 11. Sync Employee View Now
+### 12. Sync Employee View Now
 - Manually update employee view spreadsheet
 - Useful if auto-sync is delayed
 - Clears old data and copies fresh
 
-### 12. Show Employee View Link
+### 13. Show Employee View Link
 - Displays URL of employee view spreadsheet
 - Easy to copy and share
 - Updates automatically in Print Out sheet
@@ -596,9 +610,18 @@ poster-request-system/
 ├── 11_CustomAnnouncements.js    # Custom message handling
 ├── 12_PrintSelection.js         # Print area preparation
 ├── 13_EmployeeViewSync.js       # Employee view spreadsheet sync
+├── 14_ManualRequestEntry.js     # Manual request entry dialog
+├── 15_DataIntegrity.js          # Data validation & integrity checks
+├── 16_BackupManager.js          # Nightly backup to Google Drive (NEW)
+├── 99_BackupTests.js            # Backup testing suite (NEW)
 ├── 99_Debugging.js              # Debug utilities & logging
+├── 99_ErrorHandler.js           # Error logging & handling
+├── 04_Analytics.js              # Analytics & monitoring
+├── 02A_CacheManager.js          # Performance caching
 ├── appsscript.json              # Google Apps Script manifest
 ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
+├── BACKUP_TESTING_GUIDE.md      # Backup testing & verification (NEW)
+├── BACKUP_IMPLEMENTATION_SUMMARY.md  # Backup feature summary (NEW)
 └── README.md                    # This file
 ```
 
@@ -650,9 +673,12 @@ poster-request-system/
    - Keep messages concise
 
 5. **Backups**
-   - Google Sheets auto-saves (no action needed)
-   - Export Requests sheet monthly for archival
-   - Keep copy of Movie Posters master list
+   - **Automated Nightly Backups** - System automatically backs up Requests and Subscribers sheets to Google Drive at 2 AM daily
+   - **Manual Backups** - Run backup anytime from "Poster System → Run Backup Now" menu
+   - **30-Day Retention** - Old backups automatically deleted (configurable)
+   - **Google Sheets Auto-Save** - Google Sheets auto-saves all changes (no action needed)
+   - **Optional Manual Export** - Export any sheet monthly for extra archival if desired
+   - See `BACKUP_TESTING_GUIDE.md` for backup configuration and testing
 
 ### For Setup
 
