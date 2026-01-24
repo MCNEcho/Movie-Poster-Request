@@ -85,7 +85,6 @@ function handleFormSubmit(e) {
   } catch (err) {
     logError_(err, 'handleFormSubmit', `Email: ${empEmail || 'unknown'}`, 'HIGH');
     trackFormSubmission_(empEmail, false, { error: err.message }, Date.now() - startTime);
-    console.error(err);
   } finally {
     lock.releaseLock();
   }
@@ -187,13 +186,13 @@ function processRemovals_(empEmail, removeLabels, decode) {
  */
 function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
   const idToCurrent = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
-  const activePosterMap = getActivePosterIdMap_();
+  const activePosterMap = getActivePosterIdMapCached_();
 
   Logger.log(`[processAdditions] Starting with ${addLabels.length} labels to add`);
   Logger.log(`[processAdditions] ID to Current Label map: ${JSON.stringify(idToCurrent)}`);
   Logger.log(`[processAdditions] Active Poster Map: ${JSON.stringify(activePosterMap)}`);
 
-  const activeNow = countActiveSlotsByEmail_(empEmail);
+  const activeNow = countActiveSlotsByEmailCached_(empEmail);
   let available = Math.max(0, CONFIG.MAX_ACTIVE - activeNow);
   Logger.log(`[processAdditions] Current active slots: ${activeNow}, Available: ${available}`);
 
@@ -220,16 +219,17 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs) {
       continue; 
     }
 
-    // Check for duplicates by email
-    if (hasEverRequestedByEmail_(empEmail, pid)) {
-      deniedAdds.push(`${show}: duplicate (historical)`);
-      Logger.log(`[processAdditions] DENIED: "${show}" - already requested by this email`);
+    // Check for duplicates by email and re-request rules
+    const requestCheck = canRequestPosterCached_(empEmail, pid);
+    if (!requestCheck.allowed) {
+      deniedAdds.push(`${show}: ${requestCheck.reason}`);
+      Logger.log(`[processAdditions] DENIED: "${show}" - ${requestCheck.reason}`);
       continue;
     }
 
     // Check slot availability
     if (available <= 0) {
-      deniedAdds.push(`${show}: limit (5-slot)`);
+      deniedAdds.push(`${show}: limit (${CONFIG.MAX_ACTIVE}-slot)`);
       Logger.log(`[processAdditions] DENIED: "${show}" - no available slots`);
       continue;
     }

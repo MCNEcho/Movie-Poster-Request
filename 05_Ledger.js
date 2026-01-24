@@ -1,5 +1,20 @@
 /** 05_Ledger.gs **/
 
+/**
+ * Convert a value to timestamp in milliseconds.
+ * @param {Date|string|number} value - Date value
+ * @returns {number} Timestamp in milliseconds
+ */
+function getTimestamp_(value) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  return new Date(value).getTime();
+}
+
 function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);
 }
@@ -28,6 +43,79 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
     String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
   );
 }
+
+/**
+ * Check if an employee can request a poster, respecting re-request configuration.
+ * 
+ * @param {string} empEmail - Employee email
+ * @param {string} posterId - Poster ID
+ * @returns {Object} { allowed: boolean, reason: string }
+ */
+function canRequestPoster_(empEmail, posterId) {
+  const sh = getRequestsSheet_();
+  const data = getNonEmptyData_(sh, 10);
+  
+  // Check if employee has any historical request for this poster
+  const historicalRequests = data.filter(r =>
+    String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
+    String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
+  );
+  
+  if (historicalRequests.length === 0) {
+    // No historical request - allowed
+    return { allowed: true, reason: '' };
+  }
+  
+  // Check if there's currently an ACTIVE request
+  const hasActiveRequest = historicalRequests.some(r =>
+    String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE
+  );
+  
+  if (hasActiveRequest) {
+    // Already has active request for this poster
+    return { allowed: false, reason: 'duplicate (active)' };
+  }
+  
+  // Has historical request but not currently active - check re-request config
+  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
+    // Re-request not allowed after removal
+    return { allowed: false, reason: 'duplicate (historical)' };
+  }
+  
+  // Re-request is allowed, but check cooldown period
+  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
+    // Find the most recent removal timestamp
+    const sortedRequests = historicalRequests
+      .filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.REMOVED)
+      .map(r => ({
+        statusTs: r[COLS.REQUESTS.STATUS_TS - 1]
+      }))
+      .sort((a, b) => {
+        const aTime = getTimestamp_(a.statusTs);
+        const bTime = getTimestamp_(b.statusTs);
+        return bTime - aTime; // Most recent first
+      });
+    
+    if (sortedRequests.length > 0) {
+      const mostRecentRemoval = sortedRequests[0].statusTs;
+      const removalTime = getTimestamp_(mostRecentRemoval);
+      const now = Date.now();
+      const daysSinceRemoval = (now - removalTime) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceRemoval < CONFIG.REREQUEST_COOLDOWN_DAYS) {
+        const daysRemaining = Math.ceil(CONFIG.REREQUEST_COOLDOWN_DAYS - daysSinceRemoval);
+        return { 
+          allowed: false, 
+          reason: `cooldown (wait ${daysRemaining} more day${daysRemaining > 1 ? 's' : ''})` 
+        };
+      }
+    }
+  }
+  
+  // All checks passed - allowed to re-request
+  return { allowed: true, reason: '' };
+}
+
 
 function countActiveSlotsByEmail_(empEmail) {
   const sh = getRequestsSheet_();

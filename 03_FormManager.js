@@ -1,5 +1,14 @@
 /** 03_FormManager.gs **/
 
+/**
+ * Get the form description with dynamic MAX_ACTIVE value.
+ * @returns {string} Form description
+ */
+function getFormDescription_() {
+  const maxActive = CONFIG.MAX_ACTIVE;
+  return `You can only have your name on ${maxActive} posters at a time. If you already have all ${maxActive} slots maxed out and you want a different poster, remove one from your selection to choose a new one.`;
+}
+
 function getEffectiveFormId_() {
   const cfg = String(CONFIG.FORM_ID || '').trim();
   if (cfg) return cfg;
@@ -22,7 +31,7 @@ function getOrCreateForm_() {
 
   // Create new form
   const form = FormApp.create(CONFIG.FORM_META.TITLE);
-  form.setDescription(CONFIG.FORM_META.DESCRIPTION);
+  form.setDescription(getFormDescription_());
 
   getProps_().setProperty(CONFIG.PROPS.FORM_ID, form.getId());
 
@@ -55,7 +64,7 @@ function ensureFormStructure_() {
   const form = getOrCreateForm_();
 
   form.setTitle(CONFIG.FORM_META.TITLE);
-  form.setDescription(CONFIG.FORM_META.DESCRIPTION);
+  form.setDescription(getFormDescription_());
   
   // Collect verified email addresses from Google accounts
   form.setCollectEmail(true);

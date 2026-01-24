@@ -201,6 +201,28 @@ function getPostersWithLabelsCached_() {
 }
 
 /**
+ * Check if employee can request poster with caching.
+ * 
+ * @param {string} empEmail - Employee email
+ * @param {string} posterId - Poster ID
+ * @returns {Object} { allowed: boolean, reason: string }
+ */
+function canRequestPosterCached_(empEmail, posterId) {
+  const cacheKey = `can_request_${empEmail}_${posterId}`;
+  
+  let result = getCached_(cacheKey);
+  if (result !== null) {
+    return result;
+  }
+  
+  // Cache miss - compute and cache
+  result = canRequestPoster_(empEmail, posterId);
+  setCached_(cacheKey, result, CONFIG.CACHE.EMPLOYEE_COUNT_TTL);
+  
+  return result;
+}
+
+/**
  * Invalidate caches after write operations.
  * Call this after any operation that modifies request or poster data.
  * 
@@ -212,6 +234,7 @@ function invalidateCachesAfterWrite_(operationType) {
     case 'request':
       // Invalidate request-related caches
       invalidateCachePattern_('employee_count_');
+      invalidateCachePattern_('can_request_');
       invalidateCache_('active_requests');
       break;
     
