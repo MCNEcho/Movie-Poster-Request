@@ -26,10 +26,23 @@ function performNightlyBackup() {
     
     // Backup only configured sheets
     const backupResults = [];
+    const backupErrors = [];
+    
     CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
-      const result = backupSheet_(sheetName, folderId, timestamp);
-      backupResults.push(result.name);
+      try {
+        const result = backupSheet_(sheetName, folderId, timestamp);
+        backupResults.push(result.name);
+      } catch (sheetErr) {
+        Logger.log(`[BACKUP] Failed to backup ${sheetName}: ${sheetErr.message}`);
+        backupErrors.push({ sheet: sheetName, error: sheetErr.message });
+        // Continue with remaining sheets
+      }
     });
+    
+    // If all sheets failed, throw error
+    if (backupResults.length === 0 && CONFIG.BACKUP.SHEETS_TO_BACKUP.length > 0) {
+      throw new Error(`All sheet backups failed. Errors: ${JSON.stringify(backupErrors)}`);
+    }
     
     // Apply retention policy
     const deletedCount = applyRetentionPolicy_(folderId);
@@ -38,9 +51,10 @@ function performNightlyBackup() {
     
     // Log success to Analytics
     logBackupEvent_({
-      status: 'SUCCESS',
+      status: backupErrors.length > 0 ? 'PARTIAL_SUCCESS' : 'SUCCESS',
       sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
       files: backupResults,
+      errors: backupErrors,
       deletedCount: deletedCount,
       executionTime: executionTime
     });
@@ -225,9 +239,15 @@ function logBackupEvent_(details) {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
     
-    const notes = details.status === 'SUCCESS'
-      ? `Backed up ${details.sheets.length} sheet(s): ${details.sheets.join(', ')}. Deleted ${details.deletedCount} old backups.`
-      : `Backup failed: ${details.error}`;
+    let notes;
+    if (details.status === 'SUCCESS' || details.status === 'PARTIAL_SUCCESS') {
+      notes = `Backed up ${details.sheets.length} sheet(s): ${details.sheets.join(', ')}. Deleted ${details.deletedCount} old backups.`;
+      if (details.errors && details.errors.length > 0) {
+        notes += ` Errors: ${details.errors.map(e => `${e.sheet} (${e.error})`).join('; ')}`;
+      }
+    } else {
+      notes = `Backup failed: ${details.error}`;
+    }
     
     analytics.appendRow([
       fmtDate_(now_(), CONFIG.DATE_FORMAT),

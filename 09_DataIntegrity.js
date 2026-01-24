@@ -135,6 +135,8 @@ function checkForOrphanedRequests_() {
       result.details.push(...orphanedDetails);
 
       // Auto-repair: Delete entire rows (from bottom to top to maintain row numbers)
+      // Reverse order is critical: deleting from top would shift row numbers down,
+      // causing subsequent deletions to target wrong rows
       orphanedRows.reverse().forEach(rowNum => {
         requestsSheet.deleteRow(rowNum);
       });
