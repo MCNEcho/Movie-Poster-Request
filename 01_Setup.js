@@ -68,38 +68,31 @@ function setupPosterSystem() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    ss.toast('Initializing sheets...', 'Setup Progress', 3);
+    // Task Group 1: Core Infrastructure (must run first)
+    ss.toast('Initializing core infrastructure...', 'Setup Progress', 3);
     ensureSheetSchemas_();
     applyAdminFormatting_();
-
-    ss.toast('Creating/repairing form...', 'Setup Progress', 3);
     ensureFormStructure_();
-
-    ss.toast('Syncing poster IDs...', 'Setup Progress', 3);
-    ensurePosterIds_();
-    syncInventoryCountsToMoviePosters_();
-    
-    ss.toast('Setting up triggers...', 'Setup Progress', 3);
     ensureTriggers_();
 
-    ss.toast('Syncing form options...', 'Setup Progress', 3);
+    // Task Group 2: Data Syncing
+    ss.toast('Syncing data...', 'Setup Progress', 3);
+    ensurePosterIds_();
+    syncInventoryCountsToMoviePosters_();
     syncPostersToForm();
-    
-    ss.toast('Rebuilding boards...', 'Setup Progress', 3);
+
+    // Task Group 3: Visual Displays
+    ss.toast('Generating views...', 'Setup Progress', 3);
     rebuildBoards();
-    
-    ss.toast('Building documentation...', 'Setup Progress', 3);
     buildDocumentationTab();
-    
-    ss.toast('Updating inventory...', 'Setup Progress', 3);
-    updateInventoryLastUpdated_();
-    
-    ss.toast('Building print layout...', 'Setup Progress', 3);
     buildPrintOutLayout_();
-    
-    ss.toast('Initializing health banner...', 'Setup Progress', 3);
+
+    // Task Group 4: Monitoring (last)
+    ss.toast('Finalizing setup...', 'Setup Progress', 3);
+    updateInventoryLastUpdated_();
     initializeHealthBanner_();
     
+    ss.toast('Setup complete!', 'Setup Complete', 5);
     SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
   } finally {
     lock.releaseLock();
