@@ -188,7 +188,7 @@ function runBulkSimulator(N, dryRun) {
     const ui = SpreadsheetApp.getUi();
     const response = ui.alert(
       'High Simulation Count Warning',
-      `You are about to run ${N} simulations in LIVE mode. This may consume significant quota.\\n\\nContinue?`,
+      `You are about to run ${N} simulations in LIVE mode. This may consume significant quota.\n\nContinue?`,
       ui.ButtonSet.YES_NO
     );
     
@@ -280,6 +280,11 @@ function runBulkSimulator(N, dryRun) {
  * Show bulk simulator dialog (called from admin menu)
  */
 function showBulkSimulatorDialog() {
+  // Sanitize config values for HTML output
+  const maxSims = Number(CONFIG.BULK_SIMULATOR.MAX_SIMULATIONS) || 100;
+  const defaultSims = Number(CONFIG.BULK_SIMULATOR.DEFAULT_SIMULATIONS) || 10;
+  const warningThreshold = Number(CONFIG.BULK_SIMULATOR.WARNING_THRESHOLD) || 50;
+  
   const html = HtmlService.createHtmlOutput(`
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; }
@@ -301,9 +306,9 @@ function showBulkSimulatorDialog() {
     
     <div class="form-group">
       <label for="simCount">Number of Simulations (N):</label>
-      <input type="number" id="simCount" min="1" max="${CONFIG.BULK_SIMULATOR.MAX_SIMULATIONS}" 
-             value="${CONFIG.BULK_SIMULATOR.DEFAULT_SIMULATIONS}" />
-      <div class="info">Maximum: ${CONFIG.BULK_SIMULATOR.MAX_SIMULATIONS}</div>
+      <input type="number" id="simCount" min="1" max="${maxSims}" 
+             value="${defaultSims}" />
+      <div class="info">Maximum: ${maxSims}</div>
     </div>
     
     <div class="form-group">
@@ -322,17 +327,20 @@ function showBulkSimulatorDialog() {
     <div id="status" style="margin-top: 20px;"></div>
     
     <script>
+      const MAX_SIMS = ${maxSims};
+      const WARNING_THRESHOLD = ${warningThreshold};
+      
       function runSimulation() {
         const simCount = parseInt(document.getElementById('simCount').value);
         const dryRun = document.getElementById('dryRun').checked;
         const status = document.getElementById('status');
         
-        if (simCount < 1 || simCount > ${CONFIG.BULK_SIMULATOR.MAX_SIMULATIONS}) {
+        if (simCount < 1 || simCount > MAX_SIMS) {
           status.innerHTML = '<div class="warning">Invalid simulation count</div>';
           return;
         }
         
-        if (simCount >= ${CONFIG.BULK_SIMULATOR.WARNING_THRESHOLD} && !dryRun) {
+        if (simCount >= WARNING_THRESHOLD && !dryRun) {
           if (!confirm('You are about to run ' + simCount + ' simulations in LIVE mode. This may consume significant quota. Continue?')) {
             return;
           }

@@ -5,6 +5,9 @@
  * Tracks usage patterns, performance metrics, and system health
  */
 
+// Analytics sheet column count (used for data reading)
+const ANALYTICS_COLUMNS = 12;
+
 /**
  * Ensure Analytics sheet exists with proper headers
  */
@@ -130,7 +133,7 @@ function logFormSyncEvent_(executionTime, posterCount) {
 function updateAnalyticsSummary_() {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
-    const data = getNonEmptyData_(analytics, 12);
+    const data = getNonEmptyData_(analytics, ANALYTICS_COLUMNS);
     if (data.length === 0) return;
 
     const summarySheet = getSheet_(CONFIG.SHEETS.ANALYTICS_SUMMARY);
@@ -330,7 +333,7 @@ For detailed metrics, see the Analytics Summary sheet.
 function archiveOldAnalytics_() {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
-    const data = getNonEmptyData_(analytics, 12);
+    const data = getNonEmptyData_(analytics, ANALYTICS_COLUMNS);
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
