@@ -40,7 +40,7 @@ All acceptance criteria have been met. The nightly backup feature is fully imple
 ### Code Files
 | File | Lines | Purpose |
 |------|-------|---------|
-| `16_BackupManager.js` | 283 | Core backup functionality |
+| `10_BackupManager.js` | 283 | Core backup functionality |
 | `99_BackupTests.js` | 236 | Comprehensive test suite |
 | `00_Config.js` | +9 | Backup configuration |
 | `01_Setup.js` | +9 | Trigger and menu integration |
@@ -174,7 +174,7 @@ Edit `01_Setup.js`, function `ensureTriggers_`:
 ```
 
 #### Add Custom Backup Logic
-Extend `16_BackupManager.js`:
+Extend `10_BackupManager.js`:
 - Add new sheet exports
 - Customize CSV format
 - Add compression

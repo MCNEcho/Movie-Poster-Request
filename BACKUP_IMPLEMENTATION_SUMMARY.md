@@ -10,7 +10,7 @@ Successfully implemented Issue #8: Nightly data backup/export to Google Drive fo
 2. **`01_Setup.js`** - Added trigger and menu integration
 
 ### New Files:
-1. **`16_BackupManager.js`** - Core backup functionality (283 lines)
+1. **`10_BackupManager.js`** - Core backup functionality (283 lines)
 2. **`99_BackupTests.js`** - Comprehensive test suite (236 lines)
 3. **`BACKUP_TESTING_GUIDE.md`** - Testing and verification guide (317 lines)
 
@@ -134,12 +134,12 @@ Comprehensive documentation including:
 - Positioned between announcements and employee view
 - Calls `manualBackupTrigger()` function
 
-### Analytics Integration (`16_BackupManager.js`)
+### Analytics Integration (`10_BackupManager.js`)
 - Uses existing `getSheet_()` utility
 - Follows Analytics sheet schema
 - Event type: "BACKUP"
 
-### Error Logging (`16_BackupManager.js`)
+### Error Logging (`10_BackupManager.js`)
 - Uses existing `logError_()` function
 - Follows Error Log sheet schema
 - Includes full context
@@ -199,8 +199,8 @@ BACKUP: {
 
 ### Internal Dependencies
 - `02_Utils.js` - Helper functions (fmtDate_, now_, getProps_)
-- `04_Analytics.js` - Analytics sheet structure
-- `99_ErrorHandler.js` - Error logging (logError_)
+- `08_Analytics.js` - Analytics sheet structure
+- `03_ErrorHandler.js` - Error logging (logError_)
 - `00_Config.js` - Configuration constants
 
 ## Code Quality

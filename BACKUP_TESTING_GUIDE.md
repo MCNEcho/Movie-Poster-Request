@@ -20,7 +20,7 @@ clasp push
 
 Or manually:
 1. Copy all JavaScript files to your Apps Script project
-2. Ensure `16_BackupManager.js` and `99_BackupTests.js` are included
+2. Ensure `10_BackupManager.js` and `99_BackupTests.js` are included
 
 ### 2. Run Setup
 1. Open your Google Sheet
@@ -120,7 +120,7 @@ Check that the admin menu now includes:
 Since we can't easily create files with old dates, verify the logic:
 
 1. Open **Extensions → Apps Script**
-2. Open `16_BackupManager.js`
+2. Open `10_BackupManager.js`
 3. Find function `applyRetentionPolicy_`
 4. Review the logic:
    - Gets files from backup folder
