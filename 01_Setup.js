@@ -11,30 +11,55 @@ function onOpen() {
 }
 
 function buildAdminMenu_() {
-  SpreadsheetApp.getUi()
-    .createMenu('Poster System')
-    .addItem('Prepare Print Area (Select & Print)', 'prepareAndSelectPrintArea')
-    .addItem('Run Setup / Repair', 'setupPosterSystem')
+  const ui = SpreadsheetApp.getUi();
+  
+  ui.createMenu('Poster System')
+    .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
+    .addItem('🔄 Refresh All', 'refreshAll_')
     .addSeparator()
-    .addItem('Refresh Health Banner', 'refreshHealthBanner')
-    .addItem('Sync Form Options Now', 'syncPostersToForm')
-    .addItem('Rebuild Boards Now', 'rebuildBoards')
-    .addItem('Refresh Print Out', 'refreshPrintOut')
-    .addItem('Refresh Documentation', 'buildDocumentationTab')
-    .addSeparator()
-    .addItem('Manually Add Request (for migration)', 'showManualRequestDialog')
-    .addSeparator()
-    .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
-    .addItem('Send Announcement Now', 'sendAnnouncementNow')
-    .addSeparator()
-    .addItem('Run Bulk Submission Simulator', 'showBulkSimulatorDialog')
-    .addItem('Run Backup Now', 'manualBackupTrigger')
-    .addSeparator()
-    .addItem('Setup Employee View Spreadsheet', 'setupEmployeeViewSpreadsheet')
-    .addItem('Sync Employee View Now', 'syncEmployeeViewSpreadsheet_')
-    .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet')
-
+    .addSubMenu(ui.createMenu('📊 Reports')
+      .addItem('Rebuild Boards', 'rebuildBoards')
+      .addItem('Sync Form Options', 'syncPostersToForm')
+      .addItem('Refresh Documentation', 'buildDocumentationTab')
+      .addItem('Refresh Health Banner', 'refreshHealthBanner'))
+    .addSubMenu(ui.createMenu('🖨️ Print & Layout')
+      .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
+      .addItem('Refresh Print Out', 'refreshPrintOut'))
+    .addSubMenu(ui.createMenu('📧 Announcements')
+      .addItem('Preview Pending', 'previewPendingAnnouncement')
+      .addItem('Send Now', 'sendAnnouncementNow'))
+    .addSubMenu(ui.createMenu('⚙️ Advanced')
+      .addItem('Manually Add Request', 'showManualRequestDialog')
+      .addItem('Run Bulk Simulator', 'showBulkSimulatorDialog')
+      .addItem('Run Backup Now', 'manualBackupTrigger')
+      .addItem('Setup Employee View', 'setupEmployeeViewSpreadsheet')
+      .addItem('Sync Employee View', 'syncEmployeeViewSpreadsheet_')
+      .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet'))
     .addToUi();
+}
+
+/**
+ * Refresh All: Executes the 3 main refresh operations
+ * Rebuilds boards, syncs form options, and refreshes health banner
+ */
+function refreshAll_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  try {
+    ss.toast('Rebuilding boards...', 'Refresh All', 3);
+    rebuildBoards();
+    
+    ss.toast('Syncing form options...', 'Refresh All', 3);
+    syncPostersToForm();
+    
+    ss.toast('Refreshing health banner...', 'Refresh All', 3);
+    refreshHealthBanner();
+    
+    ss.toast('✅ All systems refreshed!', 'Refresh All Complete', 5);
+  } catch (err) {
+    ss.toast(`❌ Error during refresh: ${err.message}`, 'Refresh All Failed', 8);
+    logError_(err, 'refreshAll_', 'Refresh all operations');
+  }
 }
 
 function setupPosterSystem() {
@@ -148,6 +173,47 @@ function ensureSheetSchemas_() {
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);
+
+  // Remove all frozen headers and frozen columns from all sheets
+  removeFrozenHeadersFromAllSheets_();
+
+  // Auto-hide internal audit sheets
+  hideInternalSheets_();
+}
+
+/**
+ * Remove frozen headers and columns from all sheets for better UX
+ */
+function removeFrozenHeadersFromAllSheets_() {
+  const ss = SpreadsheetApp.getActive();
+  const sheets = ss.getSheets();
+  
+  sheets.forEach(sheet => {
+    sheet.setFrozenRows(0);
+    sheet.setFrozenColumns(0);
+  });
+}
+
+/**
+ * Hide internal audit sheets (Requests & Request Order) from regular viewing
+ * Admin can unhide these manually if needed
+ */
+function hideInternalSheets_() {
+  const ss = SpreadsheetApp.getActive();
+  
+  try {
+    const requestsSheet = ss.getSheetByName(CONFIG.SHEETS.REQUESTS);
+    if (requestsSheet) requestsSheet.hideSheet();
+  } catch (err) {
+    Logger.log(`[hideInternalSheets_] Could not hide ${CONFIG.SHEETS.REQUESTS}: ${err.message}`);
+  }
+  
+  try {
+    const requestOrderSheet = ss.getSheetByName(CONFIG.SHEETS.REQUEST_ORDER);
+    if (requestOrderSheet) requestOrderSheet.hideSheet();
+  } catch (err) {
+    Logger.log(`[hideInternalSheets_] Could not hide ${CONFIG.SHEETS.REQUEST_ORDER}: ${err.message}`);
+  }
 }
 
 function applyAdminFormatting_() {
