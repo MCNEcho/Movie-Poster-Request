@@ -2,6 +2,12 @@
 
 function onOpen() {
   buildAdminMenu_();
+  // Initialize health banner on open without blocking
+  try {
+    renderHealthBanner_();
+  } catch (err) {
+    Logger.log(`[WARN] Health banner render on open failed: ${err.message}`);
+  }
 }
 
 function buildAdminMenu_() {
@@ -10,6 +16,7 @@ function buildAdminMenu_() {
     .addItem('Prepare Print Area (Select & Print)', 'prepareAndSelectPrintArea')
     .addItem('Run Setup / Repair', 'setupPosterSystem')
     .addSeparator()
+    .addItem('Refresh Health Banner', 'refreshHealthBanner')
     .addItem('Sync Form Options Now', 'syncPostersToForm')
     .addItem('Rebuild Boards Now', 'rebuildBoards')
     .addItem('Refresh Print Out', 'refreshPrintOut')
@@ -62,6 +69,9 @@ function setupPosterSystem() {
     
     ss.toast('Building print layout...', 'Setup Progress', 3);
     buildPrintOutLayout_();
+    
+    ss.toast('Initializing health banner...', 'Setup Progress', 3);
+    initializeHealthBanner_();
     
     SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
   } finally {
