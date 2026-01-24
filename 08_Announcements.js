@@ -21,7 +21,7 @@ function handleSheetEdit(e) {
       invalidateCachesAfterWrite_('poster');
 
       syncPostersToForm();
-      rebuildBoards();
+      requestBoardRebuild();
       refreshPrintOut();
       return;
     }

@@ -149,8 +149,8 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
 
     sh.appendRow(row);
     
-    // Rebuild boards to reflect new entry
-    rebuildBoards();
+    // Request board rebuild (with debounce)
+    requestBoardRebuild();
     syncPostersToForm();
     
     Logger.log(`[addManualRequest] Successfully added request: ${empEmail} - ${label}`);
