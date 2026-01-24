@@ -38,7 +38,10 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 
 ### Notifications
 - **Email Subscriptions** - Employees opt-in for poster announcements
-- **Batched Announcements** - Automatic emails every 15 minutes
+- **Batched Announcements** - Multiple posters per email with smart batching
+- **Template System** - Variable substitution for personalized emails
+- **Dry-Run Preview** - Preview emails before sending
+- **Retry & Throttling** - Automatic retry with exponential backoff
 - **Custom Messages** - Admin can send special announcements
 
 ### Print & Distribution
@@ -399,7 +402,9 @@ Click **"🎬 Poster System"** in menu bar to see:
 
 ### 8. Preview Pending Announcement
 - Shows draft of email that will be sent
-- Shows poster title and details
+- Displays fully rendered template with substituted variables
+- Shows recipient count and poster list
+- Dry-run preview with actual email body
 - Helps catch typos before sending
 
 ### 9. Send Announcement Now
@@ -584,20 +589,26 @@ These are constants in `STATUS` object and shouldn't be changed.
 poster-request-system/
 ├── 00_Config.js                 # Configuration & constants
 ├── 01_Setup.js                  # Setup & initialization
+├── 02A_CacheManager.js          # Performance caching layer
 ├── 02_Utils.js                  # Utility functions
 ├── 03_FormManager.js            # Form creation & management
+├── 04_Analytics.js              # Analytics tracking & monitoring
 ├── 04_SyncForm.js               # Form option syncing
 ├── 05_Ledger.js                 # Request ledger queries
 ├── 06_SubmitHandler.js          # Form submission processing
 ├── 07_Boards.js                 # Main & Employees board building
-├── 08_Announcements.js          # Email queue & sending
+├── 08_Announcements.js          # Email batching, templates & sending
 ├── 09_PrintOutInventory.js      # Print layout generation
 ├── 10_Documentation.js          # Documentation sheet building
 ├── 11_CustomAnnouncements.js    # Custom message handling
 ├── 12_PrintSelection.js         # Print area preparation
 ├── 13_EmployeeViewSync.js       # Employee view spreadsheet sync
-├── 99_Debugging.js              # Debug utilities & logging
+├── 14_ManualRequestEntry.js     # Manual request entry tool
+├── 15_DataIntegrity.js          # Data validation & integrity checks
+├── 99_Debuging.js               # Debug utilities & logging
+├── 99_ErrorHandler.js           # Error handling & retry logic
 ├── appsscript.json              # Google Apps Script manifest
+├── ANNOUNCEMENT_BATCHING.md     # Announcement batching documentation
 ├── PROJECT_DOCUMENTATION.txt    # Detailed technical docs
 └── README.md                    # This file
 ```
@@ -696,5 +707,16 @@ Designed with simplicity and reliability in mind.
 ---
 
 **Last Updated:** January 2026  
-**Version:** 1.1 (Optimized)  
+**Version:** 1.2 (Announcement Batching)  
 **Status:** Production Ready ✅
+
+## 🎉 Recent Updates
+
+### Version 1.2 - Announcement Batching (Latest)
+- **Template System** with variable substitution ({{TITLE}}, {{RELEASE}}, etc.)
+- **Batch Multiple Posters** into single emails (configurable batch size)
+- **Dry-Run Preview** showing actual rendered email before sending
+- **Retry Logic** with exponential backoff for transient failures
+- **Email Throttling** to avoid quota spikes
+- **Analytics Logging** for all announcement events
+- See [ANNOUNCEMENT_BATCHING.md](./ANNOUNCEMENT_BATCHING.md) for details
