@@ -4,6 +4,13 @@ function rebuildBoards() {
   buildMainBoard_();
   buildEmployeesBoard_();
   syncEmployeeViewSpreadsheet_();
+  
+  // Refresh health banner after board rebuild
+  try {
+    renderHealthBanner_();
+  } catch (err) {
+    Logger.log(`[WARN] Health banner refresh after board rebuild failed: ${err.message}`);
+  }
 }
 
 function resetBoardArea_(sheet, colsToClear) {
