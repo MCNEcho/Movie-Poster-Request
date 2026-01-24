@@ -29,6 +29,74 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
   );
 }
 
+/**
+ * Check if an employee can request a specific poster based on dedup rules.
+ * Respects CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL and CONFIG.REREQUEST_COOLDOWN_DAYS.
+ * 
+ * @param {string} empEmail - Employee email
+ * @param {string} posterId - Poster ID
+ * @returns {Object} { allowed: boolean, reason: string }
+ */
+function canRequestPoster_(empEmail, posterId) {
+  const sh = getRequestsSheet_();
+  const data = getNonEmptyData_(sh, 9);
+  
+  // Find all requests for this email/poster combination
+  const requests = data.filter(r =>
+    String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
+    String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
+  );
+  
+  // No previous requests - allowed
+  if (requests.length === 0) {
+    return { allowed: true, reason: '' };
+  }
+  
+  // Check if any request is currently ACTIVE
+  const hasActive = requests.some(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+  if (hasActive) {
+    return { allowed: false, reason: 'duplicate (already active)' };
+  }
+  
+  // If re-requests after removal are not allowed, deny
+  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
+    return { allowed: false, reason: 'duplicate (historical)' };
+  }
+  
+  // Re-requests are allowed - check cooldown period
+  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
+    // Find the most recent removal timestamp
+    const removedRequests = requests.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.REMOVED);
+    
+    if (removedRequests.length > 0) {
+      // Get the most recent removal timestamp
+      let mostRecentRemoval = null;
+      removedRequests.forEach(r => {
+        const statusTs = r[COLS.REQUESTS.STATUS_TS - 1];
+        if (statusTs && (!mostRecentRemoval || statusTs > mostRecentRemoval)) {
+          mostRecentRemoval = statusTs;
+        }
+      });
+      
+      if (mostRecentRemoval) {
+        const now = now_();
+        const daysSinceRemoval = (now - mostRecentRemoval) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceRemoval < CONFIG.REREQUEST_COOLDOWN_DAYS) {
+          const daysRemaining = Math.ceil(CONFIG.REREQUEST_COOLDOWN_DAYS - daysSinceRemoval);
+          return { 
+            allowed: false, 
+            reason: `cooldown (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)` 
+          };
+        }
+      }
+    }
+  }
+  
+  // All checks passed - re-request is allowed
+  return { allowed: true, reason: '' };
+}
+
 function countActiveSlotsByEmail_(empEmail) {
   const sh = getRequestsSheet_();
   const data = getNonEmptyData_(sh, 9);
