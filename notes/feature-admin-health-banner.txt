@@ -1,0 +1,3 @@
+Feature: Inline admin health banner (caches, triggers, errors)
+Status: scaffold
+Notes: render status on MAIN/Admin sheet showing triggers freshness, cache stats, last error time, announcement queue size; add refresh action.
