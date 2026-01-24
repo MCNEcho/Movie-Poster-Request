@@ -6,7 +6,7 @@
  */
 
 /**
- * Main backup function - exports Requests and Subscribers to Drive
+ * Main backup function - exports configured sheets to Drive
  * Called by nightly trigger or manually from menu
  */
 function performNightlyBackup() {
@@ -24,11 +24,31 @@ function performNightlyBackup() {
     // Ensure backup folder exists
     const folderId = ensureBackupFolder_();
     
-    // Backup Requests sheet
-    const requestsBackup = backupSheet_(CONFIG.SHEETS.REQUESTS, folderId, timestamp);
+    // Backup only configured sheets
+    const backupResults = [];
+    const backupErrors = [];
     
-    // Backup Subscribers sheet
-    const subscribersBackup = backupSheet_(CONFIG.SHEETS.SUBSCRIBERS, folderId, timestamp);
+    CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
+      try {
+        const result = backupSheet_(sheetName, folderId, timestamp);
+        if (result && result.name) {
+          backupResults.push(result.name);
+        } else {
+          Logger.log(`[BACKUP] Warning: backup returned invalid result for ${sheetName}`);
+          backupErrors.push({ sheet: sheetName, error: 'Invalid result structure' });
+        }
+      } catch (sheetErr) {
+        Logger.log(`[BACKUP] Failed to backup ${sheetName}: ${sheetErr.message}`);
+        backupErrors.push({ sheet: sheetName, error: sheetErr.message });
+        // Continue with remaining sheets
+      }
+    });
+    
+    // If all sheets failed, throw error
+    if (backupResults.length === 0 && CONFIG.BACKUP.SHEETS_TO_BACKUP.length > 0) {
+      const errorSummary = backupErrors.map(e => `${e.sheet}: ${e.error}`).join('; ');
+      throw new Error(`All sheet backups failed. Errors: ${errorSummary}`);
+    }
     
     // Apply retention policy
     const deletedCount = applyRetentionPolicy_(folderId);
@@ -37,14 +57,16 @@ function performNightlyBackup() {
     
     // Log success to Analytics
     logBackupEvent_({
-      status: 'SUCCESS',
-      requestsFile: requestsBackup.name,
-      subscribersFile: subscribersBackup.name,
+      status: backupErrors.length > 0 ? 'PARTIAL_SUCCESS' : 'SUCCESS',
+      sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
+      files: backupResults,
+      errors: backupErrors,
       deletedCount: deletedCount,
       executionTime: executionTime
     });
     
     Logger.log(`[BACKUP] Completed successfully in ${executionTime}ms`);
+    Logger.log(`[BACKUP] Backed up ${backupResults.length} sheets: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
     Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
     
   } catch (err) {
@@ -223,9 +245,15 @@ function logBackupEvent_(details) {
   try {
     const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
     
-    const notes = details.status === 'SUCCESS'
-      ? `Backed up: ${details.requestsFile}, ${details.subscribersFile}. Deleted ${details.deletedCount} old backups.`
-      : `Backup failed: ${details.error}`;
+    let notes;
+    if (details.status === 'SUCCESS' || details.status === 'PARTIAL_SUCCESS') {
+      notes = `Backed up ${details.sheets.length} sheet(s): ${details.sheets.join(', ')}. Deleted ${details.deletedCount} old backups.`;
+      if (details.errors && details.errors.length > 0) {
+        notes += ` Errors: ${details.errors.map(e => `${e.sheet} (${e.error})`).join('; ')}`;
+      }
+    } else {
+      notes = `Backup failed: ${details.error}`;
+    }
     
     analytics.appendRow([
       fmtDate_(now_(), CONFIG.DATE_FORMAT),
@@ -260,8 +288,9 @@ function manualBackupTrigger() {
   }
   
   try {
+    const sheetList = CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ');
     ui.alert('🔄 Starting Backup', 
-      'Creating backups of Requests and Subscribers sheets...', 
+      `Creating backups of configured sheets:\n${sheetList}`, 
       ui.ButtonSet.OK);
     
     performNightlyBackup();
@@ -272,7 +301,7 @@ function manualBackupTrigger() {
     const folderUrl = folder.getUrl();
     
     ui.alert('✅ Backup Complete', 
-      `Backups created successfully!\n\nView backups in Drive:\n${folderUrl}`, 
+      `Backups created successfully!\n\nSheets backed up: ${sheetList}\n\nView backups in Drive:\n${folderUrl}`, 
       ui.ButtonSet.OK);
       
   } catch (err) {
