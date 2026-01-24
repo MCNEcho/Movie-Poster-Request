@@ -59,6 +59,15 @@ Perfect for movie theaters, restaurants, offices, or any business managing physi
 - **Manual Entry** - Add historical requests for migration
 - **Repair Function** - One-click system recovery
 - **Complete Logging** - Request Order sheet shows all submissions
+- **Analytics & Monitoring** - Track system performance and usage
+- **Bulk Simulator** - Stress-test system with N randomized submissions
+
+### Analytics & Performance
+- **Performance Metrics** - Track execution time, sheet reads, cache hits, lock waits
+- **Analytics Sheet** - Detailed event logging with timestamps
+- **Analytics Summary** - Aggregated metrics including cache hit rate, avg times
+- **Bulk Load Testing** - Simulate multiple submissions to measure quota usage
+- **System Health** - Monitor anomalies and unusual patterns
 
 ### Data Protection & Backups
 - **Automated Nightly Backups** - Requests and Subscribers sheets backed up daily at 2 AM
@@ -420,6 +429,21 @@ Click **"🎬 Poster System"** in menu bar to see:
 - Sends immediately (doesn't wait 15 minutes)
 - Good for urgent announcements
 
+### 10. Run Bulk Submission Simulator
+- **NEW**: Stress-test the system with randomized submissions
+- Simulates N submissions with random add/remove poster selections
+- Tracks performance metrics: execution time, sheet reads, cache hits, lock waits
+- **Dry-run mode**: Test without modifying data (recommended first)
+- **Live mode**: Actually processes submissions
+- Safety guardrails:
+  - Hard cap at 100 simulations per run
+  - Warning prompt for N >= 50 in live mode
+- Results logged to Analytics sheet
+- Use to:
+  - Test system under load
+  - Measure performance with different N values
+  - Validate quota usage before production stress
+  - Generate sample data for testing
 ### 10. Run Backup Now
 - Manually trigger backup of Requests and Subscribers sheets
 - Creates backups in Google Drive
@@ -605,8 +629,10 @@ poster-request-system/
 ├── 01_Setup.js                  # Setup & initialization
 ├── 02A_CacheManager.js          # Performance caching layer
 ├── 02_Utils.js                  # Utility functions
+├── 02A_CacheManager.js          # Caching layer for performance
 ├── 03_FormManager.js            # Form creation & management
 ├── 04_Analytics.js              # Analytics tracking & monitoring
+├── 04_Analytics.js              # Analytics & logging
 ├── 04_SyncForm.js               # Form option syncing
 ├── 05_Ledger.js                 # Request ledger queries
 ├── 06_SubmitHandler.js          # Form submission processing
@@ -622,6 +648,10 @@ poster-request-system/
 ├── 99_Debuging.js               # Debug utilities & logging
 ├── 99_ErrorHandler.js           # Error handling & retry logic
 ├── 14_ManualRequestEntry.js     # Manual request entry dialog
+├── 15_DataIntegrity.js          # Data integrity checks
+├── 16_BulkSimulator.js          # Bulk submission simulator (NEW)
+├── 99_Debuging.js               # Debug utilities & logging
+├── 99_ErrorHandler.js           # Error handling & logging
 ├── 15_DataIntegrity.js          # Data validation & integrity checks
 ├── 16_BackupManager.js          # Nightly backup to Google Drive (NEW)
 ├── 99_BackupTests.js            # Backup testing suite (NEW)
@@ -643,6 +673,19 @@ poster-request-system/
 - `handleFormSubmit()` - Processes form submissions
 - `handleSheetEdit()` - Handles sheet changes
 - `processAnnouncementQueue()` - Sends emails every 15 min
+
+### Analytics & Monitoring (NEW)
+- `logSubmissionEvent_()` - Log form submission metrics
+- `logBulkSimulationEvent_()` - Log bulk simulation results
+- `updateAnalyticsSummary_()` - Update aggregated metrics
+- `getCacheStats_()` - Get cache hit rates and performance
+
+### Bulk Simulator (NEW)
+- `runBulkSimulator()` - Main simulator function with N parameter and dry-run mode
+- `generateTestEmployee_()` - Create randomized test employees
+- `generateRandomSubmissionData_()` - Generate random add/remove sets
+- `simulateSingleSubmission_()` - Simulate one submission with metrics tracking
+- `showBulkSimulatorDialog()` - Display admin dialog UI
 
 ### Form Processing
 - `processSubmission_()` - Main submission processor

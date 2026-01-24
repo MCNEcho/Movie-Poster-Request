@@ -33,6 +33,40 @@ function resetAllTriggers() {
 }
 
 /**
+ * Test function for dedup configuration feature
+ * Tests various scenarios with different CONFIG settings
+ */
+function testDedupConfig() {
+  Logger.log('=== Testing Dedup Configuration ===');
+  Logger.log(`Current settings: ALLOW_REREQUEST_AFTER_REMOVAL=${CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL}, COOLDOWN_DAYS=${CONFIG.REREQUEST_COOLDOWN_DAYS}`);
+  
+  // Test scenarios:
+  // 1. No previous request - should always allow
+  const test1 = canRequestPoster_('newuser@test.com', 'test-poster-id-1');
+  Logger.log(`Test 1 (no previous request): ${test1.allowed ? 'PASS' : 'FAIL'} - ${test1.reason || 'allowed'}`);
+  
+  // 2. When ALLOW_REREQUEST_AFTER_REMOVAL=false (default), historical requests should be blocked
+  Logger.log('\nTest 2: Testing with ALLOW_REREQUEST_AFTER_REMOVAL=false (strict mode)');
+  Logger.log('  - Scenario: User previously requested and removed a poster');
+  Logger.log('  - Expected: Should be blocked with "duplicate (historical)"');
+  Logger.log('  - To test fully, would need actual data in Requests sheet');
+  
+  // 3. When ALLOW_REREQUEST_AFTER_REMOVAL=true and COOLDOWN_DAYS=0
+  Logger.log('\nTest 3: Testing with ALLOW_REREQUEST_AFTER_REMOVAL=true, COOLDOWN_DAYS=0');
+  Logger.log('  - Scenario: User previously requested and removed a poster');
+  Logger.log('  - Expected: Should be allowed immediately');
+  
+  // 4. When ALLOW_REREQUEST_AFTER_REMOVAL=true and COOLDOWN_DAYS>0
+  Logger.log('\nTest 4: Testing with ALLOW_REREQUEST_AFTER_REMOVAL=true, COOLDOWN_DAYS=7');
+  Logger.log('  - Scenario: User removed poster 3 days ago');
+  Logger.log('  - Expected: Should be blocked with "cooldown (4 days remaining)"');
+  
+  Logger.log('\n=== Dedup Config Test Complete ===');
+  Logger.log('Review logs above to verify behavior matches expectations');
+  Logger.log('To test with real data, add test requests in Requests sheet');
+}
+
+/**
  * ============================================================================
  * ONE-TIME MIGRATION / CLEANUP FUNCTION (Archive - no longer maintained)
  * ============================================================================

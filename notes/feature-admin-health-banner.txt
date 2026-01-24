@@ -1,0 +1,35 @@
+Feature: Inline admin health banner (caches, triggers, errors)
+Status: COMPLETED ✅
+Implementation: 16_AdminHealthBanner.js
+
+## Description
+Inline admin health banner on MAIN sheet showing real-time system health indicators with color-coded status.
+
+## Components Implemented
+- **Trigger Health**: Shows status of 3 triggers (formSubmit, sheetEdit, announcementQueue)
+- **Cache Health**: Displays valid cache count vs total caches
+- **Error Status**: Shows last error timestamp with age-based severity
+- **Queue Info**: Displays announcement queue size
+
+## Banner Location
+- Columns D-F on MAIN sheet (avoids board layout in A-B)
+- 5 rows: Header + 4 status indicators
+- Color-coded: Green (✅ HEALTHY), Yellow (⚠️ WARNING), Red (🚨 ERROR)
+
+## User Actions
+- **Refresh Health Banner** menu item in Poster System menu
+- Auto-refreshes on:
+  - Spreadsheet open (onOpen)
+  - Board rebuild (rebuildBoards)
+  - System setup (setupPosterSystem)
+
+## Status Logic
+- **HEALTHY**: All systems operational
+- **WARNING**: Minor issues (cache cold, queue large, old error)
+- **ERROR**: Critical issues (triggers missing, recent error)
+
+## Integration Points
+- `01_Setup.js`: Menu item, onOpen, setup initialization
+- `07_Boards.js`: Auto-refresh after board rebuild
+- Uses existing functions from: `02A_CacheManager.js`, `99_ErrorHandler.js`, `04_Analytics.js`
+

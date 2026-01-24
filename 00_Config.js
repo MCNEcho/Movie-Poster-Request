@@ -38,6 +38,10 @@ const CONFIG = {
 
   MAX_ACTIVE: 7,
 
+  // Deduplication configuration (Feature: Config flags for dedup rules)
+  ALLOW_REREQUEST_AFTER_REMOVAL: false, // Allow re-requesting a poster after removal
+  REREQUEST_COOLDOWN_DAYS: 0, // Days to wait before re-request (0 = immediate if ALLOW_REREQUEST_AFTER_REMOVAL is true)
+
   // Cache configuration (Task 2 - Performance Optimization)
   CACHE_TTL_MINUTES: 5, // Cache time-to-live in minutes
   
@@ -47,6 +51,13 @@ const CONFIG = {
   // Admin email for error notifications (Task 1 - Error Handling)
   ADMIN_EMAIL: '', // Leave blank to use spreadsheet owner
 
+  // Bulk Simulator configuration (Task 5 - Bulk Submission Simulator)
+  BULK_SIMULATOR: {
+    MAX_SIMULATIONS: 100,        // Hard cap on number of simulations per run
+    DEFAULT_SIMULATIONS: 10,     // Default number if not specified
+    WARNING_THRESHOLD: 50,       // Warn user if N >= this value
+    MAX_ADD_PER_SIM: 3,         // Max posters to add in a single simulation
+    MAX_REMOVE_PER_SIM: 3,      // Max posters to remove in a single simulation
   // Backup configuration (Task 8 - Nightly Data Backup)
   BACKUP: {
     RETENTION_DAYS: 30,           // Keep backups for 30 days
