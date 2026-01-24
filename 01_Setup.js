@@ -20,6 +20,7 @@ function buildAdminMenu_() {
     .addItem('Preview Pending Announcement', 'previewPendingAnnouncement')
     .addItem('Send Announcement Now', 'sendAnnouncementNow')
     .addSeparator()
+    .addItem('Run Bulk Submission Simulator', 'showBulkSimulatorDialog')
     .addItem('Run Backup Now', 'manualBackupTrigger')
     .addSeparator()
     .addItem('Setup Employee View Spreadsheet', 'setupEmployeeViewSpreadsheet')
