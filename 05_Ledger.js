@@ -165,6 +165,7 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs) {
 /**
  * Archive all requests for a deleted poster by marking them with ARCHIVED_POSTER_DELETED status.
  * This is a soft-delete approach that preserves historical data.
+ * Only archives ACTIVE requests - REMOVED requests are already removed by users.
  * 
  * @param {string} posterId - Poster ID that was deleted
  * @returns {number} Number of requests archived
@@ -183,6 +184,7 @@ function archiveRequestsForPoster_(posterId) {
     const rPid = String(r[COLS.REQUESTS.POSTER_ID - 1]);
     const rStatus = String(r[COLS.REQUESTS.STATUS - 1]);
 
+    // Only archive ACTIVE requests - REMOVED requests were already removed by users
     if (rPid === String(posterId) && rStatus === STATUS.ACTIVE) {
       r[COLS.REQUESTS.STATUS - 1] = STATUS.ARCHIVED_POSTER_DELETED;
       r[COLS.REQUESTS.STATUS_TS - 1] = now_();

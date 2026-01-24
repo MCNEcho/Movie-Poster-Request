@@ -44,8 +44,9 @@ function processMoviePostersEdit_(e) {
   const release = r[COLS.MOVIE_POSTERS.RELEASE - 1];
   const closeQueue = r[COLS.MOVIE_POSTERS.CLOSE_QUEUE - 1] === true;
 
-  // Check if poster was effectively deleted (title is empty but poster ID exists)
-  if (pid && !title) {
+  // Check if poster was effectively deleted (poster ID exists but both title and release are empty)
+  // This indicates intentional deletion rather than temporary editing
+  if (pid && !title && !release) {
     Logger.log(`[processMoviePostersEdit_] Poster ${pid} appears to have been deleted, archiving requests`);
     const archivedCount = archiveRequestsForPoster_(pid);
     if (archivedCount > 0) {
