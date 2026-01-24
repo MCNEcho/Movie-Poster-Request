@@ -131,10 +131,7 @@ function generateAnnouncementPreview_(queue, ids) {
   const template = ids.length === 1 ? CONFIG.TEMPLATES.SINGLE_POSTER : CONFIG.TEMPLATES.BATCH;
   
   // Build poster list
-  const posterList = ids.map((id, i) => {
-    const poster = queue[id];
-    return `${i+1}. ${poster.title} (${poster.releaseDate})`;
-  }).join('\n');
+  const posterList = formatPosterList_(queue, ids);
   
   // Get total active count
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
@@ -213,10 +210,7 @@ function processBatchedAnnouncements_(queue, ids, recipients) {
   
   batches.forEach((batch, batchIndex) => {
     const template = CONFIG.TEMPLATES.BATCH;
-    const posterList = batch.map((id, i) => {
-      const poster = queue[id];
-      return `${i+1}. ${poster.title} (${poster.releaseDate})`;
-    }).join('\n');
+    const posterList = formatPosterList_(queue, batch);
     
     const subject = substituteVariables_(template.subject, {
       COUNT: String(batch.length),
@@ -304,6 +298,19 @@ function substituteVariables_(template, variables) {
   result = result.replace(/\{\{[A-Z_]+\}\}/g, '[N/A]');
   
   return result;
+}
+
+/**
+ * Format poster list for announcements
+ * @param {object} queue - Announcement queue
+ * @param {Array<string>} ids - Poster IDs
+ * @returns {string} Formatted poster list
+ */
+function formatPosterList_(queue, ids) {
+  return ids.map((id, i) => {
+    const poster = queue[id];
+    return `${i+1}. ${poster.title} (${poster.releaseDate})`;
+  }).join('\n');
 }
 
 /**

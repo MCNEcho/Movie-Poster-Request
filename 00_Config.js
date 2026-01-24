@@ -87,7 +87,6 @@ const CONFIG = {
 {{POSTER_LIST}}
 
 Total Active Posters: {{ACTIVE_COUNT}}
-Available Stock: {{STOCK}}
 
 Request here:
 {{FORM_LINK}}`
