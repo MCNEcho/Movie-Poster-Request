@@ -30,9 +30,22 @@ const CONFIG = {
     REQUESTS: 'Requests',       // script-created
     SUBSCRIBERS: 'Subscribers', // script-created
     DOCUMENTATION: 'Documentation',
+    ERROR_LOG: 'Error Log',     // script-created - Task 1
+    ANALYTICS: 'Analytics',     // script-created - Task 3
+    ANALYTICS_SUMMARY: 'Analytics Summary', // script-created - Task 3
+    DATA_INTEGRITY: 'Data Integrity', // script-created - Task 5
   },
 
   MAX_ACTIVE: 5,
+
+  // Cache configuration (Task 2 - Performance Optimization)
+  CACHE_TTL_MINUTES: 5, // Cache time-to-live in minutes
+  
+  // Analytics configuration (Task 3 - Logging & Monitoring)
+  DATE_FORMAT: 'MM/dd/yyyy HH:mm:ss',
+  
+  // Admin email for error notifications (Task 1 - Error Handling)
+  ADMIN_EMAIL: '', // Leave blank to use spreadsheet owner
 
   INVENTORY_LAST_UPDATED_CELL: 'J1',
 
