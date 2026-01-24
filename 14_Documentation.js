@@ -147,7 +147,7 @@ function getDedupSummary_() {
     return `Re-requests allowed after removal with ${CONFIG.REREQUEST_COOLDOWN_DAYS}-day cooldown period.`;
   }
   
-  return 'Re-requests allowed: employees can request a poster again after removing it.';
+  return 'You can request the same poster again after removing it, with no waiting period.';
 }
 
 /**
@@ -162,5 +162,5 @@ function getDedupRuleDescription_() {
     return `3. Deduplication: Employees can re-request posters after removal. Cooldown period: ${CONFIG.REREQUEST_COOLDOWN_DAYS} day${CONFIG.REREQUEST_COOLDOWN_DAYS === 1 ? '' : 's'} after removal.`;
   }
   
-  return '3. Deduplication: Employees can re-request posters immediately after removing them. No historical blocking.';
+  return '3. Deduplication: You can request the same poster again immediately after removing it. No waiting period.';
 }
