@@ -93,7 +93,7 @@ function backupSheet_(sheetName, folderId, timestamp) {
     
     // Copy data
     const data = sheet.getDataRange().getValues();
-    if (data.length > 0) {
+    if (data.length > 0 && data[0] && data[0].length > 0) {
       newSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
     }
     
@@ -165,13 +165,14 @@ function ensureBackupFolder_() {
     }
   }
   
-  // Create new folder
+  // Create new folder or find existing one
   const folderName = CONFIG.BACKUP.FOLDER_NAME;
   const folders = DriveApp.getFoldersByName(folderName);
   
   let folder;
   if (folders.hasNext()) {
-    // Use existing folder with same name
+    // Use first existing folder with same name
+    // Note: If multiple folders exist, only the first is used
     folder = folders.next();
     Logger.log(`[BACKUP] Found existing folder: ${folderName}`);
   } else {
@@ -180,7 +181,7 @@ function ensureBackupFolder_() {
     Logger.log(`[BACKUP] Created new folder: ${folderName}`);
   }
   
-  // Store folder ID
+  // Store folder ID for future lookups
   folderId = folder.getId();
   props.setProperty(CONFIG.PROPS.BACKUP_FOLDER_ID, folderId);
   
