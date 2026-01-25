@@ -82,7 +82,7 @@ function buildPrintOutLayout_() {
 
   // --- Get ACTIVE posters from Inventory sheet ---
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const invData = getNonEmptyData_(inv, 12);
+  const invData = getNonEmptyData_(inv, COL_COUNTS.INVENTORY);
   
   const activePosters = invData
     .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)

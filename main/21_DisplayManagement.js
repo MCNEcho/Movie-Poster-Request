@@ -157,7 +157,7 @@ function refreshDisplayDropdowns() {
  */
 function getActiveInventoryPosters_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 12);
+  const data = getNonEmptyData_(inv, COL_COUNTS.INVENTORY);
   
   return data
     .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)

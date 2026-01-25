@@ -16,7 +16,7 @@ function autoSortInventoryByReleaseDate_() {
   
   if (lastRow <= 1) return; // No data to sort
   
-  const dataRange = inv.getRange(2, 1, lastRow - 1, 12);
+  const dataRange = inv.getRange(2, 1, lastRow - 1, COL_COUNTS.INVENTORY);
   dataRange.sort(COLS.INVENTORY.RELEASE);
 }
 
@@ -30,7 +30,7 @@ function ensureInventoryPosterIds_() {
   
   if (lastRow < 2) return;
   
-  const range = inv.getRange(2, 1, lastRow - 1, 12);
+  const range = inv.getRange(2, 1, lastRow - 1, COL_COUNTS.INVENTORY);
   const values = range.getValues();
   let changed = false;
   
@@ -56,7 +56,7 @@ function syncInventoryCountsToMoviePosters_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const mp  = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
 
-  const invData = getNonEmptyData_(inv, 12);
+  const invData = getNonEmptyData_(inv, COL_COUNTS.INVENTORY);
 
   // Map by Title+ReleaseDate => sum Posters
   const invMap = {};

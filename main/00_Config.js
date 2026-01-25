@@ -204,6 +204,15 @@ const COLS = {
   SUBSCRIBERS: { ACTIVE: 1, EMAIL: 2, NAME: 3 },
 };
 
+// Column counts (derived from COLS structure above)
+const COL_COUNTS = {
+  INVENTORY: 12,
+  MOVIE_POSTERS: 8,
+  REQUESTS: 10,
+  REQUEST_ORDER: 10,
+  SUBSCRIBERS: 3,
+};
+
 const STATUS = {
   ACTIVE: 'ACTIVE',
   REMOVED: 'REMOVED',

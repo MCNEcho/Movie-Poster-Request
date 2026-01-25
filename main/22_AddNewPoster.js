@@ -234,7 +234,7 @@ function addNewPosterToInventory(data) {
     const titleSlug = normalizeTitle_(data.title).substring(0, 20).replace(/[^a-z0-9]/gi, '');
     const posterId = `${titleSlug}_${dateStr}`;
     
-    // Prepare row data (12 columns)
+    // Prepare row data (matches COLS.INVENTORY structure)
     const newRow = [
       data.active || false,                    // ACTIVE
       releaseDate,                              // RELEASE
