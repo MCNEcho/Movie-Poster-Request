@@ -10,6 +10,18 @@ function normalizeTitle_(s) {
   return String(s || '').trim().toLowerCase();
 }
 
+/**
+ * Generate a unique Poster ID from title and release date
+ * @param {string} title - Movie title
+ * @param {Date} releaseDate - Release date
+ * @returns {string} Generated poster ID
+ */
+function generatePosterId_(title, releaseDate) {
+  const dateStr = fmtDate_(releaseDate, 'yyyyMMdd');
+  const titleSlug = normalizeTitle_(title).substring(0, CONFIG.MAX_TITLE_SLUG_LENGTH).replace(/[^a-z0-9]/gi, '');
+  return `${titleSlug}_${dateStr}`;
+}
+
 function getProps_() {
   return PropertiesService.getScriptProperties();
 }

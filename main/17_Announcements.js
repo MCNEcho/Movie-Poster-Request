@@ -7,7 +7,9 @@ function handleSheetEdit(e) {
   if (name === CONFIG.SHEETS.INVENTORY) {
     updateInventoryLastUpdated_();
     syncInventoryCountsToMoviePosters_();
-    refreshPrintOut();
+    autoSortInventoryByReleaseDate_();
+    ensureInventoryPosterIds_();
+    // Note: No automatic Print Out refresh - manual only via menu
     return;
   }
 
@@ -18,7 +20,7 @@ function handleSheetEdit(e) {
 
     syncPostersToForm();
     rebuildBoards();
-    refreshPrintOut();
+    // Note: No automatic Print Out refresh - manual only via menu
     
     // Check for and auto-delete orphaned requests
     checkForOrphanedRequests_();
