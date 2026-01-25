@@ -18,7 +18,7 @@ function normalizeTitle_(s) {
  */
 function generatePosterId_(title, releaseDate) {
   const dateStr = fmtDate_(releaseDate, 'yyyyMMdd');
-  const titleSlug = normalizeTitle_(title).substring(0, 20).replace(/[^a-z0-9]/gi, '');
+  const titleSlug = normalizeTitle_(title).substring(0, CONFIG.MAX_TITLE_SLUG_LENGTH).replace(/[^a-z0-9]/gi, '');
   return `${titleSlug}_${dateStr}`;
 }
 

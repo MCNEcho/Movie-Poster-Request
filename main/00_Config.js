@@ -2,6 +2,9 @@
 
 const CONFIG = {
   TIMEZONE: 'America/Los_Angeles',
+  
+  // Poster ID generation settings
+  MAX_TITLE_SLUG_LENGTH: 20, // Maximum characters for title slug in Poster IDs
 
   // Leave blank to auto-create form + store its ID in Script Properties.
   // If you WANT to force a specific form, paste its /d/<ID>/ here.
