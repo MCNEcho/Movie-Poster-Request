@@ -54,12 +54,12 @@ function showManualPosterDialog() {
         const data = {
           title: document.getElementById('title').value.trim(),
           releaseDate: document.getElementById('releaseDate').value,
-          posters: parseInt(document.getElementById('posters').value) || 0,
+          posters: parseInt(document.getElementById('posters').value) || 1,
           company: document.getElementById('company').value.trim(),
-          bus: parseInt(document.getElementById('bus').value) || '',
-          mini: parseInt(document.getElementById('mini').value) || '',
-          standee: parseInt(document.getElementById('standee').value) || '',
-          teaser: parseInt(document.getElementById('teaser').value) || '',
+          bus: parseInt(document.getElementById('bus').value) || 0,
+          mini: parseInt(document.getElementById('mini').value) || 0,
+          standee: parseInt(document.getElementById('standee').value) || 0,
+          teaser: parseInt(document.getElementById('teaser').value) || 0,
           receivedDate: document.getElementById('receivedDate').value,
           notes: document.getElementById('notes').value.trim(),
           activate: document.getElementById('activate').checked
