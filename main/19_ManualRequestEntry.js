@@ -77,14 +77,14 @@ function showManualRequestDialog() {
 }
 
 function getActivePostersForManualEntry() {
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const data = getNonEmptyData_(mp, 8);
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const data = getNonEmptyData_(inv, 12);
   
   return data
-    .filter(r => r[COLS.MOVIE_POSTERS.ACTIVE - 1] === true)
+    .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
     .map(r => ({
-      id: String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1]),
-      label: String(r[COLS.MOVIE_POSTERS.TITLE - 1])
+      id: String(r[COLS.INVENTORY.POSTER_ID - 1]),
+      label: String(r[COLS.INVENTORY.TITLE - 1])
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -105,15 +105,15 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
     }
     
     // Validate poster exists and is active
-    const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-    const mpData = getNonEmptyData_(mp, 8);
-    const poster = mpData.find(r => String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1]) === posterId);
+    const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+    const invData = getNonEmptyData_(inv, 12);
+    const poster = invData.find(r => String(r[COLS.INVENTORY.POSTER_ID - 1]) === posterId);
     
     if (!poster) {
       return { success: false, message: 'Poster not found' };
     }
     
-    if (poster[COLS.MOVIE_POSTERS.ACTIVE - 1] !== true) {
+    if (poster[COLS.INVENTORY.ACTIVE - 1] !== true) {
       return { success: false, message: 'Poster is not active' };
     }
     

@@ -104,13 +104,13 @@ function checkForOrphanedRequests_() {
 
   try {
     const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
-    const moviePostersSheet = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
+    const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
 
     const requestData = getNonEmptyData_(requestsSheet, 7);
-    const posterData = getNonEmptyData_(moviePostersSheet, 2);
+    const posterData = getNonEmptyData_(inventorySheet, 12);
 
     const validPosterIds = new Set(
-      posterData.map(row => String(row[CONFIG.COLS.MOVIE_POSTERS.POSTER_ID - 1] || '').trim())
+      posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim())
     );
 
     const orphanedRows = [];
@@ -364,13 +364,13 @@ function checkMissingPosterIds_() {
   };
 
   try {
-    const moviePostersSheet = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-    const data = getNonEmptyData_(moviePostersSheet, 2);
+    const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
+    const data = getNonEmptyData_(inventorySheet, 12);
 
     const missingRows = [];
 
     data.forEach((row, idx) => {
-      const posterId = String(row[CONFIG.COLS.MOVIE_POSTERS.POSTER_ID - 1] || '').trim();
+      const posterId = String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
       if (!posterId) {
         missingRows.push(idx + 2);
         result.issuesFound++;
@@ -384,7 +384,7 @@ function checkMissingPosterIds_() {
       // Auto-repair: Generate missing IDs
       missingRows.forEach(rowNum => {
         const newId = uuidPosterId_();
-        moviePostersSheet.getRange(rowNum, CONFIG.COLS.MOVIE_POSTERS.POSTER_ID).setValue(newId);
+        inventorySheet.getRange(rowNum, COLS.INVENTORY.POSTER_ID).setValue(newId);
       });
 
       result.details.push(`Generated ${missingRows.length} missing poster IDs`);
