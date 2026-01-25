@@ -229,10 +229,8 @@ function addNewPosterToInventory(data) {
       }
     }
     
-    // Generate Poster ID
-    const dateStr = fmtDate_(releaseDate, 'yyyyMMdd');
-    const titleSlug = normalizeTitle_(data.title).substring(0, 20).replace(/[^a-z0-9]/gi, '');
-    const posterId = `${titleSlug}_${dateStr}`;
+    // Generate Poster ID using shared utility
+    const posterId = generatePosterId_(data.title, releaseDate);
     
     // Prepare row data (matches COLS.INVENTORY structure)
     const newRow = [
@@ -269,10 +267,12 @@ function addNewPosterToInventory(data) {
     rebuildBoards();
     
     // Refresh display dropdowns if they exist
+    let displayRefreshNote = '';
     try {
       refreshDisplayDropdowns();
     } catch (err) {
       Logger.log(`[WARN] Could not refresh display dropdowns: ${err.message}`);
+      displayRefreshNote = ' (Display dropdowns need manual refresh)';
     }
     
     // Log to analytics
@@ -297,7 +297,7 @@ function addNewPosterToInventory(data) {
     
     return { 
       success: true, 
-      message: `Successfully added "${data.title}" to Inventory!` 
+      message: `Successfully added "${data.title}" to Inventory!${displayRefreshNote}` 
     };
   } catch (err) {
     logError_(err, 'addNewPosterToInventory', { title: data.title });

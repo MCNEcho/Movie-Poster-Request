@@ -40,10 +40,8 @@ function ensureInventoryPosterIds_() {
     const existingId = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
     
     if (title && rel instanceof Date && !existingId) {
-      // Generate ID from title + release date
-      const dateStr = fmtDate_(rel, 'yyyyMMdd');
-      const titleSlug = normalizeTitle_(title).substring(0, 20).replace(/[^a-z0-9]/gi, '');
-      const newId = `${titleSlug}_${dateStr}`;
+      // Generate ID using shared utility
+      const newId = generatePosterId_(title, rel);
       r[COLS.INVENTORY.POSTER_ID - 1] = newId;
       changed = true;
     }
