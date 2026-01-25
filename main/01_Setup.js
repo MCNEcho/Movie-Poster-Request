@@ -24,12 +24,13 @@ function buildAdminMenu_() {
       .addItem('Refresh Health Banner', 'refreshHealthBanner'))
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
-      .addItem('Refresh Print Out', 'refreshPrintOut'))
+      .addItem('Update Print Out', 'refreshPrintOut'))
     .addSubMenu(ui.createMenu('📧 Announcements')
       .addItem('Preview Pending', 'previewPendingAnnouncement')
       .addItem('Send Now', 'sendAnnouncementNow'))
     .addSubMenu(ui.createMenu('⚙️ Advanced')
       .addItem('Manually Add Request', 'showManualRequestDialog')
+      .addItem('Add New Poster', 'showManualPosterDialog')
       .addItem('Run Bulk Simulator', 'showBulkSimulatorDialog')
       .addItem('Run Backup Now', 'manualBackupTrigger')
       .addItem('Setup Employee View', 'setupEmployeeViewSpreadsheet')
@@ -78,6 +79,7 @@ function setupPosterSystem() {
     // Task Group 2: Data Syncing
     ss.toast('Syncing data...', 'Setup Progress', 3);
     ensurePosterIds_();
+    ensurePosterIdsInInventory_();  // NEW: Generate IDs for Inventory
     syncInventoryCountsToMoviePosters_();
     syncPostersToForm();
 
@@ -138,7 +140,7 @@ function ensureSheetSchemas_() {
   const ss = SpreadsheetApp.getActive();
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.INVENTORY, [
-    'Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser'
+    'Active?','Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser','Poster ID','Poster Received Date','Notes'
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.MOVIE_POSTERS, [
@@ -216,6 +218,12 @@ function applyAdminFormatting_() {
   const subs= ss.getSheetByName(CONFIG.SHEETS.SUBSCRIBERS);
 
   inv.getRange(CONFIG.INVENTORY_LAST_UPDATED_CELL).setNote('Auto-updated by Apps Script');
+  
+  // Set checkbox validation for Inventory ACTIVE column
+  setCheckboxColumn_(inv, COLS.INVENTORY.ACTIVE, 2, inv.getMaxRows());
+  
+  // Hide Poster ID column in Inventory (column J = 10)
+  inv.hideColumns(COLS.INVENTORY.POSTER_ID);
 
   setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.ACTIVE, 2, mp.getMaxRows());
   setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.CLOSE_QUEUE, 2, mp.getMaxRows());

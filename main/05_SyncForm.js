@@ -4,12 +4,13 @@ function syncPostersToForm() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    ensurePosterIds_();
+    ensurePosterIdsInInventory_();  // Ensure Inventory has IDs
+    ensurePosterIds_();             // Keep Movie Posters in sync for now
     syncInventoryCountsToMoviePosters_();
     updateInventoryLastUpdated_();
 
     const form = getOrCreateForm_();
-    const posters = getPostersWithLabels_();
+    const posters = getPostersWithLabels_();  // Now reads from Inventory
 
     // Build label-to-ID and ID-to-label maps
     const labelToId = readJsonProp_(CONFIG.PROPS.LABEL_TO_ID, {});

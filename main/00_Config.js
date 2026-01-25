@@ -147,7 +147,20 @@ Request here:
 
 // 1-based column indexes
 const COLS = {
-  INVENTORY: { RELEASE: 1, TITLE: 2, COMPANY: 3, POSTERS: 4, BUS: 5, MINI: 6, STANDEE: 7, TEASER: 8 },
+  INVENTORY: {
+    ACTIVE: 1,        // NEW: Checkbox for activation
+    RELEASE: 2,       // Shifted from 1
+    TITLE: 3,         // Shifted from 2
+    COMPANY: 4,       // Shifted from 3
+    POSTERS: 5,       // Shifted from 4 - Primary tracking column
+    BUS: 6,           // Shifted from 5
+    MINI: 7,          // Shifted from 6
+    STANDEE: 8,       // Shifted from 7
+    TEASER: 9,        // Shifted from 8
+    POSTER_ID: 10,    // NEW: Unique ID column
+    RECEIVED: 11,     // NEW: Optional received date
+    NOTES: 12,        // NEW: Optional notes
+  },
 
   MOVIE_POSTERS: {
     ACTIVE: 1,

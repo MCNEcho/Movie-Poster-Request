@@ -6,8 +6,11 @@ function handleSheetEdit(e) {
 
   if (name === CONFIG.SHEETS.INVENTORY) {
     updateInventoryLastUpdated_();
+    sortInventoryByReleaseDate_();           // NEW: Auto-sort after edits
+    ensurePosterIdsInInventory_();          // NEW: Ensure IDs exist
     syncInventoryCountsToMoviePosters_();
-    refreshPrintOut();
+    processInventoryEdit_(e);               // NEW: Handle ACTIVE checkbox changes
+    // Print Out now updates manually only - removed automatic refresh
     return;
   }
 
@@ -18,12 +21,36 @@ function handleSheetEdit(e) {
 
     syncPostersToForm();
     rebuildBoards();
-    refreshPrintOut();
+    // Print Out now updates manually only - removed automatic refresh
     
     // Check for and auto-delete orphaned requests
     checkForOrphanedRequests_();
     return;
   }
+}
+
+/**
+ * Handle Inventory sheet edits - check for poster activation changes
+ */
+function processInventoryEdit_(e) {
+  const row = e.range.getRow();
+  if (row < 2) return;
+
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const r = inv.getRange(row, 1, 1, 12).getValues()[0];
+
+  const active = r[COLS.INVENTORY.ACTIVE - 1] === true;
+  const pid = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
+  const title = String(r[COLS.INVENTORY.TITLE - 1] || '').trim();
+  const release = r[COLS.INVENTORY.RELEASE - 1];
+
+  if (pid && active && title && release) {
+    queueAnnouncement_(pid, title, release);
+  }
+  
+  // Sync form options when Inventory changes
+  syncPostersToForm();
+  rebuildBoards();
 }
 
 function processMoviePostersEdit_(e) {
@@ -323,15 +350,15 @@ function formatPosterList_(queue, ids) {
  */
 function getStockInfo_(posterId) {
   try {
-    const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-    const data = getNonEmptyData_(mp, 8);
+    const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+    const data = getNonEmptyData_(inv, 12);
     
     const poster = data.find(r => 
-      String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1]).trim() === posterId
+      String(r[COLS.INVENTORY.POSTER_ID - 1]).trim() === posterId
     );
     
     if (poster) {
-      const invCount = poster[COLS.MOVIE_POSTERS.INV_COUNT - 1];
+      const invCount = poster[COLS.INVENTORY.POSTERS - 1];
       return invCount !== undefined && invCount !== null && invCount !== '' 
         ? String(invCount) 
         : 'Available';
