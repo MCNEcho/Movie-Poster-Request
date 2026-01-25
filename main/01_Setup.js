@@ -25,7 +25,6 @@ function buildAdminMenu_() {
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
       .addItem('Update Print Out', 'refreshPrintOut'))
-      .addItem('Refresh Print Out', 'refreshPrintOut'))
     .addSubMenu(ui.createMenu('🖼️ Display Management')
       .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
       .addItem('Setup Poster Inside', 'setupPosterInsideTab_')
@@ -197,49 +196,4 @@ function removeFrozenHeadersFromAllSheets_() {
     sheet.setFrozenRows(0);
     sheet.setFrozenColumns(0);
   });
-}
-
-/**
- * Hide internal audit sheets (Requests & Request Order) from regular viewing
- * Admin can unhide these manually if needed
- */
-function hideInternalSheets_() {
-  const ss = SpreadsheetApp.getActive();
-  
-  try {
-    const requestsSheet = ss.getSheetByName(CONFIG.SHEETS.REQUESTS);
-    if (requestsSheet) requestsSheet.hideSheet();
-  } catch (err) {
-    Logger.log(`[hideInternalSheets_] Could not hide ${CONFIG.SHEETS.REQUESTS}: ${err.message}`);
-  }
-  
-  try {
-    const requestOrderSheet = ss.getSheetByName(CONFIG.SHEETS.REQUEST_ORDER);
-    if (requestOrderSheet) requestOrderSheet.hideSheet();
-  } catch (err) {
-    Logger.log(`[hideInternalSheets_] Could not hide ${CONFIG.SHEETS.REQUEST_ORDER}: ${err.message}`);
-  }
-}
-
-function applyAdminFormatting_() {
-  const ss = SpreadsheetApp.getActive();
-  const inv = ss.getSheetByName(CONFIG.SHEETS.INVENTORY);
-  const mp  = ss.getSheetByName(CONFIG.SHEETS.MOVIE_POSTERS);
-  const subs= ss.getSheetByName(CONFIG.SHEETS.SUBSCRIBERS);
-
-  inv.getRange(CONFIG.INVENTORY_LAST_UPDATED_CELL).setNote('Auto-updated by Apps Script');
-  
-  // Set checkbox validation for Inventory ACTIVE column
-  setCheckboxColumn_(inv, COLS.INVENTORY.ACTIVE, 2, inv.getMaxRows());
-  
-  // Hide Poster ID column in Inventory (column J = 10)
-  inv.hideColumns(COLS.INVENTORY.POSTER_ID);
-
-  setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.ACTIVE, 2, mp.getMaxRows());
-  setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.CLOSE_QUEUE, 2, mp.getMaxRows());
-
-  // Hide Poster ID column (B)
-  mp.hideColumns(COLS.MOVIE_POSTERS.POSTER_ID);
-
-  setCheckboxColumn_(subs, COLS.SUBSCRIBERS.ACTIVE, 2, subs.getMaxRows());
 }
