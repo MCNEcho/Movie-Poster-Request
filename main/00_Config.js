@@ -27,6 +27,8 @@ const CONFIG = {
     MOVIE_POSTERS: 'Movie Posters',
     INVENTORY: 'Inventory',
     PRINT_OUT: 'Print Out',
+    POSTER_OUTSIDE: 'Poster Outside',
+    POSTER_INSIDE: 'Poster Inside',
     REQUESTS: 'Requests',       // script-created
     SUBSCRIBERS: 'Subscribers', // script-created
     DOCUMENTATION: 'Documentation',
