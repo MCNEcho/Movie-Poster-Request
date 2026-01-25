@@ -24,11 +24,16 @@ function buildAdminMenu_() {
       .addItem('Refresh Health Banner', 'refreshHealthBanner'))
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
-      .addItem('Refresh Print Out', 'refreshPrintOut'))
+      .addItem('Update Print Out', 'updatePrintOut'))
+    .addSubMenu(ui.createMenu('🖼️ Display Management')
+      .addItem('Setup Outside', 'setupPosterOutside')
+      .addItem('Setup Inside', 'setupPosterInside')
+      .addItem('Refresh Dropdowns', 'refreshDisplayDropdowns'))
     .addSubMenu(ui.createMenu('📧 Announcements')
       .addItem('Preview Pending', 'previewPendingAnnouncement')
       .addItem('Send Now', 'sendAnnouncementNow'))
     .addSubMenu(ui.createMenu('⚙️ Advanced')
+      .addItem('Add New Poster', 'showAddNewPosterDialog')
       .addItem('Manually Add Request', 'showManualRequestDialog')
       .addItem('Run Bulk Simulator', 'showBulkSimulatorDialog')
       .addItem('Run Backup Now', 'manualBackupTrigger')
@@ -138,7 +143,7 @@ function ensureSheetSchemas_() {
   const ss = SpreadsheetApp.getActive();
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.INVENTORY, [
-    'Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser'
+    'Active?','Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser','Poster ID','Poster Received Date','Notes'
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.MOVIE_POSTERS, [
@@ -154,6 +159,8 @@ function ensureSheetSchemas_() {
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.MAIN, ['','']);
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.EMPLOYEES, ['','']);
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.PRINT_OUT, ['','']);
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.POSTER_OUTSIDE, ['','']);
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.POSTER_INSIDE, ['','']);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUESTS, [
     'Request Timestamp','Employee Email','Employee Name','Poster ID',
@@ -216,12 +223,18 @@ function applyAdminFormatting_() {
   const subs= ss.getSheetByName(CONFIG.SHEETS.SUBSCRIBERS);
 
   inv.getRange(CONFIG.INVENTORY_LAST_UPDATED_CELL).setNote('Auto-updated by Apps Script');
+  
+  // Set checkbox for Inventory ACTIVE column
+  setCheckboxColumn_(inv, COLS.INVENTORY.ACTIVE, 2, inv.getMaxRows());
 
   setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.ACTIVE, 2, mp.getMaxRows());
   setCheckboxColumn_(mp, COLS.MOVIE_POSTERS.CLOSE_QUEUE, 2, mp.getMaxRows());
 
-  // Hide Poster ID column (B)
+  // Hide Poster ID column (B) in Movie Posters
   mp.hideColumns(COLS.MOVIE_POSTERS.POSTER_ID);
+  
+  // Hide Poster ID column (J) in Inventory
+  inv.hideColumns(COLS.INVENTORY.POSTER_ID);
 
   setCheckboxColumn_(subs, COLS.SUBSCRIBERS.ACTIVE, 2, subs.getMaxRows());
 }

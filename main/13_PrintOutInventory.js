@@ -6,11 +6,57 @@ function updateInventoryLastUpdated_() {
     .setValue(`Last Updated: ${fmtDate_(now_(), 'yyyy-MM-dd HH:mm:ss')}`);
 }
 
+/**
+ * Auto-sort Inventory sheet by Release Date (ascending)
+ * Maintains headers and sorts data rows only
+ */
+function autoSortInventoryByReleaseDate_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const lastRow = inv.getLastRow();
+  
+  if (lastRow <= 1) return; // No data to sort
+  
+  const dataRange = inv.getRange(2, 1, lastRow - 1, 12);
+  dataRange.sort(COLS.INVENTORY.RELEASE);
+}
+
+/**
+ * Ensure Inventory has unique Poster IDs for each entry
+ * Auto-generates IDs based on Title + Release Date if missing
+ */
+function ensureInventoryPosterIds_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const lastRow = inv.getLastRow();
+  
+  if (lastRow < 2) return;
+  
+  const range = inv.getRange(2, 1, lastRow - 1, 12);
+  const values = range.getValues();
+  let changed = false;
+  
+  values.forEach((r, idx) => {
+    const title = String(r[COLS.INVENTORY.TITLE - 1] || '').trim();
+    const rel = r[COLS.INVENTORY.RELEASE - 1];
+    const existingId = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
+    
+    if (title && rel instanceof Date && !existingId) {
+      // Generate ID from title + release date
+      const dateStr = fmtDate_(rel, 'yyyyMMdd');
+      const titleSlug = normalizeTitle_(title).substring(0, 20).replace(/[^a-z0-9]/gi, '');
+      const newId = `${titleSlug}_${dateStr}`;
+      r[COLS.INVENTORY.POSTER_ID - 1] = newId;
+      changed = true;
+    }
+  });
+  
+  if (changed) range.setValues(values);
+}
+
 function syncInventoryCountsToMoviePosters_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const mp  = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
 
-  const invData = getNonEmptyData_(inv, 8);
+  const invData = getNonEmptyData_(inv, 12);
 
   // Map by Title+ReleaseDate => sum Posters
   const invMap = {};
@@ -53,7 +99,7 @@ function syncInventoryCountsToMoviePosters_() {
   invalidatePosterAvailability_();
 }
 
-function refreshPrintOut() {
+function updatePrintOut() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
 
@@ -63,7 +109,7 @@ function refreshPrintOut() {
 
     // Keep this lightweight: just rebuild layout; selection is handled by prepareAndSelectPrintArea()
     sh.setActiveSelection(sh.getRange(4, 1, Math.max(2, empQrEndRow - 4 + 1), 3));
-    SpreadsheetApp.getActive().toast('Print Out refreshed. Use "Prepare Print Area" if you need selection.', 'Print Out', 5);
+    SpreadsheetApp.getActive().toast('Print Out updated. Use "Prepare Print Area" if you need selection.', 'Print Out', 5);
   } finally {
     lock.releaseLock();
   }

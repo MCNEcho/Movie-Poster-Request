@@ -27,6 +27,8 @@ const CONFIG = {
     MOVIE_POSTERS: 'Movie Posters',
     INVENTORY: 'Inventory',
     PRINT_OUT: 'Print Out',
+    POSTER_OUTSIDE: 'Poster Outside',  // Display tab
+    POSTER_INSIDE: 'Poster Inside',    // Display tab
     REQUESTS: 'Requests',       // script-created
     SUBSCRIBERS: 'Subscribers', // script-created
     DOCUMENTATION: 'Documentation',
@@ -147,7 +149,20 @@ Request here:
 
 // 1-based column indexes
 const COLS = {
-  INVENTORY: { RELEASE: 1, TITLE: 2, COMPANY: 3, POSTERS: 4, BUS: 5, MINI: 6, STANDEE: 7, TEASER: 8 },
+  INVENTORY: { 
+    ACTIVE: 1,       // Active checkbox
+    RELEASE: 2,      // Release Date
+    TITLE: 3,        // Movie Title
+    COMPANY: 4,      // Company
+    POSTERS: 5,      // Posters count
+    BUS: 6,          // Bus Shelters count
+    MINI: 7,         // Mini Posters count
+    STANDEE: 8,      // Standee count
+    TEASER: 9,       // Teaser count
+    POSTER_ID: 10,   // Poster ID
+    RECEIVED: 11,    // Poster Received Date
+    NOTES: 12        // Notes
+  },
 
   MOVIE_POSTERS: {
     ACTIVE: 1,
