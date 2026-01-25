@@ -1,4 +1,9 @@
 /** 13_PrintOutInventory.js **/
+/**
+ * Print Out system - MANUAL UPDATE ONLY
+ * Print Out is updated only when user clicks "Update Print Out" from admin menu.
+ * This prevents automatic tab switching that interrupts workflow.
+ */
 
 function updateInventoryLastUpdated_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
@@ -58,12 +63,13 @@ function refreshPrintOut() {
   lock.waitLock(30000);
 
   try {
+    const ss = SpreadsheetApp.getActive();
     const sh = getSheet_(CONFIG.SHEETS.PRINT_OUT);
     const { empQrEndRow } = buildPrintOutLayout_();
 
     // Keep this lightweight: just rebuild layout; selection is handled by prepareAndSelectPrintArea()
     sh.setActiveSelection(sh.getRange(4, 1, Math.max(2, empQrEndRow - 4 + 1), 3));
-    SpreadsheetApp.getActive().toast('Print Out refreshed. Use "Prepare Print Area" if you need selection.', 'Print Out', 5);
+    ss.toast('Print Out updated successfully', 'Update Complete', 3);
   } finally {
     lock.releaseLock();
   }

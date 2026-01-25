@@ -142,15 +142,15 @@ function getPosterAvailability_Cached() {
 
   if (cache) return cache;
 
-  // Compute availability
+  // Compute availability from Inventory
   cache = {};
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const data = getNonEmptyData_(mp, CONFIG.COLS.MOVIE_POSTERS.INV_COUNT);
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const data = getNonEmptyData_(inv, COLS.INVENTORY.NOTES || 12);
 
   data.forEach((row, idx) => {
-    const isActive = row[CONFIG.COLS.MOVIE_POSTERS.ACTIVE - 1];
-    const posterId = row[CONFIG.COLS.MOVIE_POSTERS.POSTER_ID - 1];
-    const invCount = row[CONFIG.COLS.MOVIE_POSTERS.INV_COUNT - 1];
+    const isActive = row[COLS.INVENTORY.ACTIVE - 1];
+    const posterId = row[COLS.INVENTORY.POSTER_ID - 1];
+    const invCount = row[COLS.INVENTORY.POSTERS - 1];
 
     if (isActive && posterId && invCount) {
       cache[String(posterId)] = Number(invCount || 0);

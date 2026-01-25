@@ -20,6 +20,26 @@ function ensurePosterIds_() {
   if (changed) idsRange.setValues(ids);
 }
 
+/**
+ * Ensure all rows in Inventory have unique Poster IDs.
+ * This is the new source of truth for poster management.
+ */
+function ensurePosterIdsInInventory_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const lastRow = inv.getLastRow();
+  if (lastRow < 2) return;
+
+  const idsRange = inv.getRange(2, COLS.INVENTORY.POSTER_ID, lastRow - 1, 1);
+  const ids = idsRange.getValues();
+
+  let changed = false;
+  for (let i = 0; i < ids.length; i++) {
+    const v = String(ids[i][0] || '').trim();
+    if (!v) { ids[i][0] = uuidPosterId_(); changed = true; }
+  }
+  if (changed) idsRange.setValues(ids);
+}
+
 function hasEverRequestedByEmail_(empEmail, posterId) {
   const sh = getRequestsSheet_();
   const data = getNonEmptyData_(sh, 9);
@@ -135,14 +155,14 @@ function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts) {
 }
 
 function getActivePosterIdMap_() {
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const data = getNonEmptyData_(mp, 8);
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const data = getNonEmptyData_(inv, 12);
   const map = {};
   data.forEach(r => {
-    const active = r[COLS.MOVIE_POSTERS.ACTIVE - 1] === true;
-    const pid = String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1] || '').trim();
-    const title = String(r[COLS.MOVIE_POSTERS.TITLE - 1] || '').trim();
-    const release = r[COLS.MOVIE_POSTERS.RELEASE - 1];
+    const active = r[COLS.INVENTORY.ACTIVE - 1] === true;
+    const pid = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
+    const title = String(r[COLS.INVENTORY.TITLE - 1] || '').trim();
+    const release = r[COLS.INVENTORY.RELEASE - 1];
     if (active && pid && title && release) map[pid] = true;
   });
   return map;

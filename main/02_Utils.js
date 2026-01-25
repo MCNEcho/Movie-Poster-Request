@@ -91,20 +91,20 @@ function normalizeEmployeeName_(input) {
 }
 
 /**
- * Fetches all posters from Movie Posters sheet with computed display labels.
+ * Fetches all posters from Inventory sheet with computed display labels.
  * Handles duplicate titles by adding (Release Date) suffix.
- * Returns array of { posterId, title, release, active, label }
+ * Returns array of { posterId, title, release, active, label, invCount }
  */
 function getPostersWithLabels_() {
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const data = getNonEmptyData_(mp, 8);
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const data = getNonEmptyData_(inv, 12);
   
   const posters = data.map(r => ({
-    posterId: String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1] || '').trim(),
-    title: String(r[COLS.MOVIE_POSTERS.TITLE - 1] || '').trim(),
-    release: r[COLS.MOVIE_POSTERS.RELEASE - 1],
-    active: r[COLS.MOVIE_POSTERS.ACTIVE - 1] === true,
-    invCount: r[COLS.MOVIE_POSTERS.INV_COUNT - 1],
+    posterId: String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim(),
+    title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),
+    release: r[COLS.INVENTORY.RELEASE - 1],
+    active: r[COLS.INVENTORY.ACTIVE - 1] === true,
+    invCount: r[COLS.INVENTORY.POSTERS - 1],
   })).filter(p => p.posterId && p.title && p.release);
 
   // Count duplicates by title
@@ -132,4 +132,17 @@ function getActiveRequests_() {
   const sh = getSheet_(CONFIG.SHEETS.REQUESTS);
   const data = getNonEmptyData_(sh, 10);
   return data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+}
+
+/**
+ * Sort Inventory sheet by release date (ascending).
+ * Called after any inventory modifications to maintain consistent ordering.
+ */
+function sortInventoryByReleaseDate_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const lastRow = inv.getLastRow();
+  if (lastRow < 2) return;
+  
+  const range = inv.getRange(2, 1, lastRow - 1, inv.getLastColumn());
+  range.sort(COLS.INVENTORY.RELEASE); // Sort by release date ascending
 }

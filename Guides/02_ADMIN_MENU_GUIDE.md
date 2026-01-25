@@ -141,8 +141,8 @@ The **Poster System** menu is your control center. Here's what every button does
 
 ---
 
-### 🔧 Refresh Print Out
-**What it does:** Updates the Print Out sheet with latest inventory and posters.
+### 🔧 Update Print Out
+**What it does:** Updates the Print Out sheet with latest inventory and posters (manual operation).
 
 **When to use it:**
 - After adding new posters
@@ -150,11 +150,13 @@ The **Poster System** menu is your control center. Here's what every button does
 - Before printing (to ensure it's current)
 
 **What happens:**
-- Updates the Print Out sheet with current active posters
+- Updates the Print Out sheet with current active posters from Inventory
 - Updates inventory numbers
 - Updates QR codes
 
 **How long:** 2-3 seconds
+
+**Note:** Print Out now updates ONLY when you click this button. It no longer auto-updates to prevent interrupting your workflow with automatic tab switching.
 
 ---
 
@@ -215,6 +217,27 @@ The **Poster System** menu is your control center. Here's what every button does
 **How long:** 1 minute
 
 **Careful:** Make sure you use the exact format (FirstName LastInitial) or it will be rejected.
+
+---
+
+### 🎬 Add New Poster
+**What it does:** Opens a dialog to add a new poster to the Inventory.
+
+**When to use it:**
+- You want to quickly add a single poster
+- You prefer a guided form over editing the sheet directly
+- You want to ensure all required fields are filled correctly
+
+**What happens:**
+- Opens a popup form
+- You enter: Title, Release Date, Poster Quantity, and optional fields
+- Check "Activate immediately" to make it available right away
+- The poster is added to Inventory and auto-sorted by release date
+- If activated, the form updates automatically
+
+**How long:** 1 minute
+
+**Tip:** This is the easiest way to add posters one at a time. For bulk additions, edit the Inventory sheet directly.
 
 ---
 
@@ -313,11 +336,11 @@ The **Poster System** menu is your control center. Here's what every button does
 
 | Problem | Solution |
 |---------|----------|
-| New poster doesn't appear in form | Click **Sync Form Options Now** |
+| New poster doesn't appear in form | Check Active? box in Inventory (auto-syncs) or click **Sync Form Options** |
 | Boards show wrong data | Click **Rebuild Boards Now** |
 | Something looks broken | Click **Run Setup / Repair** |
 | Want to announce new posters | Click **Send Announcement Now** |
-| Before printing the poster list | Click **Refresh Print Out** |
+| Before printing the poster list | Click **Update Print Out** |
 | Making a backup before big changes | Click **Run Backup Now** |
 | Employee spreadsheet out of date | Click **Sync Employee View Now** |
 | Want to check system health | Click **Refresh Documentation** and look at health section |
