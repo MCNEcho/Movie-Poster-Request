@@ -80,15 +80,15 @@ function buildPrintOutLayout_() {
   sh.setColumnWidth(2, 520);
   sh.setColumnWidth(3, 260);
 
-  // --- Get ACTIVE posters from Movie Posters sheet ---
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const mpData = getNonEmptyData_(mp, 8);
+  // --- Get ACTIVE posters from Inventory sheet ---
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const invData = getNonEmptyData_(inv, 12);
   
-  const activePosters = mpData
-    .filter(r => r[COLS.MOVIE_POSTERS.ACTIVE - 1] === true)
+  const activePosters = invData
+    .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
     .map(r => ({
-      release: r[COLS.MOVIE_POSTERS.RELEASE - 1],
-      title: String(r[COLS.MOVIE_POSTERS.TITLE - 1] || '').trim(),
+      release: r[COLS.INVENTORY.RELEASE - 1],
+      title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),
     }))
     .filter(p => p.title && p.release)
     .sort((a, b) => new Date(a.release) - new Date(b.release));
