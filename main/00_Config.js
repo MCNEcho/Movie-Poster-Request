@@ -75,7 +75,7 @@ const CONFIG = {
     ],
   },
 
-  INVENTORY_LAST_UPDATED_CELL: 'J1',
+  INVENTORY_LAST_UPDATED_CELL: 'N1',
 
   PRINT: {
     FORM_URL_CELL: 'B1',
