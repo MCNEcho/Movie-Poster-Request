@@ -25,6 +25,11 @@ function buildAdminMenu_() {
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
       .addItem('Update Print Out', 'refreshPrintOut'))
+      .addItem('Refresh Print Out', 'refreshPrintOut'))
+    .addSubMenu(ui.createMenu('🖼️ Display Management')
+      .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
+      .addItem('Setup Poster Inside', 'setupPosterInsideTab_')
+      .addItem('Refresh Display Dropdowns', 'refreshDisplayDropdowns_'))
     .addSubMenu(ui.createMenu('📧 Announcements')
       .addItem('Preview Pending', 'previewPendingAnnouncement')
       .addItem('Send Now', 'sendAnnouncementNow'))
@@ -88,6 +93,11 @@ function setupPosterSystem() {
     rebuildBoards();
     buildDocumentationTab();
     buildPrintOutLayout_();
+    
+    // Setup display management tabs
+    ss.toast('Setting up display tabs...', 'Setup Progress', 3);
+    setupPosterOutsideTab_();
+    setupPosterInsideTab_();
 
     // Task Group 4: Monitoring (last)
     ss.toast('Finalizing setup...', 'Setup Progress', 3);
