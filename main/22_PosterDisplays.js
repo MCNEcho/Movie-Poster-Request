@@ -95,10 +95,14 @@ function setupPosterOutsideTab_() {
     // ROW 9: Movie title dropdowns for Dairy Queen Side (A-H)
     setupMovieTitleDropdowns_(sheet, 9, 1, 8);
     
-    // Protect header rows from accidental edits
-    const protection = sheet.getRange('A1:H3').protect();
-    protection.setDescription('Header - Do not edit');
-    protection.setWarningOnly(true);
+    // Protect header rows from accidental edits (Last Updated, Yoke's Side, Dairy Queen Side)
+    const protection1 = sheet.getRange('A1:H3').protect();
+    protection1.setDescription('Header - Do not edit');
+    protection1.setWarningOnly(true);
+    
+    const protection2 = sheet.getRange('A7:H7').protect();
+    protection2.setDescription('Header - Do not edit');
+    protection2.setWarningOnly(true);
     
     ss.toast('Poster Outside tab setup complete', 'Setup Complete', 3);
     return sheet;
@@ -176,10 +180,14 @@ function setupPosterInsideTab_() {
     // ROW 7: Box Wall posters (A-C)
     setupMovieTitleDropdowns_(sheet, 7, 1, 3);
     
-    // Protect header rows
-    const protection = sheet.getRange('A1:D2').protect();
-    protection.setDescription('Header - Do not edit');
-    protection.setWarningOnly(true);
+    // Protect header rows (Last Updated, Video Games Wall, Box Wall)
+    const protection1 = sheet.getRange('A1:D2').protect();
+    protection1.setDescription('Header - Do not edit');
+    protection1.setWarningOnly(true);
+    
+    const protection2 = sheet.getRange('A6:C6').protect();
+    protection2.setDescription('Header - Do not edit');
+    protection2.setWarningOnly(true);
     
     ss.toast('Poster Inside tab setup complete', 'Setup Complete', 3);
     return sheet;
@@ -237,7 +245,7 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
 function getMovieTitlesFromInventory_() {
   try {
     const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const data = getNonEmptyData_(inv, 12);
+    const data = getNonEmptyData_(inv, 8);  // Inventory has 8 columns
     
     // Get all titles, sorted by release date
     const titles = data
