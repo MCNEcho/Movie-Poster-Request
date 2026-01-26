@@ -42,7 +42,7 @@ function buildDocumentationTab() {
     `1. Maximum Active Requests: Each employee can have up to ${CONFIG.MAX_ACTIVE} ACTIVE posters at a time.`,
     '2. Request Order: Removals are processed FIRST, then additions. This frees slots for new posters.',
     getDedupRuleDescription_(),
-    '4. Active Posters Only: Only posters with Active? = TRUE in Movie Posters sheet appear in the form.',
+    '4. Active Posters Only: Only posters with Active? = TRUE in Inventory sheet appear in the form.',
     '5. Remove List: Only shows posters the employee has ACTIVE requests for.',
     '6. Inventory is FYI: Inventory counts never block requests. Form always accepts requests regardless of stock.',
     '7. Name Format Required: Employees must enter "FirstName LastInitial" (e.g., "Gavin N"). Wrong format = submission rejected.',
@@ -51,12 +51,13 @@ function buildDocumentationTab() {
   ]);
 
   r = writeDocSection_(sh, r, 'Manager/Admin Guide', [
-    'Inventory tab: record incoming counts (FYI only).',
-    'Movie Posters tab: controls what appears in Form Add list (Active? = TRUE).',
-    'Poster IDs are internal and auto-generated (hidden).',
-    'Close Queue: set Active? FALSE to end requesting for that poster.',
+    'Inventory tab: controls what appears in Form Add list (Active? = TRUE) and tracks incoming counts.',
+    'Poster IDs are internal and auto-generated (hidden column).',
+    'To activate a poster: set Active? checkbox to TRUE in Inventory tab.',
+    'To deactivate a poster: set Active? checkbox to FALSE to end requesting for that poster.',
     'Subscribers tab: checked emails receive batched announcements every 15 minutes when new posters are activated.',
     'Print Out tab: print-friendly inventory list + QR codes (Form + Employees view).',
+    'Display Management: Use Poster Outside and Poster Inside tabs to track poster locations in the theater.',
   ]);
 
   r = writeDocSection_(sh, r, 'Current Configuration', [
@@ -92,7 +93,7 @@ function buildDocumentationTab() {
 
   r++;
   r = writeDocSection_(sh, r, 'Troubleshooting', [
-    'Poster not in Add list: ensure Movie Posters Active? TRUE and Title + Release Date filled; then run Sync Form Options.',
+    'Poster not in Add list: ensure Inventory Active? TRUE and Title + Release Date filled; then run Sync Form Options.',
     'No Remove options: only posters with ACTIVE requests appear there.',
     'Form submissions not logging: triggers may be missing—run setupPosterSystem or reset triggers.',
     'Formatting odd on boards: run Rebuild Boards Now.',
