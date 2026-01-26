@@ -4,25 +4,9 @@ function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);
 }
 
-function ensurePosterIds_() {
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const lastRow = mp.getLastRow();
-  if (lastRow < 2) return;
-
-  const idsRange = mp.getRange(2, COLS.MOVIE_POSTERS.POSTER_ID, lastRow - 1, 1);
-  const ids = idsRange.getValues();
-
-  let changed = false;
-  for (let i = 0; i < ids.length; i++) {
-    const v = String(ids[i][0] || '').trim();
-    if (!v) { ids[i][0] = uuidPosterId_(); changed = true; }
-  }
-  if (changed) idsRange.setValues(ids);
-}
-
 /**
  * Ensure all rows in Inventory have unique Poster IDs.
- * This is the new source of truth for poster management.
+ * This is the canonical source of truth for poster management.
  */
 function ensurePosterIdsInInventory_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);

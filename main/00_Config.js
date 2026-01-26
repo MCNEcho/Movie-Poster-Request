@@ -24,8 +24,8 @@ const CONFIG = {
     MAIN: 'Main',
     EMPLOYEES: 'Employees',
     REQUEST_ORDER: 'Request Order',
-    MOVIE_POSTERS: 'Movie Posters',
-    INVENTORY: 'Inventory',
+    MOVIE_POSTERS: 'Movie Posters',  // DEPRECATED: Use INVENTORY instead (kept for backward compatibility)
+    INVENTORY: 'Inventory',          // PRIMARY: Canonical source for poster data
     PRINT_OUT: 'Print Out',
     POSTER_OUTSIDE: 'Poster Outside',
     POSTER_INSIDE: 'Poster Inside',
