@@ -6,27 +6,15 @@ function handleSheetEdit(e) {
 
   if (name === CONFIG.SHEETS.INVENTORY) {
     updateInventoryLastUpdated_();
-    sortInventoryByReleaseDate_();           // NEW: Auto-sort after edits
-    ensurePosterIdsInInventory_();          // NEW: Ensure IDs exist
-    syncInventoryCountsToMoviePosters_();
-    processInventoryEdit_(e);               // NEW: Handle ACTIVE checkbox changes
+    sortInventoryByReleaseDate_();           // Auto-sort after edits
+    ensurePosterIdsInInventory_();          // Ensure IDs exist
+    processInventoryEdit_(e);               // Handle ACTIVE checkbox changes
     // Print Out now updates manually only - removed automatic refresh
     return;
   }
 
-  if (name === CONFIG.SHEETS.MOVIE_POSTERS) {
-    ensurePosterIds_();
-    updateInventoryLastUpdated_();
-    processMoviePostersEdit_(e);
-
-    syncPostersToForm();
-    rebuildBoards();
-    // Print Out now updates manually only - removed automatic refresh
-    
-    // Check for and auto-delete orphaned requests
-    checkForOrphanedRequests_();
-    return;
-  }
+  // Movie Posters sheet is deprecated - edit handler removed
+  // All poster management now happens through Inventory sheet
 }
 
 /**
@@ -51,24 +39,6 @@ function processInventoryEdit_(e) {
   // Sync form options when Inventory changes
   syncPostersToForm();
   rebuildBoards();
-}
-
-function processMoviePostersEdit_(e) {
-  const row = e.range.getRow();
-  if (row < 2) return;
-
-  const mp = getSheet_(CONFIG.SHEETS.MOVIE_POSTERS);
-  const r = mp.getRange(row, 1, 1, 8).getValues()[0];
-
-  const active = r[COLS.MOVIE_POSTERS.ACTIVE - 1] === true;
-  const pid = String(r[COLS.MOVIE_POSTERS.POSTER_ID - 1] || '').trim();
-  const title = String(r[COLS.MOVIE_POSTERS.TITLE - 1] || '').trim();
-  const release = r[COLS.MOVIE_POSTERS.RELEASE - 1];
-  const closeQueue = r[COLS.MOVIE_POSTERS.CLOSE_QUEUE - 1] === true;
-
-  if (pid && active && title && release) {
-    queueAnnouncement_(pid, title, release);
-  }
 }
 
 function queueAnnouncement_(posterId, title, releaseDate) {

@@ -25,7 +25,7 @@ function prepareAndSelectPrintArea() {
 /**
  * Builds Print Out sheet with:
  * - Form & Employee View links at top (rows 1-2)
- * - Movie posters from Movie Posters sheet (filtered by ACTIVE status)
+ * - Movie posters from Inventory sheet (filtered by ACTIVE status)
  * - Form QR code: spans from Last Updated header to last movie
  * - Employee View QR code: starts 10 rows below last movie
  * Returns the last movie row number.

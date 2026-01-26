@@ -80,11 +80,18 @@ function setupPosterSystem() {
     ensureFormStructure_();
     ensureTriggers_();
 
+    // Task Group 1.5: Migration (if needed)
+    ss.toast('Checking for data migration...', 'Setup Progress', 3);
+    try {
+      migratePostersFromMoviePostersToInventory_();
+    } catch (err) {
+      Logger.log(`[WARN] Migration failed: ${err.message}`);
+      // Continue setup even if migration fails
+    }
+
     // Task Group 2: Data Syncing
     ss.toast('Syncing data...', 'Setup Progress', 3);
-    ensurePosterIds_();
-    ensurePosterIdsInInventory_();  // NEW: Generate IDs for Inventory
-    syncInventoryCountsToMoviePosters_();
+    ensurePosterIdsInInventory_();  // Inventory is now primary source
     syncPostersToForm();
 
     // Task Group 3: Visual Displays
@@ -152,9 +159,8 @@ function ensureSheetSchemas_() {
     'Active?','Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser','Poster ID','Poster Received Date','Notes'
   ]);
 
-  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.MOVIE_POSTERS, [
-    'Active?','Poster ID','Movie Title','Release Date','Inventory Count (FYI)','Poster Received Date','Notes','Close Queue?'
-  ]);
+  // Movie Posters sheet is deprecated - no longer created during setup
+  // Kept in config for backward compatibility with existing deployments
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUEST_ORDER, [
     'Form Timestamp','Employee Email',

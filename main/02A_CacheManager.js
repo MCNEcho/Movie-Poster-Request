@@ -263,7 +263,7 @@ function invalidatePostersWithLabels_() {
 }
 
 /**
- * Convenience invalidation after any write to Requests/Movie Posters/etc.
+ * Convenience invalidation after any write to Requests/Inventory/etc.
  * Keeps slot counts, boards, and poster metadata caches fresh.
  * @param {{empEmail?: string}} opts
  */
