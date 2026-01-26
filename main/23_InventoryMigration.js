@@ -79,21 +79,22 @@ function migratePostersFromMoviePostersToInventory_() {
         return;
       }
       
-      // Add to Inventory
-      inv.appendRow([
-        active,                           // COLS.INVENTORY.ACTIVE
-        release,                          // COLS.INVENTORY.RELEASE
-        title,                            // COLS.INVENTORY.TITLE
-        '',                               // COLS.INVENTORY.COMPANY (not in Movie Posters)
-        invCount || 0,                    // COLS.INVENTORY.POSTERS (from INV_COUNT)
-        '',                               // COLS.INVENTORY.BUS (not in Movie Posters)
-        '',                               // COLS.INVENTORY.MINI (not in Movie Posters)
-        '',                               // COLS.INVENTORY.STANDEE (not in Movie Posters)
-        '',                               // COLS.INVENTORY.TEASER (not in Movie Posters)
-        posterId,                         // COLS.INVENTORY.POSTER_ID
-        received,                         // COLS.INVENTORY.RECEIVED
-        notes                             // COLS.INVENTORY.NOTES
-      ]);
+      // Add to Inventory using explicit column mapping for clarity
+      const newRow = Array(12).fill('');
+      newRow[COLS.INVENTORY.ACTIVE - 1] = active;
+      newRow[COLS.INVENTORY.RELEASE - 1] = release;
+      newRow[COLS.INVENTORY.TITLE - 1] = title;
+      newRow[COLS.INVENTORY.COMPANY - 1] = '';  // Not in old schema
+      newRow[COLS.INVENTORY.POSTERS - 1] = invCount || 0;
+      newRow[COLS.INVENTORY.BUS - 1] = '';  // Not in old schema
+      newRow[COLS.INVENTORY.MINI - 1] = '';  // Not in old schema
+      newRow[COLS.INVENTORY.STANDEE - 1] = '';  // Not in old schema
+      newRow[COLS.INVENTORY.TEASER - 1] = '';  // Not in old schema
+      newRow[COLS.INVENTORY.POSTER_ID - 1] = posterId;
+      newRow[COLS.INVENTORY.RECEIVED - 1] = received;
+      newRow[COLS.INVENTORY.NOTES - 1] = notes;
+      
+      inv.appendRow(newRow);
       
       Logger.log(`[Migration] Migrated: ${title} (${posterId})`);
       migrated++;
