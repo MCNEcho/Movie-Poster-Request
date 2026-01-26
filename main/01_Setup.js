@@ -197,3 +197,35 @@ function removeFrozenHeadersFromAllSheets_() {
     sheet.setFrozenColumns(0);
   });
 }
+
+/**
+ * Hide internal/audit sheets from end users.
+ */
+function hideInternalSheets_() {
+  const ss = SpreadsheetApp.getActive();
+  const internal = [
+    CONFIG.SHEETS.REQUEST_ORDER,
+    CONFIG.SHEETS.REQUESTS,
+    CONFIG.SHEETS.ERROR_LOG,
+    CONFIG.SHEETS.ANALYTICS,
+    CONFIG.SHEETS.ANALYTICS_SUMMARY,
+    CONFIG.SHEETS.DATA_INTEGRITY,
+    CONFIG.SHEETS.SUBSCRIBERS,
+    CONFIG.SHEETS.DOCUMENTATION,
+  ];
+
+  internal.forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) {
+      sheet.hideSheet();
+    }
+  });
+}
+
+/**
+ * Apply basic admin formatting. Currently a no-op placeholder to keep setup stable.
+ * Extend here if you need specific header/column formatting for admin sheets.
+ */
+function applyAdminFormatting_() {
+  // Intentionally left minimal; add formatting rules as needed.
+}

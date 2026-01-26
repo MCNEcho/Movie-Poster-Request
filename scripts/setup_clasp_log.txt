@@ -1,0 +1,57 @@
+
+"=== START Sun 01/25/2026 20:48:18.68 ==="
+"Script path: C:\Users\gavin\OneDrive\Desktop\GH Poster Repo\Movie-Poster-Request\scripts\quickstart_clasp.bat"
+"Script dir : C:\Users\gavin\OneDrive\Desktop\GH Poster Repo\Movie-Poster-Request\scripts\"
+"User       : gavin"
+"OS         : Windows_NT"
+"PATH       : C:\Python314\Scripts\;C:\Python314\;C:\Program Files\Zulu\zulu-8\bin\;C:\Program Files\Zulu\zulu-25\bin\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\Git\cmd;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files\dotnet\;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\Program Files\nodejs\;C:\ProgramData\chocolatey\bin;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Users\gavin\AppData\Local\Programs\Python\Python312\Scripts\;C:\Users\gavin\AppData\Local\Programs\Python\Python312\;C:\Users\gavin\AppData\Local\Microsoft\WindowsApps;C:\Users\gavin\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\gavin\.dotnet\tools;C:\Users\gavin\AppData\Roaming\npm"
+"Checking node..."
+C:\Program Files\nodejs\node.exe
+"Checking npm..."
+C:\Program Files\nodejs\npm
+C:\Program Files\nodejs\npm.cmd
+C:\Users\gavin\AppData\Roaming\npm\npm
+C:\Users\gavin\AppData\Roaming\npm\npm.cmd
+"[OK] Node v24.13.0 / npm 11.7.0"
+"Checking clasp..."
+C:\Users\gavin\AppData\Roaming\npm\clasp
+C:\Users\gavin\AppData\Roaming\npm\clasp.cmd
+C:\Users\gavin\AppData\Roaming\npm\clasp
+C:\Users\gavin\AppData\Roaming\npm\clasp.cmd
+"[OK] clasp 3.1.3"
+"Running: clasp login"
+Warning: You seem to already be logged in.
+`🔑 Authorize clasp by visiting this url: https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=http%3A%2F%2Flocalhost%3A50635&access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fscript.deployments%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fscript.projects%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fscript.webapp.deploy%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.metadata.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fservice.management%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Flogging.read%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&response_type=code&client_id=1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com
+You are logged in as gavin.nisbett@gmail.com.
+"[OK] Logged in"
+"Computed MAIN_DIR: C:\Users\gavin\OneDrive\Desktop\GH Poster Repo\Movie-Poster-Request\main"
+"[OK] Working dir: C:\Users\gavin\OneDrive\Desktop\GH Poster Repo\Movie-Poster-Request\main"
+"Writing .clasp.json with scriptId=17ywGvEo29Jef_kSkCGCzNKv4tq5tF-fxnR9YXJv59BDjBFJ1I66vlcKR"
+"[OK] .clasp.json created"
+"Running: clasp push -f"
+Pushed 25 files.
+└─ 00_Config.js
+└─ 01_Setup.js
+└─ 02_Utils.js
+└─ 02A_CacheManager.js
+└─ 03_ErrorHandler.js
+└─ 04_FormManager.js
+└─ 05_SyncForm.js
+└─ 06_SubmitHandler.js
+└─ 07_Ledger.js
+└─ 08_Analytics.js
+└─ 09_DataIntegrity.js
+└─ 10_BackupManager.js
+└─ 11_Boards.js
+└─ 12_PrintSelection.js
+└─ 13_PrintOutInventory.js
+└─ 14_Documentation.js
+└─ 15_EmployeeViewSync.js
+└─ 16_AdminHealthBanner.js
+└─ 17_Announcements.js
+└─ 19_ManualRequestEntry.js
+└─ 21_ManualPosterEntry.js
+└─ 22_PosterDisplays.js
+└─ 99_BackupTests.js
+└─ 99_Debuging.js
+└─ appsscript.json

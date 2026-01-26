@@ -1,213 +1,236 @@
 @echo off
-REM Movie Poster Request System - Apps Script Deployment Script
-REM This script deploys Google Apps Script code from /main folder to your Google Sheet
+setlocal EnableExtensions EnableDelayedExpansion
 
-setlocal enabledelayedexpansion
+REM Always keep window open + create a log
+set "LOG=%~dp0setup_clasp_log.txt"
+echo.>"%LOG%"
+call :LOG "=== START %date% %time% ==="
+call :LOG "Script path: %~f0"
+call :LOG "Script dir : %~dp0"
+call :LOG "User       : %USERNAME%"
+call :LOG "OS         : %OS%"
+call :LOG "PATH       : %PATH%"
 
-REM Navigate to the parent directory (project root)
-cd /d "%~dp0\.."
+title Clasp Setup + Push (Debug)
 
-REM Verify we're in the right place
-if not exist main (
-  echo ERROR: Cannot find 'main' folder
-  echo Current directory: %cd%
-  echo.
-  echo This script should be run from the project root directory.
-  echo Expected structure:
-  echo   project-root/
-  echo     ^- main/
-  echo     ^- scripts/
-  echo     ^- logs/
-  echo.
-  pause
-  exit /b 1
-)
-
-REM Create logs directory if it doesn't exist
-if not exist logs mkdir logs
-
-REM Create log file with timestamp
-for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%a-%%b)
-for /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a%%b)
-set logfile=logs\deploy_%mydate%_%mytime%.log
-
-echo. > "%logfile%"
-echo ===== Movie Poster Request - Deploy Log ===== >> "%logfile%"
-echo Date: %mydate% Time: %mytime% >> "%logfile%"
-echo ============================================== >> "%logfile%"
-echo. >> "%logfile%"
-
-REM ===== STEP 1: CHECK DEPENDENCIES =====
-echo ====================================
-echo Movie Poster Request - Deploy
-echo ====================================
 echo.
-echo [Log file: %logfile%]
+echo [INFO] Writing log to:
+echo   %LOG%
 echo.
-echo Step 1: Checking dependencies...
 
-echo [Step 1] Checking dependencies... >> "%logfile%"
-
-where node >nul 2>nul
-if ERRORLEVEL 1 (
-  echo ERROR: Node.js not found
-  echo Please install from https://nodejs.org/
-  echo Node.js not found >> "%logfile%"
-  pause
-  exit /b 1
+REM -----------------------------
+REM 1) Verify Node.js + npm
+REM -----------------------------
+call :LOG "Checking node..."
+where node >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [ERROR] Node.js not found in PATH.
+  call :LOG "[ERROR] node not found"
+  goto :END_FAIL
 )
-echo  - Node.js: OK
 
-where npm >nul 2>nul
-if ERRORLEVEL 1 (
-  echo ERROR: npm not found
-  echo npm not found >> "%logfile%"
-  pause
-  exit /b 1
+call :LOG "Checking npm..."
+where npm >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [ERROR] npm not found in PATH.
+  call :LOG "[ERROR] npm not found"
+  goto :END_FAIL
 )
-echo  - npm: OK
 
-where clasp >nul 2>nul
-if ERRORLEVEL 1 (
-  echo.
-  echo Installing clasp...
-  call npm install -g @google/clasp
-  if ERRORLEVEL 1 (
-    echo ERROR: Failed to install clasp >> "%logfile%"
-    echo ERROR: Failed to install clasp
-    pause
-    exit /b 1
+for /f "delims=" %%v in ('node -v 2^>nul') do set "NODE_VER=%%v"
+for /f "delims=" %%v in ('npm -v 2^>nul') do set "NPM_VER=%%v"
+echo [OK] Node: !NODE_VER!
+echo [OK] npm : !NPM_VER!
+call :LOG "[OK] Node !NODE_VER! / npm !NPM_VER!"
+
+REM -----------------------------
+REM 2) Verify clasp (install if missing)
+REM -----------------------------
+call :LOG "Checking clasp..."
+where clasp >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [WARN] clasp not found. Installing globally...
+  call :LOG "[WARN] clasp not found; installing: npm install -g @google/clasp"
+  call npm install -g @google/clasp >>"%LOG%" 2>&1
+  if errorlevel 1 (
+    echo [ERROR] Failed to install @google/clasp. See log.
+    call :LOG "[ERROR] npm install -g @google/clasp failed"
+    goto :END_FAIL
   )
 )
-echo  - clasp: OK
 
-echo [Dependencies OK] >> "%logfile%"
-echo. >> "%logfile%"
-
-REM ===== STEP 2: GET SCRIPT ID =====
-echo Step 2: Get your Apps Script Project ID
-echo.
-echo Instructions:
-echo  1. Go to your Google Sheet
-echo  2. Click "Extensions" menu
-echo  3. Click "Apps Script"
-echo  4. In the editor, click "Project Settings" (left sidebar)
-echo  5. Copy the "Script ID"
-echo  6. Paste it below
-echo.
-
-set /p scriptId=Paste Script ID: 
-
-if "%scriptId%"=="" (
-  echo ERROR: Script ID is required >> "%logfile%"
-  echo.
-  echo Script ID cannot be empty.
-  echo.
-  pause
-  exit /b 1
+where clasp >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [ERROR] clasp still not found after install. See log.
+  call :LOG "[ERROR] clasp not found after install"
+  goto :END_FAIL
 )
 
-echo Script ID: %scriptId%
-echo [Step 2] Script ID entered: %scriptId% >> "%logfile%"
-echo. >> "%logfile%"
+for /f "delims=" %%v in ('clasp -v 2^>nul') do set "CLASP_VER=%%v"
+echo [OK] clasp: !CLASP_VER!
+call :LOG "[OK] clasp !CLASP_VER!"
 
-REM ===== STEP 3: CREATE .clasp.json AND DEPLOY =====
-echo ====================================
-echo Deploying Code
-echo ====================================
-echo. >> "%logfile%"
-echo [Step 3] Creating .clasp.json and pushing code... >> "%logfile%"
+REM -----------------------------
+REM 3) clasp login
+REM -----------------------------
+echo.
+echo [INFO] Logging into clasp (browser may open)...
+call :LOG "Running: clasp login"
+call clasp login >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [WARN] clasp login failed. Trying --no-localhost...
+  call :LOG "[WARN] clasp login failed; trying --no-localhost"
+  call clasp login --no-localhost >>"%LOG%" 2>&1
+  if errorlevel 1 (
+    echo [ERROR] clasp login failed again. See log.
+    call :LOG "[ERROR] clasp login failed again"
+    goto :END_FAIL
+  )
+)
+echo [OK] Logged in.
+call :LOG "[OK] Logged in"
 
-REM Check if .clasp.json already exists and back it up
-if exist .clasp.json (
-  echo .clasp.json already exists - backing up >> "%logfile%"
-  move /Y .clasp.json .clasp.json.bak >nul 2>&1
+REM -----------------------------
+REM 4) Move into main folder
+REM -----------------------------
+echo.
+echo [INFO] Locating main folder...
+set "SCRIPT_DIR=%~dp0"
+for %%I in ("%SCRIPT_DIR%..") do set "REPO_DIR=%%~fI"
+set "MAIN_DIR=%REPO_DIR%\main"
+call :LOG "Computed MAIN_DIR: %MAIN_DIR%"
+
+if not exist "%MAIN_DIR%\" (
+  echo [WARN] Expected main folder not found:
+  echo        "%MAIN_DIR%"
+  echo.
+  echo Paste full path to your "main" folder:
+  set /p "MAIN_DIR=Main folder path: "
+  call :LOG "User provided MAIN_DIR: %MAIN_DIR%"
 )
 
-REM Create .clasp.json with Script ID and rootDir
-echo Creating .clasp.json... >> "%logfile%"
-(
-  echo {
-  echo   "scriptId": "%scriptId%",
-  echo   "rootDir": "main"
-  echo }
-) > .clasp.json
-
-if not exist .clasp.json (
-  echo ERROR: Failed to create .clasp.json >> "%logfile%"
-  echo.
-  echo ERROR: Could not create .clasp.json file
-  echo.
-  pause
-  exit /b 1
+if not exist "%MAIN_DIR%\" (
+  echo [ERROR] Main folder still doesn't exist:
+  echo        "%MAIN_DIR%"
+  call :LOG "[ERROR] MAIN_DIR does not exist"
+  goto :END_FAIL
 )
 
-echo .clasp.json created successfully >> "%logfile%"
-echo .clasp.json contents: >> "%logfile%"
-type .clasp.json >> "%logfile%"
-echo. >> "%logfile%"
-
-REM Verify main folder exists with files
-echo Checking main folder contents... >> "%logfile%"
-if not exist main (
-  echo ERROR: main folder not found >> "%logfile%"
-  echo.
-  echo ERROR: main folder does not exist
-  echo.
-  pause
-  exit /b 1
+pushd "%MAIN_DIR%" >>"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [ERROR] Could not cd into:
+  echo        "%MAIN_DIR%"
+  call :LOG "[ERROR] pushd failed"
+  goto :END_FAIL
 )
 
-dir main >> "%logfile%"
-echo. >> "%logfile%"
+echo [OK] Working dir:
+cd
+call :LOG "[OK] Working dir: %CD%"
 
-REM Push the code
-echo Executing: clasp push -f >> "%logfile%"
-echo. >> "%logfile%"
-
+REM -----------------------------
+REM 5) Script ID + .clasp.json
+REM -----------------------------
 echo.
-echo Pushing files...
+echo [INFO] Find Script ID:
+echo  1) Open Apps Script project
+echo  2) Gear icon (Project Settings)
+echo  3) Copy Script ID
+echo.
+set /p "SCRIPT_ID=Paste Script ID here: "
+set "SCRIPT_ID=%SCRIPT_ID:"=%"
 
-REM Do the actual push and capture output
-clasp push -f >> "%logfile%" 2>&1
-
-if ERRORLEVEL 1 (
-  echo Warning: clasp returned an exit code >> "%logfile%"
-  echo. >> "%logfile%"
+if "%SCRIPT_ID%"=="" (
+  echo [ERROR] Script ID was empty.
+  call :LOG "[ERROR] Script ID empty"
+  goto :END_FAIL
 )
 
-echo Pushed successfully at: %date% %time% >> "%logfile%"
-echo. >> "%logfile%"
+call :LOG "Writing .clasp.json with scriptId=%SCRIPT_ID%"
+> ".clasp.json" (
+  echo {^"scriptId^":^"%SCRIPT_ID%^",^"rootDir^":^".^"}
+)
 
-REM Verify files were pushed by checking status
-echo Verifying upload... >> "%logfile%"
-clasp status >> "%logfile%" 2>&1
+if not exist ".clasp.json" (
+  echo [ERROR] Failed to create .clasp.json
+  call :LOG "[ERROR] .clasp.json not created"
+  goto :END_FAIL
+)
 
-echo. >> "%logfile%"
-echo ===== Deployment Completed ===== >> "%logfile%"
+echo [OK] .clasp.json created.
+call :LOG "[OK] .clasp.json created"
+
+REM -----------------------------
+REM 6) Push prompt (FORCED PUSH + better output handling)
+REM -----------------------------
+echo.
+choice /C YN /N /M "Push files to Script? (Y/N): "
+if errorlevel 2 (
+  echo [INFO] Push skipped.
+  call :LOG "[INFO] Push skipped"
+  goto :END_OK
+)
 
 echo.
+echo [INFO] Running clasp push -f...
+call :LOG "Running: clasp push -f"
+
+set "OUT=%TEMP%\clasp_push_out.txt"
+del "%OUT%" >nul 2>&1
+
+call clasp push -f > "%OUT%" 2>&1
+type "%OUT%" >>"%LOG%"
+type "%OUT%"
+
+if errorlevel 1 (
+  echo [ERROR] clasp push failed. See log.
+  call :LOG "[ERROR] clasp push failed"
+  goto :END_FAIL
+)
+
+findstr /C:"Skipping push." "%OUT%" >nul
+if not errorlevel 1 (
+  echo [INFO] clasp skipped push (no changes detected). Nothing uploaded.
+  call :LOG "[INFO] Skipping push detected"
+  goto :END_OK
+)
+
+findstr /C:"Pushed " "%OUT%" >nul
+if errorlevel 1 (
+  echo [WARN] Push finished but did not show "Pushed X files."
+  echo        Check the log: %LOG%
+  call :LOG "[WARN] No 'Pushed X files' line detected"
+) else (
+  echo [OK] Push complete!
+  call :LOG "[OK] Push complete"
+)
+
+REM Optional: open the script you just pushed to (your clasp supports this)
+call :LOG "Running: clasp open-script"
+call clasp open-script >>"%LOG%" 2>&1
+
+goto :END_OK
+
+:END_OK
+call :LOG "=== END OK %date% %time% ==="
 echo.
-echo ====================================
-echo Deployment Complete!
-echo ====================================
+echo Done. Log saved to:
+echo   %LOG%
 echo.
-echo Files have been pushed to Apps Script.
-echo.
-echo NEXT STEPS:
-echo.
-echo  1. Go back to your Google Sheet
-echo  2. Refresh the page (press F5)
-echo  3. Look for "Poster System" menu at the top
-echo  4. Click "Poster System" then "Run Setup / Repair"
-echo  5. Wait for setup to complete
-echo.
-echo If the menu doesn't appear:
-echo  - Try closing and reopening the Sheet
-echo  - Check Extensions ^> Apps Script for any errors
-echo.
-echo Log file saved to:
-echo %logfile%
-echo.
+popd >nul 2>&1
 pause
+exit /b 0
+
+:END_FAIL
+call :LOG "=== END FAIL %date% %time% ==="
+echo.
+echo Failed. Open the log:
+echo   %LOG%
+echo.
+popd >nul 2>&1
+pause
+exit /b 1
+
+:LOG
+>>"%LOG%" echo %*
 exit /b 0
