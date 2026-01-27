@@ -142,6 +142,9 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Set checkbox validation for Active? column
     setCheckboxColumn_(inv, COLS.INVENTORY.ACTIVE, nextRow, nextRow);
     
+    // Auto-generate Poster ID for the new row (column K)
+    ensurePosterIdsInInventory_();
+    
     // Update last updated timestamp
     updateInventoryLastUpdated_();
     
