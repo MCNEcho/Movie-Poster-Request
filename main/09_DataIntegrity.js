@@ -107,7 +107,7 @@ function checkForOrphanedRequests_() {
     const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
 
     const requestData = getNonEmptyData_(requestsSheet, 7);
-    const posterData = getNonEmptyData_(inventorySheet, 12);
+    const posterData = getNonEmptyData_(inventorySheet, 11, 3);
 
     const validPosterIds = new Set(
       posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim())
@@ -365,7 +365,7 @@ function checkMissingPosterIds_() {
 
   try {
     const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const data = getNonEmptyData_(inventorySheet, 12);
+    const data = getNonEmptyData_(inventorySheet, 11, 3);
 
     const missingRows = [];
 

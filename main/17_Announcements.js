@@ -321,7 +321,7 @@ function formatPosterList_(queue, ids) {
 function getStockInfo_(posterId) {
   try {
     const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const data = getNonEmptyData_(inv, 12);
+    const data = getNonEmptyData_(inv, 11, 3);
     
     const poster = data.find(r => 
       String(r[COLS.INVENTORY.POSTER_ID - 1]).trim() === posterId

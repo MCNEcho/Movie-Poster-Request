@@ -75,7 +75,7 @@ const CONFIG = {
     ],
   },
 
-  INVENTORY_LAST_UPDATED_CELL: 'J1',
+  INVENTORY_LAST_UPDATED_CELL: 'A1',
 
   PRINT: {
     FORM_URL_CELL: 'B1',
@@ -159,9 +159,9 @@ const COLS = {
     MINI: 7,          // Shifted from 6
     STANDEE: 8,       // Shifted from 7
     TEASER: 9,        // Shifted from 8
-    POSTER_ID: 10,    // NEW: Unique ID column
-    RECEIVED: 11,     // NEW: Optional received date
-    NOTES: 12,        // NEW: Optional notes
+    NOTES: 10,        // Notes moved to column J
+    POSTER_ID: 11,    // Poster ID moved to column K
+    // Column L reserved/unused; Poster Received Date removed
   },
 
   MOVIE_POSTERS: {

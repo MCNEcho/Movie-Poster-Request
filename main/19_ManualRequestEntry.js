@@ -78,7 +78,7 @@ function showManualRequestDialog() {
 
 function getActivePostersForManualEntry() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 12);
+  const data = getNonEmptyData_(inv, 11, 3);
   
   return data
     .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
@@ -106,7 +106,7 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
     
     // Validate poster exists and is active
     const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const invData = getNonEmptyData_(inv, 12);
+    const invData = getNonEmptyData_(inv, 11, 3);
     const poster = invData.find(r => String(r[COLS.INVENTORY.POSTER_ID - 1]) === posterId);
     
     if (!poster) {

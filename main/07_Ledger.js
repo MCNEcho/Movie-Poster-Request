@@ -140,7 +140,7 @@ function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts) {
 
 function getActivePosterIdMap_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 12);
+  const data = getNonEmptyData_(inv, 11, 3);
   const map = {};
   data.forEach(r => {
     const active = r[COLS.INVENTORY.ACTIVE - 1] === true;

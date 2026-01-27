@@ -97,7 +97,7 @@ function normalizeEmployeeName_(input) {
  */
 function getPostersWithLabels_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 12);
+  const data = getNonEmptyData_(inv, 11, 3);  // headers on row 2, data from row 3
   
   const posters = data.map(r => ({
     posterId: String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim(),
@@ -141,8 +141,8 @@ function getActiveRequests_() {
 function sortInventoryByReleaseDate_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const lastRow = inv.getLastRow();
-  if (lastRow < 2) return;
-  
-  const range = inv.getRange(2, 1, lastRow - 1, inv.getLastColumn());
+  // Rows 1-2 are reserved (banner + headers). Sort only data rows starting at row 3.
+  if (lastRow < 3) return;
+  const range = inv.getRange(3, 1, lastRow - 2, inv.getLastColumn());
   range.sort(COLS.INVENTORY.RELEASE); // Sort by release date ascending
 }

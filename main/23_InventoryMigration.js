@@ -45,7 +45,7 @@ function migratePostersFromMoviePostersToInventory_() {
     }
     
     // Build map of existing Inventory posters by Poster ID
-    const invData = getNonEmptyData_(inv, 12);
+    const invData = getNonEmptyData_(inv, 11, 3);
     const invPosterIds = new Set();
     invData.forEach(r => {
       const pid = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
@@ -80,7 +80,7 @@ function migratePostersFromMoviePostersToInventory_() {
       }
       
       // Add to Inventory using explicit column mapping for clarity
-      const newRow = Array(12).fill('');
+      const newRow = Array(11).fill('');
       newRow[COLS.INVENTORY.ACTIVE - 1] = active;
       newRow[COLS.INVENTORY.RELEASE - 1] = release;
       newRow[COLS.INVENTORY.TITLE - 1] = title;
@@ -91,7 +91,6 @@ function migratePostersFromMoviePostersToInventory_() {
       newRow[COLS.INVENTORY.STANDEE - 1] = '';  // Not in old schema
       newRow[COLS.INVENTORY.TEASER - 1] = '';  // Not in old schema
       newRow[COLS.INVENTORY.POSTER_ID - 1] = posterId;
-      newRow[COLS.INVENTORY.RECEIVED - 1] = received;
       newRow[COLS.INVENTORY.NOTES - 1] = notes;
       
       inv.appendRow(newRow);
