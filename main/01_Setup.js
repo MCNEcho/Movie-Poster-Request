@@ -155,9 +155,10 @@ function ensureTriggers_() {
 function ensureSheetSchemas_() {
   const ss = SpreadsheetApp.getActive();
 
-  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.INVENTORY, [
-    'Active?','Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser','Poster ID','Poster Received Date','Notes'
-  ]);
+  // Inventory: row 1 reserved (merged A1:L1) for Last Updated, headers on row 2
+  let inv = ss.getSheetByName(CONFIG.SHEETS.INVENTORY);
+  if (!inv) inv = ss.insertSheet(CONFIG.SHEETS.INVENTORY);
+  formatInventorySheet_();
 
   // Movie Posters sheet is deprecated - no longer created during setup
   // Kept in config for backward compatibility with existing deployments
@@ -233,5 +234,51 @@ function hideInternalSheets_() {
  * Extend here if you need specific header/column formatting for admin sheets.
  */
 function applyAdminFormatting_() {
-  // Intentionally left minimal; add formatting rules as needed.
+  // Format Inventory: merge A1:L1 for Last Updated banner and ensure headers on row 2
+  try {
+    formatInventorySheet_();
+  } catch (err) {
+    Logger.log(`[WARN] Inventory formatting skipped: ${err.message}`);
+  }
+}
+
+/**
+ * Ensures Inventory layout: A1:L1 merged for Last Updated, headers on row 2, data from row 3.
+ * If headers are found elsewhere (e.g., pasted at bottom), they are removed and data is preserved.
+ */
+function formatInventorySheet_() {
+  const sh = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const headers = ['Active?','Release Date','Movie Title','Company','Posters','Bus Shelters','Mini Posters','Standee','Teaser','Notes','Poster ID'];
+
+  const lastRow = sh.getLastRow();
+  const lastCol = Math.max(sh.getLastColumn(), headers.length);
+
+  // Read all rows below row 2 (header), filter out header-looking rows found lower
+  const rows = lastRow >= 3 ? sh.getRange(3, 1, lastRow - 2, lastCol).getValues() : [];
+  const dataRows = rows.filter(r => {
+    if (r.every(v => v === '' || v === null)) return false;
+    const looksLikeHeader = r[0] === 'Active?' && r[1] === 'Release Date' && r[2] === 'Movie Title';
+    return !looksLikeHeader;
+  });
+
+  // Clear sheet and rebuild structure
+  sh.clearContents();
+
+  // Merge top banner row A1:L1
+  sh.getRange(1, 1, 1, headers.length).breakApart().merge();
+  sh.getRange('A1').setHorizontalAlignment('left');
+
+  // Set headers on row 2
+  sh.getRange(2, 1, 1, headers.length).setValues([headers]);
+
+  // Write data starting row 3
+  if (dataRows.length > 0) {
+    sh.getRange(3, 1, dataRows.length, headers.length).setValues(dataRows);
+  }
+
+  // Checkbox validation for Active? from row 3 downward
+  const dataEnd = Math.max(3, sh.getLastRow());
+  if (dataEnd >= 3) {
+    setCheckboxColumn_(sh, 1, 3, dataEnd);
+  }
 }
