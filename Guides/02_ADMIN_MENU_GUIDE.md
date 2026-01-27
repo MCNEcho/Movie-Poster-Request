@@ -119,29 +119,7 @@ The **Poster System** menu is your control center. Here's what every button does
 
 ## Print & Layout Menu
 
-### 🖨️ Prepare Print Area (Select & Print)
-**What it does:** Opens the print layout and lets you choose what to print.
-
-**When to use it:**
-- You want to print the inventory/poster list
-- Making a poster board or poster list to post somewhere
-- Need a physical copy of what's active
-
-**What happens:**
-- Opens the Print Out sheet
-- Lets you select which area to print
-- Shows print preview
-
-**How long:** Instant
-
-**Tips:**
-- The Print Out sheet has QR codes you can scan
-- It shows which posters are currently active
-- Contains inventory counts
-
----
-
-### 🔧 Update Print Out
+###  Update Print Out
 **What it does:** Updates the Print Out sheet with latest inventory and posters (manual operation).
 
 **When to use it:**
@@ -184,17 +162,17 @@ The **Poster System** menu is your control center. Here's what every button does
 
 **When to use it:**
 - You want to announce new posters to employees right now
-- You don't want to wait for the automatic 15-minute batch send
+- You don't want to wait for the automatic 15-minute send
 - You just added exciting new posters
 
 **What happens:**
 - Sends email to all subscribers with pending announcements
-- Email includes list of new posters
+- Email includes the FULL list of all new posters (not batched)
 - Clears the pending queue
 
 **How long:** A few seconds (emails send in background)
 
-**Note:** Announcements are usually sent automatically every 15 minutes. This just sends immediately.
+**Note:** Announcements are usually sent automatically every 15 minutes. This just sends immediately. All pending posters will be included in a single email.
 
 ---
 

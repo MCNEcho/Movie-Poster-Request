@@ -55,9 +55,10 @@ function buildDocumentationTab() {
     'Poster IDs are internal and auto-generated (hidden column).',
     'To activate a poster: set Active? checkbox to TRUE in Inventory tab.',
     'To deactivate a poster: set Active? checkbox to FALSE to end requesting for that poster.',
-    'Subscribers tab: checked emails receive batched announcements every 15 minutes when new posters are activated.',
+    'Subscribers tab: checked emails receive announcements with FULL list of all new posters when they are activated.',
     'Print Out tab: print-friendly inventory list + QR codes (Form + Employees view).',
     'Display Management: Use Poster Outside and Poster Inside tabs to track poster locations in the theater.',
+    'Tab Colors: Sheets are color-coded for easy navigation (check Documentation for color meanings).',
   ]);
 
   r = writeDocSection_(sh, r, 'Current Configuration', [
@@ -67,20 +68,22 @@ function buildDocumentationTab() {
     `Cache TTL: ${CONFIG.CACHE_TTL_MINUTES} minutes`,
     `Backup Retention: ${CONFIG.BACKUP.RETENTION_DAYS} days`,
     `Backup Format: ${CONFIG.BACKUP.FORMAT}`,
-    `Announcement Batch Size: ${CONFIG.ANNOUNCEMENT.BATCH_SIZE} posters per email`,
+    `Announcement Behavior: Sends ALL pending posters in a single email (no batching)`,
+    'Tab Colors: Color-coded sheets for easy navigation (Blue=Primary, Cyan=Display, Orange=Config, Yellow=Admin, Red=Errors, Green=Analytics)',
     'To change these settings, edit values in 00_Config.js and redeploy the script.',
   ]);
 
   r = writeDocSection_(sh, r, 'Admin Menu — Button Reference', [
-    '🖨️ Prepare Print Area (Select & Print): Opens print layout and lets you select which area to print.',
     '⚙️ Run Setup / Repair: One-time initialization OR repair if system breaks. Creates sheets, form, triggers, and rebuilds everything.',
+    '🔄 Refresh All: Updates everything (boards, form options, health info) in one click.',
     '↔️ Sync Form Options Now: Manually update form with current ACTIVE posters. Automatically runs after submissions.',
     '🔄 Rebuild Boards Now: Refresh Main and Employees tabs from Requests sheet. Clears old data and rebuilds from scratch.',
-    '🔧 Refresh Print Out: Updates Print Out tab with current inventory and ACTIVE poster list.',
+    '🔧 Update Print Out: Updates Print Out tab with current inventory and ACTIVE poster list (manual operation).',
     '📄 Refresh Documentation: Rebuilds this Documentation tab with latest system info.',
     '➕ Manually Add Request (for migration): Opens dialog to manually add historical requests (for data migration).',
-    '👁️ Preview Pending Announcement: Shows draft of email that will be sent when Close Queue is checked.',
-    '📧 Send Announcement Now: Manually trigger email announcement to all ACTIVE subscribers immediately.',
+    '🎬 Add New Poster: Opens dialog to add a new poster to Inventory with guided form.',
+    '👁️ Preview Pending Announcement: Shows draft of email that will be sent with ALL pending posters.',
+    '📧 Send Announcement Now: Sends announcement email with FULL list of all pending posters to subscribers immediately.',
     '🌐 Setup Employee View Spreadsheet: Creates a separate read-only spreadsheet for employees. One-time only.',
     '🔗 Sync Employee View Now: Manually copy current Main/Employees data to employee spreadsheet.',
     '📋 Show Employee View Link: Displays URL of employee-view spreadsheet (share this with employees).',

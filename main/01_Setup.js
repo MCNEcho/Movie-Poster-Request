@@ -26,7 +26,6 @@ function buildAdminMenu_() {
       .addItem('Refresh Documentation', 'buildDocumentationTab')
       .addItem('Refresh Health Banner', 'refreshHealthBanner'))
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
-      .addItem('Prepare Print Area', 'prepareAndSelectPrintArea')
       .addItem('Update Print Out', 'refreshPrintOut'))
     .addSubMenu(ui.createMenu('🖼️ Display Management')
       .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
@@ -190,6 +189,9 @@ function ensureSheetSchemas_() {
 
   // Auto-hide internal audit sheets
   hideInternalSheets_();
+  
+  // Apply purposeful tab colors
+  applyTabColors_();
 }
 
 /**
@@ -218,7 +220,6 @@ function hideInternalSheets_() {
     CONFIG.SHEETS.ANALYTICS_SUMMARY,
     CONFIG.SHEETS.DATA_INTEGRITY,
     CONFIG.SHEETS.SUBSCRIBERS,
-    CONFIG.SHEETS.DOCUMENTATION,
   ];
 
   internal.forEach(name => {
@@ -226,6 +227,62 @@ function hideInternalSheets_() {
     if (sheet) {
       sheet.hideSheet();
     }
+  });
+}
+
+/**
+ * Apply purposeful tab colors to sheets for better visual organization.
+ * Color scheme:
+ * - BLUE (#4285F4): Primary user-facing sheets (Inventory, Main Board, Employees Board)
+ * - CYAN (#00BCD4): Display/Print sheets (Poster Outside/Inside, Print Out)
+ * - ORANGE (#FF9800): Configuration/Reference (Subscribers, Documentation)
+ * - YELLOW (#FFEB3B): Admin Tools (Request Order, Requests ledger)
+ * - RED (#F44336): Error/Debug sheets (Error Log, Data Integrity)
+ * - GREEN (#4CAF50): Analytics/Reporting (Analytics, Analytics Summary)
+ */
+function applyTabColors_() {
+  const ss = SpreadsheetApp.getActive();
+  
+  // Primary user-facing sheets - BLUE (#4285F4)
+  const blue = '#4285F4';
+  [CONFIG.SHEETS.INVENTORY, CONFIG.SHEETS.MAIN, CONFIG.SHEETS.EMPLOYEES].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(blue);
+  });
+  
+  // Display/Print sheets - CYAN (#00BCD4)
+  const cyan = '#00BCD4';
+  [CONFIG.SHEETS.POSTER_OUTSIDE, CONFIG.SHEETS.POSTER_INSIDE, CONFIG.SHEETS.PRINT_OUT].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(cyan);
+  });
+  
+  // Configuration/Reference - ORANGE (#FF9800)
+  const orange = '#FF9800';
+  [CONFIG.SHEETS.SUBSCRIBERS, CONFIG.SHEETS.DOCUMENTATION].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(orange);
+  });
+  
+  // Admin Tools - YELLOW (#FFEB3B)
+  const yellow = '#FFEB3B';
+  [CONFIG.SHEETS.REQUEST_ORDER, CONFIG.SHEETS.REQUESTS].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(yellow);
+  });
+  
+  // Error/Debug sheets - RED (#F44336)
+  const red = '#F44336';
+  [CONFIG.SHEETS.ERROR_LOG, CONFIG.SHEETS.DATA_INTEGRITY].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(red);
+  });
+  
+  // Analytics/Reporting - GREEN (#4CAF50)
+  const green = '#4CAF50';
+  [CONFIG.SHEETS.ANALYTICS, CONFIG.SHEETS.ANALYTICS_SUMMARY].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (sheet) sheet.setTabColor(green);
   });
 }
 

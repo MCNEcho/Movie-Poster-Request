@@ -81,7 +81,8 @@ clasp push
 
 ### Operational Automations
 - **Announcements** (`17_Announcements.js`)
-  - Batched send (default size 5), 1s throttle, 3 retries with backoff
+  - Sends all pending new posters in a single email (no batching)
+  - 1s throttle, 3 retries with backoff
   - Template variables: `{{TITLE}}`, `{{RELEASE}}`, `{{STOCK}}`, `{{ACTIVE_COUNT}}`, `{{FORM_LINK}}`, `{{COUNT}}`, `{{POSTER_LIST}}`
   - Dry-run preview available before sending
 - **Backups** (`10_BackupManager.js`)
@@ -121,10 +122,22 @@ clasp push
 
 ### Admin Menu (high level)
 - **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation, Refresh Health Banner
-- **Print & Layout:** Prepare Print Area, Refresh Print Out
+- **Print & Layout:** Update Print Out (manual refresh)
 - **Announcements:** Preview Pending, Send Now
-- **Advanced:** Manually Add Request, Run Bulk Simulator, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
+- **Advanced:** Manually Add Request, Add New Poster, Run Bulk Simulator, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
 - **Top-level:** Run Setup / Repair, Refresh All
+
+### UI/UX Enhancements
+- **Tab Colors:** Sheets have purposeful color coding for easy navigation
+  - BLUE: Primary user-facing (Inventory, Main Board, Employees Board)
+  - CYAN: Display/Print (Poster Outside/Inside, Print Out)
+  - ORANGE: Configuration/Reference (Subscribers, Documentation)
+  - YELLOW: Admin audit logs (Request Order, Requests)
+  - RED: Error/Debug (Error Log, Data Integrity)
+  - GREEN: Analytics/Reporting
+- **Documentation Tab:** Always visible after setup with system health dashboard, configuration reference, and troubleshooting guides
+- **Frozen Headers:** Removed from all sheets for cleaner interface
+- **Manual Print Updates:** Print Out sheet only updates when triggered to prevent workflow interruption
 
 ### Documentation Tab Features
 - Complete system guide (employee + manager sections)

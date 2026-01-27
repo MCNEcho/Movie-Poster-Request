@@ -98,6 +98,16 @@ Now that code is deployed and configured, initialize the system:
    - Build the display boards
 
 3. **Wait 30-60 seconds** for everything to initialize
+
+4. **Notice the color-coded tabs:**
+   - **BLUE tabs** (Inventory, Main Board, Employees Board) - Primary sheets you'll use most
+   - **CYAN tabs** (Poster Outside/Inside, Print Out) - Display and printing
+   - **ORANGE tabs** (Subscribers, Documentation) - Configuration and help
+   - **YELLOW tabs** (hidden) - Admin audit logs
+   - **RED tabs** (hidden) - Error tracking
+   - **GREEN tabs** (hidden) - Analytics
+   
+   These colors help you quickly find what you need!
    - You'll see a toast notification when complete
 
 ---

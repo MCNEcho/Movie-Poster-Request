@@ -17,11 +17,8 @@ function refreshPrintOut() {
 
   try {
     const ss = SpreadsheetApp.getActive();
-    const sh = getSheet_(CONFIG.SHEETS.PRINT_OUT);
-    const { empQrEndRow } = buildPrintOutLayout_();
+    buildPrintOutLayout_();
 
-    // Keep this lightweight: just rebuild layout; selection is handled by prepareAndSelectPrintArea()
-    sh.setActiveSelection(sh.getRange(4, 1, Math.max(2, empQrEndRow - 4 + 1), 3));
     ss.toast('Print Out updated successfully', 'Update Complete', 3);
   } finally {
     lock.releaseLock();

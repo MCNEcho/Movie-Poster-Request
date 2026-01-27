@@ -221,17 +221,25 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
       .build();
     
     for (let col = startCol; col < startCol + numCols; col++) {
-      sheet.getRange(row, col)
+      const cell = sheet.getRange(row, col);
+      const currentValue = cell.getValue();
+      
+      cell
         .setDataValidation(titleRule)
-        .setValue(titles[0] || '')
         .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle')
         .setFontSize(12)
         .setFontWeight('bold')
         .setWrap(true);
+      
+      // Only set default value if cell is empty
+      if (!currentValue) {
+        cell.setValue(titles[0] || '');
+      }
     }
     
-    // Make poster title cells taller
-    sheet.setRowHeight(row, 60);
+    // Make poster title cells taller (150 units)
+    sheet.setRowHeight(row, 150);
   } catch (err) {
     Logger.log(`[setupMovieTitleDropdowns_] Error: ${err.message}`);
     throw err;

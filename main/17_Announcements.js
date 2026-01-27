@@ -197,43 +197,29 @@ function generateAnnouncementPreview_(queue, ids) {
  * @param {Array<string>} recipients - Email addresses
  */
 function processBatchedAnnouncements_(queue, ids, recipients) {
-  const batchSize = CONFIG.ANNOUNCEMENT.BATCH_SIZE;
-  const batches = [];
-  
-  // Split into batches
-  for (let i = 0; i < ids.length; i += batchSize) {
-    batches.push(ids.slice(i, i + batchSize));
-  }
-  
+  // Send all posters in a single email instead of batching
   const formUrl = getOrCreateForm_().getPublishedUrl();
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
   
-  batches.forEach((batch, batchIndex) => {
-    const template = CONFIG.TEMPLATES.BATCH;
-    const posterList = formatPosterList_(queue, batch);
-    
-    const subject = substituteVariables_(template.subject, {
-      COUNT: String(batch.length),
-      ACTIVE_COUNT: activeCount,
-      FORM_LINK: formUrl,
-      POSTER_LIST: posterList
-    });
-    
-    const body = substituteVariables_(template.body, {
-      COUNT: String(batch.length),
-      ACTIVE_COUNT: activeCount,
-      FORM_LINK: formUrl,
-      POSTER_LIST: posterList
-    });
-    
-    // Send with throttling and retry
-    sendAnnouncementEmail_(recipients, subject, body);
-    
-    // Throttle between batches
-    if (batchIndex < batches.length - 1) {
-      Utilities.sleep(CONFIG.ANNOUNCEMENT.THROTTLE_DELAY_MS);
-    }
+  const template = CONFIG.TEMPLATES.BATCH;
+  const posterList = formatPosterList_(queue, ids);
+  
+  const subject = substituteVariables_(template.subject, {
+    COUNT: String(ids.length),
+    ACTIVE_COUNT: activeCount,
+    FORM_LINK: formUrl,
+    POSTER_LIST: posterList
   });
+  
+  const body = substituteVariables_(template.body, {
+    COUNT: String(ids.length),
+    ACTIVE_COUNT: activeCount,
+    FORM_LINK: formUrl,
+    POSTER_LIST: posterList
+  });
+  
+  // Send with retry
+  sendAnnouncementEmail_(recipients, subject, body);
 }
 
 /**

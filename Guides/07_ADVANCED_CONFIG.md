@@ -126,14 +126,14 @@ CONFIG.CACHE_TTL_MINUTES = 1;   // Update every 1 minute
 
 ---
 
-### Announcement Settings: Batching and Timing
+### Announcement Settings: Timing and Retries
 
-**What it does:** Controls how emails are batched and sent.
+**What it does:** Controls how announcement emails are sent.
 
 **Current settings:**
 ```javascript
 CONFIG.ANNOUNCEMENT = {
-  BATCH_SIZE: 5,           // How many posters per email
+  BATCH_SIZE: 5,           // (DEPRECATED - no longer used)
   THROTTLE_DELAY_MS: 1000, // Wait 1 second between emails
   MAX_RETRIES: 3,          // Try 3 times if failed
   ENABLED: true            // Turn announcements on/off
@@ -143,18 +143,9 @@ CONFIG.ANNOUNCEMENT = {
 **Explanation of each:**
 
 **BATCH_SIZE:**
-- How many new posters to group in one email
-- Example: 5 means "when 5 new posters are added, send 1 email with all 5"
-
-To change to 3 posters per email:
-```javascript
-BATCH_SIZE: 3,
-```
-
-To send immediately (batch size 1):
-```javascript
-BATCH_SIZE: 1,
-```
+- ⚠️ **DEPRECATED:** This setting is no longer used
+- The system now sends ALL pending new posters in a single email
+- No more batching - employees get the full list at once
 
 **THROTTLE_DELAY_MS:**
 - Wait time between sending emails (in milliseconds)
