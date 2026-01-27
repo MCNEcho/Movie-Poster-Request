@@ -3,203 +3,159 @@
 function showManualPosterDialog() {
   const html = HtmlService.createHtmlOutput(`
     <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
-      label { display: block; margin-top: 15px; font-weight: bold; }
-      input, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
-      button { margin-top: 20px; padding: 10px 20px; background: #4285f4; color: white; border: none; cursor: pointer; }
-      button:hover { background: #357ae8; }
+      body { font-family: Arial, sans-serif; padding: 15px; }
+      label { display: block; margin-top: 10px; font-weight: bold; }
+      input { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+      button { margin-top: 15px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+      button:hover { background-color: #45a049; }
+      #status { margin-top: 10px; padding: 10px; border-radius: 5px; }
+      .success { background-color: #d4edda; color: #155724; }
+      .error { background-color: #f8d7da; color: #721c24; }
       .required:after { content: " *"; color: red; }
     </style>
     
     <h2>Add New Poster to Inventory</h2>
     
-    <label class="required">Movie Title</label>
+    <label class="required" for="title">Movie Title:</label>
     <input type="text" id="title" placeholder="Enter movie title">
     
-    <label class="required">Release Date</label>
+    <label class="required" for="releaseDate">Release Date:</label>
     <input type="date" id="releaseDate">
     
-    <label class="required">Poster Quantity</label>
-    <input type="number" id="posters" min="0" value="1">
-    
-    <label>Studio/Company</label>
+    <label for="company">Company:</label>
     <input type="text" id="company" placeholder="Optional">
     
-    <label>Bus Shelters</label>
+    <label for="posters">Posters:</label>
+    <input type="number" id="posters" min="0" placeholder="Optional">
+    
+    <label for="bus">Bus Shelters:</label>
     <input type="number" id="bus" min="0" placeholder="Optional">
     
-    <label>Mini Posters</label>
+    <label for="mini">Mini Posters:</label>
     <input type="number" id="mini" min="0" placeholder="Optional">
     
-    <label>Standees</label>
+    <label for="standee">Standee:</label>
     <input type="number" id="standee" min="0" placeholder="Optional">
     
-    <label>Teasers</label>
+    <label for="teaser">Teaser:</label>
     <input type="number" id="teaser" min="0" placeholder="Optional">
     
-    <label>Notes</label>
+    <label for="notes">Notes:</label>
     <input type="text" id="notes" placeholder="Optional notes">
     
     <label>
-      <input type="checkbox" id="activate"> Activate immediately (add to form)
+      <input type="checkbox" id="active"> Active? (add to form immediately)
     </label>
     
     <button onclick="submitPoster()">Add Poster</button>
+    <div id="status"></div>
     
     <script>
       function submitPoster() {
-        const btn = document.querySelector('button');
-        if (btn) btn.disabled = true;
-
-        // Client-side sanity checks to surface silent failures before server call.
-        if (!google || !google.script || !google.script.run) {
-          alert('Apps Script client runtime not available. Please reload the sheet and try again.');
-          if (btn) btn.disabled = false;
-          return;
-        }
-
-        const data = {
-          title: document.getElementById('title').value.trim(),
-          releaseDate: document.getElementById('releaseDate').value,
-          posters: parseInt(document.getElementById('posters').value) || 1,
-          company: document.getElementById('company').value.trim(),
-          bus: parseInt(document.getElementById('bus').value) || 0,
-          mini: parseInt(document.getElementById('mini').value) || 0,
-          standee: parseInt(document.getElementById('standee').value) || 0,
-          teaser: parseInt(document.getElementById('teaser').value) || 0,
-          notes: document.getElementById('notes').value.trim(),
-          activate: document.getElementById('activate').checked
-        };
+        const title = document.getElementById('title').value.trim();
+        const releaseDate = document.getElementById('releaseDate').value;
+        const company = document.getElementById('company').value.trim();
+        const posters = document.getElementById('posters').value.trim();
+        const bus = document.getElementById('bus').value.trim();
+        const mini = document.getElementById('mini').value.trim();
+        const standee = document.getElementById('standee').value.trim();
+        const teaser = document.getElementById('teaser').value.trim();
+        const notes = document.getElementById('notes').value.trim();
+        const active = document.getElementById('active').checked;
         
-        if (!data.title || !data.releaseDate) {
-          alert('Please fill in required fields (Title and Release Date)');
-          if (btn) btn.disabled = false;
+        if (!title || !releaseDate) {
+          showStatus('Please fill in all required fields (Title and Release Date)', 'error');
           return;
         }
         
-        console.log('[submitPoster] calling server', data);
         google.script.run
-          .withSuccessHandler((res) => {
-            if (btn) btn.disabled = false;
-            if (res && res.success) {
-              alert('Poster added successfully! ID: ' + (res.posterId || 'N/A'));
-              google.script.host.close();
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showStatus('Poster added successfully! Row: ' + result.row, 'success');
+              setTimeout(() => google.script.host.close(), 1500);
             } else {
-              alert('Error: ' + (res && res.message ? res.message : 'Unknown error'));
+              showStatus('Error: ' + result.message, 'error');
             }
           })
-          .withFailureHandler((err) => {
-            if (btn) btn.disabled = false;
-            console.log('[submitPoster] failure', err);
-            alert('Error: ' + (err && err.message ? err.message : err));
+          .withFailureHandler(function(err) {
+            showStatus('Error: ' + err.message, 'error');
           })
-          .addPosterToInventory_(data);
+          .addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes);
+      }
+      
+      function showStatus(msg, type) {
+        const status = document.getElementById('status');
+        status.textContent = msg;
+        status.className = type;
       }
     </script>
   `)
-  .setWidth(500)
-  .setHeight(650);
+  .setWidth(400)
+  .setHeight(600);
   
-  SpreadsheetApp.getUi().showModalDialog(html, 'Add Poster to Inventory');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Add Manual Poster');
 }
 
-function addPosterToInventory_(data) {
+function addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
-
+  
   try {
-    Logger.log('[addPosterToInventory_] invoked');
     // Validate required fields
-    if (!data || !String(data.title || '').trim() || !data.releaseDate) {
-      return { success: false, message: 'Title and Release Date are required.' };
+    if (!title || !title.trim() || !releaseDate) {
+      return { success: false, message: 'Title and Release Date are required' };
     }
-    const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-    if (!inv) {
-      return { success: false, message: 'Inventory sheet not found' };
-    }
-
-    // Header-based mapping (row 2) keeps writes aligned even if columns move.
-    const headerRow = 2;
-    const headers = inv.getRange(headerRow, 1, 1, inv.getLastColumn()).getValues()[0];
-    const norm = (s) => String(s || '').trim().toLowerCase();
-
-    const colByName = {};
-    headers.forEach((h, i) => { colByName[norm(h)] = i + 1; });
-
-    const COL_ACTIVE = colByName['active?'];
-    const COL_RELEASE = colByName['release date'];
-    const COL_TITLE = colByName['movie title'];
-    const COL_COMPANY = colByName['company'];
-    const COL_POSTERS = colByName['posters'];
-    const COL_BUS = colByName['bus shelters'];
-    const COL_MINI = colByName['mini posters'];
-    const COL_STANDEE = colByName['standee'];
-    const COL_TEASER = colByName['teaser'];
-    const COL_NOTES = colByName['notes'];
-    const COL_POSTERID = colByName['poster id'];
-
-    const missing = [];
-    if (!COL_ACTIVE) missing.push('Active?');
-    if (!COL_RELEASE) missing.push('Release Date');
-    if (!COL_TITLE) missing.push('Movie Title');
-    if (!COL_POSTERID) missing.push('Poster ID');
-    if (missing.length) {
-      return { success: false, message: 'Missing Inventory headers: ' + missing.join(', ') };
-    }
-
-    const title = String(data.title).trim();
-    const company = String(data.company || '').trim();
-    const notes = String(data.notes || '').trim();
-    const posters = Number(data.posters) || 0;
-    const bus = Number(data.bus) || 0;
-    const mini = Number(data.mini) || 0;
-    const standee = Number(data.standee) || 0;
-    const teaser = Number(data.teaser) || 0;
-
-    const release = new Date(data.releaseDate);
+    
+    // Validate release date
+    const release = new Date(releaseDate);
     if (isNaN(release.getTime())) {
-      return { success: false, message: 'Invalid Release Date.' };
+      return { success: false, message: 'Invalid Release Date' };
     }
-
-    const active = !!data.activate;
-    const posterId = uuidPosterId_();
-
-    const colCount = headers.length; // Keep within visible A–K layout.
-    const row = new Array(colCount).fill('');
-    row[COL_ACTIVE - 1] = active;
-    row[COL_RELEASE - 1] = release;
-    row[COL_TITLE - 1] = title;
-    if (COL_COMPANY) row[COL_COMPANY - 1] = company;
-    if (COL_POSTERS) row[COL_POSTERS - 1] = posters;
-    if (COL_BUS) row[COL_BUS - 1] = bus;
-    if (COL_MINI) row[COL_MINI - 1] = mini;
-    if (COL_STANDEE) row[COL_STANDEE - 1] = standee;
-    if (COL_TEASER) row[COL_TEASER - 1] = teaser;
-    if (COL_NOTES) row[COL_NOTES - 1] = notes;
-    row[COL_POSTERID - 1] = posterId;
-
-    const nextRow = Math.max(inv.getLastRow() + 1, headerRow + 1);
-    inv.getRange(nextRow, 1, 1, colCount).setValues([row]);
-    Logger.log(`[addPosterToInventory_] wrote row ${nextRow} cols ${colCount} posterId=${posterId} title="${title}" active=${active}`);
-
-    try { setCheckboxColumn_(inv, COL_ACTIVE, nextRow, nextRow); } catch (e) { Logger.log(`[addPosterToInventory_] checkbox setup warning: ${e.message}`); }
-
-    try { sortInventoryByReleaseDate_(); } catch (e) { Logger.log(`[addPosterToInventory_] sort warning: ${e.message}`); }
-
-    if (active) {
-      try { syncPostersToForm(); } catch (e) { Logger.log(`[addPosterToInventory_] syncPostersToForm error: ${e.message}`); }
-      try { rebuildBoards(); } catch (e) { Logger.log(`[addPosterToInventory_] rebuildBoards error: ${e.message}`); }
-    }
-
-    logAnalyticsEvent_({
-      eventType: 'POSTER_ADDED',
-      notes: `Manual poster entry: ${title} (${posterId})`
-    });
-
-    return { success: true, posterId, row: nextRow, colCount };
+    
+    const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+    
+    // Parse numeric values, defaulting to empty string for 0 or invalid
+    const parseNum = (val) => {
+      if (!val || val === '') return '';
+      const num = parseInt(val);
+      return (isNaN(num) || num === 0) ? '' : num;
+    };
+    
+    // Build row data for columns A-J only (NOT K/Poster ID)
+    const row = [];
+    row[COLS.INVENTORY.ACTIVE - 1] = !!active;          // A: Active? (boolean)
+    row[COLS.INVENTORY.RELEASE - 1] = release;          // B: Release Date
+    row[COLS.INVENTORY.TITLE - 1] = title.trim();       // C: Movie Title
+    row[COLS.INVENTORY.COMPANY - 1] = company || '';    // D: Company
+    row[COLS.INVENTORY.POSTERS - 1] = parseNum(posters); // E: Posters
+    row[COLS.INVENTORY.BUS - 1] = parseNum(bus);        // F: Bus Shelters
+    row[COLS.INVENTORY.MINI - 1] = parseNum(mini);      // G: Mini Posters
+    row[COLS.INVENTORY.STANDEE - 1] = parseNum(standee); // H: Standee
+    row[COLS.INVENTORY.TEASER - 1] = parseNum(teaser);  // I: Teaser
+    row[COLS.INVENTORY.NOTES - 1] = notes || '';        // J: Notes
+    // Column K (POSTER_ID) is NOT written - will be auto-generated by other functions
+    
+    // Append at bottom of sheet
+    const nextRow = inv.getLastRow() + 1;
+    inv.getRange(nextRow, 1, 1, 10).setValues([row]); // Only write columns A-J
+    
+    // Set checkbox validation for Active? column
+    setCheckboxColumn_(inv, COLS.INVENTORY.ACTIVE, nextRow, nextRow);
+    
+    // Update last updated timestamp
+    updateInventoryLastUpdated_();
+    
+    Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title}`);
+    
+    return { 
+      success: true, 
+      message: 'Poster added successfully',
+      row: nextRow 
+    };
+    
   } catch (err) {
-    Logger.log(`[addPosterToInventory_] Error: ${err.message}`);
-    return { success: false, message: err.message };
+    Logger.log(`[addManualPoster] Error: ${err.message}`);
+    return { success: false, message: `Error: ${err.message}` };
   } finally {
     lock.releaseLock();
   }
