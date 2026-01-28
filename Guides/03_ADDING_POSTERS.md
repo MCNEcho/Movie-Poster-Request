@@ -126,6 +126,7 @@ The inventory automatically sorts by release date after you make changes.
 When you check the Active? box on a poster:
 - The system automatically sorts the inventory by release date
 - The form updates with the new poster in the dropdown
+- The subscription checkbox remains available in the form
 - Announcement is queued to notify subscribers (sent every 15 minutes)
 
 ---

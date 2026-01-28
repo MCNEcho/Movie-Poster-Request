@@ -184,6 +184,16 @@ Now that everything is set up:
 
 ---
 
+## Form Features
+
+The Google Form automatically:
+- **Collects email addresses** from Google accounts (no manual entry needed)
+- **Includes subscription checkbox** for notification preferences
+- **Updates poster options** when you sync the form
+- **Validates employee names** to ensure correct format
+
+---
+
 ## Key Terms You'll See
 
 | Term | Meaning |

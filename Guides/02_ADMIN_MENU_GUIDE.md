@@ -69,17 +69,21 @@ The **Poster System** menu is your control center. Here's what every button does
 ---
 
 ### 📋 Sync Form Options Now
-**What it does:** Updates the Google Form with current posters.
+**What it does:** Updates the Google Form with current posters and ensures form structure is correct.
 
 **When to use it:**
 - After adding a new poster to Movie Posters sheet
 - After hiding a poster (setting Active? to FALSE)
 - Employees say a poster doesn't appear in the form
+- After any form-related issues
 
 **What happens:**
+- Ensures form collects email addresses automatically
+- Ensures subscription checkbox is present
 - Reads all posters from Movie Posters sheet where Active? = TRUE
 - Updates the form's "Request Posters (Add)" dropdown
-- Employees see the new list next time they open the form
+- Updates the "Remove Posters" list with currently held posters
+- Employees see the updated options next time they open the form
 
 **How long:** 2-3 seconds
 

@@ -72,12 +72,13 @@ clasp push
 
 ### Request Flow
 1. **Google Form Submission** → handled by `06_SubmitHandler.js`
-2. Parse answers, validate employee name/email
+2. Parse answers, validate employee name/email, capture subscription preference
 3. Apply removals and additions with slot limit and dedup checks
 4. Write to the Requests ledger (audit trail)
-5. Rebuild boards and refresh form options
-6. Queue and batch announcements when a poster is newly activated
-7. Invalidate caches tied to posters, boards, and employee slots
+5. Update subscriber list if employee opted in
+6. Rebuild boards and refresh form options
+7. Queue and batch announcements when a poster is newly activated
+8. Invalidate caches tied to posters, boards, and employee slots
 
 ### Operational Automations
 - **Announcements** (`17_Announcements.js`)
@@ -104,8 +105,8 @@ clasp push
 - `02_Utils.js` – Common sheet ops, poster fetching, validation
 - `02A_CacheManager.js` – TTL cache helpers + invalidation after writes
 - `03_ErrorHandler.js` – Central error logging, CRITICAL notifications
-- `04_FormManager.js` – Form creation and fields setup
-- `05_SyncForm.js` – Sync form options from Movie Posters sheet
+- `04_FormManager.js` – Form creation, email collection setup, subscription checkbox
+- `05_SyncForm.js` – Sync form options from Movie Posters sheet (maintains form structure)
 - `06_SubmitHandler.js` – Handle additions/removals, slot/dedup enforcement
 - `07_Ledger.js` – Query ledger, duplicate checks, slot counts
 - `08_Analytics.js` – Event logging, performance metrics

@@ -126,7 +126,8 @@ Guides/
 - Questions employees see
 - How to request
 - How to remove
-- How to subscribe
+- How to subscribe to email notifications (automatic checkbox)
+- Email collection (automatic via Google sign-in)
 - How to share
 - Common mistakes
 

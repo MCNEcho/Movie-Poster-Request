@@ -38,9 +38,11 @@ The form URL is: `https://docs.google.com/forms/d/{FORM_ID}/`
 ### Part 1: Employee Information
 
 **Question 1: Email Address**
-- Already filled in automatically (from Google account)
+- Automatically collected from Google account (no input field shown)
+- Requires Google sign-in to use the form
 - Employees don't type this
 - The system uses this to track who submitted
+- Note: The form is configured to collect email via form settings, not as a visible question
 
 **Question 2: Employee Name (REQUIRED)**
 - Must be in format: "FirstName LastInitial"
@@ -96,10 +98,12 @@ Example:
 ### Part 3: Notifications
 
 **Question 5: Subscribe to Notifications (Optional)**
-- Single checkbox: "Yes, send me email announcements about new posters"
+- Single checkbox: "Yes, subscribe me to notifications"
 - If checked: employee gets emails when new posters are added
 - If unchecked: employee doesn't get announcements
 - This doesn't control request ability, just email preference
+- The system maintains this question automatically when syncing form options
+- Once subscribed, employee stays subscribed unless manually removed from Subscribers sheet
 
 ---
 

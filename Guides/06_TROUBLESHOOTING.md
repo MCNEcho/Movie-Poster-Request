@@ -100,6 +100,8 @@ Employee tries to open the form but gets an error or blank page.
 3. You should go to the form edit page (not employee view)
 4. If form doesn't exist, click **Poster System** → **Run Setup / Repair**
 
+**Note:** The form automatically collects email addresses and includes a subscription checkbox. If these are missing, run **Sync Form Options Now** to restore them.
+
 **Solution 2: Get Fresh Link**
 1. Go to Documentation tab
 2. Look for the form link
