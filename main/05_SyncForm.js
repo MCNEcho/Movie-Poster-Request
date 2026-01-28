@@ -4,6 +4,9 @@ function syncPostersToForm() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
+    // Keep form structure aligned with setup (collect email, subscribe checkbox, etc.)
+    ensureFormStructure_();
+
     ensurePosterIdsInInventory_();  // Inventory is canonical source
     updateInventoryLastUpdated_();
 

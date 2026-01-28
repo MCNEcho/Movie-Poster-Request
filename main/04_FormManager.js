@@ -51,6 +51,19 @@ function setCheckboxChoicesByTitle_(form, itemTitle, choices, required) {
   cb.setRequired(!!required);
 }
 
+function ensureSubscribeQuestion_(form) {
+  const subTitle = CONFIG.FORM.Q_SUBSCRIBE;
+  const subItems = form.getItems(FormApp.ItemType.CHECKBOX);
+  let subscribeItem = subItems.find(it => String(it.getTitle() || '').trim() === subTitle);
+  if (!subscribeItem) {
+    subscribeItem = form.addCheckboxItem().setTitle(subTitle);
+  }
+  const subCb = (typeof subscribeItem.asCheckboxItem === 'function') ? subscribeItem.asCheckboxItem() : subscribeItem;
+  subCb.setChoices([subCb.createChoice('Yes, subscribe me to notifications')]);
+  subCb.setRequired(false);
+  return subCb;
+}
+
 function ensureFormStructure_() {
   const form = getOrCreateForm_();
 
@@ -84,15 +97,6 @@ function ensureFormStructure_() {
   // Set up Add/Remove posters checkboxes
   setCheckboxChoicesByTitle_(form, CONFIG.FORM.Q_ADD, ['— placeholder —'], false);
   setCheckboxChoicesByTitle_(form, CONFIG.FORM.Q_REMOVE, ['— placeholder —'], false);
-  
-  // Set up notification subscription checkbox
-  const subTitle = CONFIG.FORM.Q_SUBSCRIBE;
-  const subItems = form.getItems(FormApp.ItemType.CHECKBOX);
-  let subscribeItem = subItems.find(it => String(it.getTitle() || '').trim() === subTitle);
-  if (!subscribeItem) {
-    subscribeItem = form.addCheckboxItem().setTitle(subTitle);
-  }
-  const subCb = (typeof subscribeItem.asCheckboxItem === 'function') ? subscribeItem.asCheckboxItem() : subscribeItem;
-  subCb.setChoices([subCb.createChoice('Yes, subscribe me to notifications')]);
-  subCb.setRequired(false);
+
+  ensureSubscribeQuestion_(form);
 }
