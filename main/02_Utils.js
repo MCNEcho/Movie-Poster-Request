@@ -14,6 +14,16 @@ function getProps_() {
   return PropertiesService.getScriptProperties();
 }
 
+function isMasterAccount_() {
+  const configuredAdmin = String(CONFIG.ADMIN_EMAIL || '').toLowerCase().trim();
+  const ss = SpreadsheetApp.getActive();
+  const ownerEmail = String(ss.getOwner().getEmail() || '').toLowerCase().trim();
+  const currentUser = String(Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail() || '').toLowerCase().trim();
+
+  if (configuredAdmin) return currentUser && currentUser === configuredAdmin;
+  return currentUser && currentUser === ownerEmail;
+}
+
 function readJsonProp_(key, fallback) {
   const raw = getProps_().getProperty(key);
   if (!raw) return fallback;

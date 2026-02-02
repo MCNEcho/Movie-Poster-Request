@@ -101,6 +101,17 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
   lock.waitLock(30000);
   
   try {
+    const ss = SpreadsheetApp.getActive();
+    const userEmail = String(Session.getActiveUser().getEmail() || '').toLowerCase().trim();
+    if (userEmail) {
+      const ownerEmail = String(ss.getOwner().getEmail() || '').toLowerCase().trim();
+      const editorEmails = ss.getEditors().map(e => String(e.getEmail() || '').toLowerCase().trim());
+      const hasEditAccess = userEmail === ownerEmail || editorEmails.includes(userEmail);
+      if (!hasEditAccess) {
+        return { success: false, message: 'You need edit access to add posters. Ask the sheet owner to grant editor access.' };
+      }
+    }
+
     // Validate required fields
     if (!title || !title.trim() || !releaseDate) {
       return { success: false, message: 'Title and Release Date are required' };
@@ -159,7 +170,12 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     
   } catch (err) {
     Logger.log(`[addManualPoster] Error: ${err.message}`);
-    return { success: false, message: `Error: ${err.message}` };
+    logError_(err, 'addManualPoster', { title, releaseDate, active });
+    const msg = String(err && err.message ? err.message : err);
+    if (msg.toLowerCase().includes('permission')) {
+      return { success: false, message: 'Permission denied. Make sure you have edit access to the spreadsheet and reauthorize the script.' };
+    }
+    return { success: false, message: `Error: ${msg}` };
   } finally {
     lock.releaseLock();
   }

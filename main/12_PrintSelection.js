@@ -50,7 +50,7 @@ function buildPrintOutLayout_() {
   removeAllFloatingImages_(sh);
 
   // --- Row 1-2: URLs (always at top) ---
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   const empUrl = getEmployeeViewEmployeesUrl_();
 
   sh.getRange('A1').setValue('Form URL').setFontWeight('bold');

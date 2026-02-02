@@ -14,7 +14,10 @@ function syncEmployeeViewSpreadsheet_() {
     const empSS = getOrCreateEmployeeViewSpreadsheet_();
 
     // Add a temporary sheet to allow deleting all others
-    const tempSheet = empSS.insertSheet('TEMP_DELETE_ME');
+    let tempSheet = empSS.getSheetByName('TEMP_DELETE_ME');
+    if (!tempSheet) {
+      tempSheet = empSS.insertSheet('TEMP_DELETE_ME');
+    }
 
     // Delete all other sheets except the temporary one
     empSS.getSheets().forEach(sh => {
@@ -51,7 +54,9 @@ function syncEmployeeViewSpreadsheet_() {
     }
 
     // Remove the temporary sheet
-    empSS.deleteSheet(tempSheet);
+    if (tempSheet && empSS.getSheetByName('TEMP_DELETE_ME')) {
+      empSS.deleteSheet(tempSheet);
+    }
 
     Logger.log(`[syncEmployeeViewSpreadsheet_] Sync complete`);
 
@@ -139,8 +144,16 @@ function getOrCreateEmployeeViewSpreadsheet_() {
     try {
       return SpreadsheetApp.openById(id);
     } catch (e) {
-      // Spreadsheet was deleted; will recreate below
+      // Spreadsheet was deleted or access denied
+      if (!isMasterAccount_()) {
+        throw new Error('Employee View spreadsheet access denied. Contact the master admin to manage it.');
+      }
+      // Will recreate below for master admin
     }
+  }
+
+  if (!isMasterAccount_()) {
+    throw new Error('Employee View spreadsheet not set up yet. Contact the master admin to initialize it.');
   }
 
   const adminSS = SpreadsheetApp.getActive();

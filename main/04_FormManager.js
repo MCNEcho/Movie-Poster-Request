@@ -14,10 +14,17 @@ function getOrCreateForm_() {
     try { 
       return FormApp.openById(existingId); 
     } catch (e) {
-      // Form was deleted or ID is invalid - clear it and create a new one
-      Logger.log('Form not found (ID: ' + existingId + '). Creating new form...');
+      // Form not accessible or ID invalid
+      if (!isMasterAccount_()) {
+        throw new Error('Form access denied. Contact the master admin to manage the form.');
+      }
+      Logger.log('Form not found or inaccessible (ID: ' + existingId + '). Creating new form...');
       getProps_().deleteProperty(CONFIG.PROPS.FORM_ID);
     }
+  }
+
+  if (!isMasterAccount_()) {
+    throw new Error('Form not set up yet. Contact the master admin to initialize the form.');
   }
 
   // Create new form
@@ -29,6 +36,17 @@ function getOrCreateForm_() {
   Logger.log('Created new form. EDIT URL: ' + form.getEditUrl());
   Logger.log('NEW FORM_ID: ' + form.getId());
   return form;
+}
+
+function getFormPublishedUrlSafe_() {
+  const id = getEffectiveFormId_();
+  if (!id) return '';
+  try {
+    return FormApp.openById(id).getPublishedUrl();
+  } catch (e) {
+    // Fall back to viewform URL if user lacks access
+    return `https://docs.google.com/forms/d/${id}/viewform`;
+  }
 }
 
 function setCheckboxChoicesByTitle_(form, itemTitle, choices, required) {

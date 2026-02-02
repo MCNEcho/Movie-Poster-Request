@@ -125,7 +125,7 @@ function getActiveSubscriberEmails_() {
  */
 function generateAnnouncementPreview_(queue, ids) {
   const recipients = getActiveSubscriberEmails_();
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   
   // Select appropriate template
   const template = ids.length === 1 ? CONFIG.TEMPLATES.SINGLE_POSTER : CONFIG.TEMPLATES.BATCH;
@@ -198,7 +198,7 @@ function generateAnnouncementPreview_(queue, ids) {
  */
 function processBatchedAnnouncements_(queue, ids, recipients) {
   // Send all posters in a single email instead of batching
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
   
   const template = CONFIG.TEMPLATES.BATCH;
@@ -229,7 +229,7 @@ function processBatchedAnnouncements_(queue, ids, recipients) {
  * @param {Array<string>} recipients - Email addresses
  */
 function processIndividualAnnouncements_(queue, ids, recipients) {
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
   
   ids.forEach((id, index) => {
