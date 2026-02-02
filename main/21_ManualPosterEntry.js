@@ -160,6 +160,13 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Update last updated timestamp
     updateInventoryLastUpdated_();
     
+    // Visual feedback after dialog closes
+    SpreadsheetApp.getActive().toast(
+      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}`,
+      'Poster Added',
+      5
+    );
+    
     Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title}`);
     
     return { 

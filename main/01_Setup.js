@@ -99,10 +99,13 @@ function setupPosterSystem() {
     buildDocumentationTab();
     buildPrintOutLayout_();
     
-    // Setup display management tabs
-    ss.toast('Setting up display tabs...', 'Setup Progress', 3);
-    setupPosterOutsideTab_();
-    setupPosterInsideTab_();
+    // Setup employee view (must be before print out layout so links are available)
+    ss.toast('Setting up employee view...', 'Setup Progress', 3);
+    setupEmployeeViewSpreadsheet();
+    
+    // Refresh print out to include employee view link
+    ss.toast('Refreshing print layout...', 'Setup Progress', 3);
+    buildPrintOutLayout_();
 
     // Task Group 4: Monitoring (last)
     ss.toast('Finalizing setup...', 'Setup Progress', 3);

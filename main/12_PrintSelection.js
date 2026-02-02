@@ -80,12 +80,12 @@ function buildPrintOutLayout_() {
   sh.setColumnWidth(2, 520);
   sh.setColumnWidth(3, 260);
 
-  // --- Get ACTIVE posters from Inventory sheet ---
+  // --- Get ALL posters from Inventory sheet (active or not) ---
+  // The ACTIVE flag controls form availability; Print Out shows ALL to display upcoming movies
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const invData = getNonEmptyData_(inv, 11, 3);
   
   const activePosters = invData
-    .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
     .map(r => ({
       release: r[COLS.INVENTORY.RELEASE - 1],
       title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),

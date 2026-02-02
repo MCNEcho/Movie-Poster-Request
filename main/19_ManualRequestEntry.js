@@ -170,6 +170,14 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
     syncPostersToForm();
     
     Logger.log(`[addManualRequest] Successfully added request: ${empEmail} - ${label}`);
+    
+    // Visual feedback after dialog closes
+    SpreadsheetApp.getActive().toast(
+      `✅ Request added!\n${empName} → ${label}`,
+      'Request Added',
+      5
+    );
+    
     return { success: true, message: 'Request added successfully' };
     
   } catch (err) {
