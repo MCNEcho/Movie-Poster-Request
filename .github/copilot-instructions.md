@@ -38,6 +38,10 @@ Google Apps Script system for employee poster requests with strict slot limits (
 - **18_CustomAnnouncements.js** - Admin custom message handler
 - **19_ManualRequestEntry.js** - Historical request migration dialog
 - **20_BulkSimulator.js** - Stress test with randomized submissions
+- **21_ManualPosterEntry.js** - Manual poster addition dialog
+- **22_PosterDisplays.js** - Poster Outside/Inside display management
+- **23_InventoryMigration.js** - Legacy data migration utilities
+- **24_RefreshManager.js** - Consolidated refresh operations dialog
 - **99_BackupTests.js** - Backup testing suite
 - **99_Debuging.js** - Cleanup and repair utilities
 
@@ -166,7 +170,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics
-- **Admin Menu Map:** Reports (boards/form/docs/health), Print & Layout (print area/print out), Announcements (preview/send), Advanced (manual add, bulk sim, backup, employee view, show link) plus top-level Refresh All.
+- **Admin Menu Map:** Reports (boards/form/docs), Print & Layout (print out), Display Management (manage displays), Announcements (preview/send), Advanced (backup, employee view) plus top-level Setup/Repair and Refresh Manager.
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu

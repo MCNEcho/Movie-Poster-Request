@@ -15,7 +15,7 @@ function buildAdminMenu_() {
   
   ui.createMenu('Poster System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
-    .addItem('🔄 Refresh All', 'refreshAll_')
+    .addItem('🔄 Refresh Manager', 'showRefreshManagerDialog')
     .addSeparator()
     .addItem('➕ Manually Add Request', 'showManualRequestDialog')
     .addItem('➕ Add New Poster', 'showManualPosterDialog')
@@ -23,22 +23,17 @@ function buildAdminMenu_() {
     .addSubMenu(ui.createMenu('📊 Reports')
       .addItem('Rebuild Boards', 'rebuildBoards')
       .addItem('Sync Form Options', 'syncPostersToForm')
-      .addItem('Refresh Documentation', 'buildDocumentationTab')
-      .addItem('Refresh Health Banner', 'refreshHealthBanner'))
+      .addItem('Refresh Documentation', 'buildDocumentationTab'))
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Update Print Out', 'refreshPrintOut'))
     .addSubMenu(ui.createMenu('🖼️ Display Management')
-      .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
-      .addItem('Setup Poster Inside', 'setupPosterInsideTab_')
-      .addItem('Refresh Display Dropdowns', 'refreshDisplayDropdowns_'))
+      .addItem('Manage Display Sheets', 'showDisplayManagerDialog'))
     .addSubMenu(ui.createMenu('📧 Announcements')
       .addItem('Preview Pending', 'previewPendingAnnouncement')
       .addItem('Send Now', 'sendAnnouncementNow'))
     .addSubMenu(ui.createMenu('⚙️ Advanced')
       .addItem('Run Backup Now', 'manualBackupTrigger')
-      .addItem('Setup Employee View', 'setupEmployeeViewSpreadsheet')
-      .addItem('Sync Employee View', 'syncEmployeeViewSpreadsheet_')
-      .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet'))
+      .addItem('Manage Employee View', 'showEmployeeViewManagerDialog'))
     .addToUi();
 }
 
@@ -55,9 +50,6 @@ function refreshAll_() {
     
     ss.toast('Syncing form options...', 'Refresh All', 3);
     syncPostersToForm();
-    
-    ss.toast('Refreshing health banner...', 'Refresh All', 3);
-    refreshHealthBanner();
     
     ss.toast('✅ All systems refreshed!', 'Refresh All Complete', 5);
   } catch (err) {

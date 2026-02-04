@@ -27,8 +27,11 @@ function showManualRequestDialog() {
       <option value="">-- Select a Poster --</option>
     </select>
     
-    <label for="timestamp">Request Timestamp (YYYY-MM-DD HH:MM:SS):</label>
-    <input type="text" id="timestamp" placeholder="2026-01-20 20:30:00">
+    <label for="date">Request Date:</label>
+    <input type="date" id="date" placeholder="MM/DD/YYYY">
+    
+    <label for="time">Request Time:</label>
+    <input type="time" id="time" placeholder="HH:MM">
     
     <button onclick="submitRequest()">Add Request</button>
     <div id="status"></div>
@@ -48,11 +51,25 @@ function showManualRequestDialog() {
         const email = document.getElementById('email').value.trim();
         const name = document.getElementById('name').value.trim();
         const posterId = document.getElementById('poster').value;
-        const timestamp = document.getElementById('timestamp').value.trim();
+        const date = document.getElementById('date').value.trim();
+        const time = document.getElementById('time').value.trim();
         
         if (!email || !name || !posterId) {
           showStatus('Please fill in all required fields', 'error');
           return;
+        }
+        
+        // Combine date and time into timestamp string
+        let timestamp = '';
+        if (date) {
+          // Date is in YYYY-MM-DD format from date input
+          if (time) {
+            // Time is in HH:MM format from time input, append seconds
+            timestamp = date + ' ' + time + ':00';
+          } else {
+            // If no time provided, default to midnight
+            timestamp = date + ' 00:00:00';
+          }
         }
         
         google.script.run.withSuccessHandler(function(result) {

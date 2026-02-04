@@ -215,28 +215,36 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
       titles.push('(No movies in inventory)');
     }
     
+    // Create data validation rule ONCE, apply to entire range
     const titleRule = SpreadsheetApp.newDataValidation()
       .requireValueInList(titles, true)
       .setAllowInvalid(true) // Allow manual entry for flexibility
       .build();
     
-    for (let col = startCol; col < startCol + numCols; col++) {
-      const cell = sheet.getRange(row, col);
-      const currentValue = cell.getValue();
-      
-      cell
-        .setDataValidation(titleRule)
-        .setHorizontalAlignment('center')
-        .setVerticalAlignment('middle')
-        .setFontSize(12)
-        .setFontWeight('bold')
-        .setWrap(true);
-      
-      // Only set default value if cell is empty
-      if (!currentValue) {
-        cell.setValue(titles[0] || '');
+    // Get the entire range (all cells in one operation)
+    const endCol = startCol + numCols - 1;
+    const range = sheet.getRange(row, startCol, 1, numCols);
+    
+    // Apply validation to entire range at once
+    range.setDataValidation(titleRule);
+    
+    // Apply formatting to entire range at once
+    range
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle')
+      .setFontSize(12)
+      .setFontWeight('bold')
+      .setWrap(true);
+    
+    // Set default values for empty cells
+    const values = range.getValues()[0];
+    const newValues = values.map((val, idx) => {
+      if (!val || val === '') {
+        return titles[0] || '';
       }
-    }
+      return val;
+    });
+    range.setValues([newValues]);
     
     // Make poster title cells taller (150 units)
     sheet.setRowHeight(row, 150);
@@ -247,7 +255,7 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
 }
 
 /**
- * Get all movie titles from Inventory tab, sorted by release date (newest first)
+ * Get all movie titles from Inventory tab, sorted by release date (oldest to newest)
  * @returns {Array<string>} Array of unique movie titles
  */
 function getMovieTitlesFromInventory_() {
@@ -255,12 +263,12 @@ function getMovieTitlesFromInventory_() {
     const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
     const data = getNonEmptyData_(inv, 8);  // Inventory has 8 columns
     
-    // Get all titles, sorted by release date
+    // Get all titles, sorted by release date (ascending: oldest to newest)
     const titles = data
       .sort((a, b) => {
         const dateA = new Date(a[COLS.INVENTORY.RELEASE - 1]);
         const dateB = new Date(b[COLS.INVENTORY.RELEASE - 1]);
-        return dateB - dateA; // Newest first
+        return dateA - dateB; // Oldest first
       })
       .map(r => String(r[COLS.INVENTORY.TITLE - 1] || '').trim())
       .filter(Boolean);
@@ -339,4 +347,149 @@ function refreshDisplayDropdowns_() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Shows consolidated Display Manager dialog with all display management options
+ */
+function showDisplayManagerDialog() {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body {
+            font-family: 'Google Sans', Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+          }
+          h2 {
+            color: #1a73e8;
+            margin-top: 0;
+          }
+          .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+          }
+          .section h3 {
+            margin-top: 0;
+            color: #5f6368;
+            font-size: 14px;
+          }
+          button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 8px;
+          }
+          button:hover {
+            background: #1557b0;
+          }
+          button:active {
+            background: #0d47a1;
+          }
+          .info {
+            color: #5f6368;
+            font-size: 12px;
+            margin-top: 5px;
+          }
+          .success {
+            color: #0d7a3c;
+            font-weight: bold;
+          }
+          .error {
+            color: #d93025;
+            font-weight: bold;
+          }
+          #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+          }
+          .show-status {
+            display: block !important;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>🖼️ Display Manager</h2>
+        
+        <div class="section">
+          <h3>Setup Display Sheets</h3>
+          <button onclick="setupOutside()">Setup Poster Outside</button>
+          <div class="info">Creates/resets Poster Outside tab (Yoke's + Dairy Queen sides)</div>
+          
+          <button onclick="setupInside()">Setup Poster Inside</button>
+          <div class="info">Creates/resets Poster Inside tab (Video Games + Box walls)</div>
+        </div>
+        
+        <div class="section">
+          <h3>Refresh Dropdowns</h3>
+          <button onclick="refreshDropdowns()">Refresh Display Dropdowns</button>
+          <div class="info">Updates movie title dropdowns from current Inventory</div>
+        </div>
+        
+        <div id="status"></div>
+        
+        <script>
+          function setupOutside() {
+            showStatus('Setting up Poster Outside...', false);
+            google.script.run
+              .withSuccessHandler(function() {
+                showStatus('✅ Poster Outside setup complete!', true);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .setupPosterOutsideTab_();
+          }
+          
+          function setupInside() {
+            showStatus('Setting up Poster Inside...', false);
+            google.script.run
+              .withSuccessHandler(function() {
+                showStatus('✅ Poster Inside setup complete!', true);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .setupPosterInsideTab_();
+          }
+          
+          function refreshDropdowns() {
+            showStatus('Refreshing dropdowns...', false);
+            google.script.run
+              .withSuccessHandler(function() {
+                showStatus('✅ Display dropdowns refreshed!', true);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .refreshDisplayDropdowns_();
+          }
+          
+          function showStatus(message, isSuccess) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = isSuccess ? 'show-status success' : 'show-status error';
+          }
+        </script>
+      </body>
+    </html>
+  `;
+  
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(450)
+    .setHeight(400);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Display Manager');
 }

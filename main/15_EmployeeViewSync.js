@@ -98,6 +98,200 @@ function openEmployeeViewSpreadsheet() {
   SpreadsheetApp.getUi().alert('Employee View URL:\n' + empSS.getUrl());
 }
 
+/**
+ * Shows consolidated Employee View Manager dialog with all employee view operations
+ */
+function showEmployeeViewManagerDialog() {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body {
+            font-family: 'Google Sans', Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+          }
+          h2 {
+            color: #1a73e8;
+            margin-top: 0;
+          }
+          .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+          }
+          .section h3 {
+            margin-top: 0;
+            color: #5f6368;
+            font-size: 14px;
+          }
+          button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 8px;
+          }
+          button:hover {
+            background: #1557b0;
+          }
+          button:active {
+            background: #0d47a1;
+          }
+          button.secondary {
+            background: #5f6368;
+          }
+          button.secondary:hover {
+            background: #3c4043;
+          }
+          .info {
+            color: #5f6368;
+            font-size: 12px;
+            margin-top: 5px;
+          }
+          .success {
+            color: #0d7a3c;
+            font-weight: bold;
+          }
+          .error {
+            color: #d93025;
+            font-weight: bold;
+          }
+          #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+          }
+          .show-status {
+            display: block !important;
+          }
+          #urlDisplay {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            word-break: break-all;
+            font-size: 12px;
+            display: none;
+          }
+          .show-url {
+            display: block !important;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>⚙️ Employee View Manager</h2>
+        
+        <div class="section">
+          <h3>Setup (One-Time)</h3>
+          <button onclick="setupEmployeeView()">Setup Employee View</button>
+          <div class="info">Creates new employee-facing spreadsheet (run once)</div>
+        </div>
+        
+        <div class="section">
+          <h3>Sync Data</h3>
+          <button onclick="syncEmployeeView()">Sync Employee View</button>
+          <div class="info">Updates employee view with current board data</div>
+        </div>
+        
+        <div class="section">
+          <h3>Access Link</h3>
+          <button class="secondary" onclick="showLink()">Show Employee View Link</button>
+          <div class="info">Display shareable link to employee spreadsheet</div>
+          <div id="urlDisplay"></div>
+        </div>
+        
+        <div id="status"></div>
+        
+        <script>
+          function setupEmployeeView() {
+            showStatus('Setting up Employee View...', false);
+            google.script.run
+              .withSuccessHandler(function(url) {
+                showStatus('✅ Employee View setup complete!', true);
+                displayUrl(url);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .setupEmployeeViewWithReturn_();
+          }
+          
+          function syncEmployeeView() {
+            showStatus('Syncing Employee View...', false);
+            google.script.run
+              .withSuccessHandler(function() {
+                showStatus('✅ Employee View synced successfully!', true);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .syncEmployeeViewSpreadsheet_();
+          }
+          
+          function showLink() {
+            showStatus('Fetching Employee View link...', false);
+            google.script.run
+              .withSuccessHandler(function(url) {
+                displayUrl(url);
+                showStatus('', false);
+              })
+              .withFailureHandler(function(err) {
+                showStatus('❌ Error: ' + err.message, false);
+              })
+              .getEmployeeViewUrl_();
+          }
+          
+          function showStatus(message, isSuccess) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = isSuccess ? 'show-status success' : 'show-status error';
+          }
+          
+          function displayUrl(url) {
+            const urlDiv = document.getElementById('urlDisplay');
+            urlDiv.innerHTML = '<strong>Employee View URL:</strong><br>' + 
+              '<a href="' + url + '" target="_blank">' + url + '</a>';
+            urlDiv.className = 'show-url';
+          }
+        </script>
+      </body>
+    </html>
+  `;
+  
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(500)
+    .setHeight(500);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Employee View Manager');
+}
+
+/**
+ * Setup helper that returns URL for dialog display
+ */
+function setupEmployeeViewWithReturn_() {
+  const empSS = getOrCreateEmployeeViewSpreadsheet_();
+  syncEmployeeViewSpreadsheet_();
+  return empSS.getUrl();
+}
+
+/**
+ * Get Employee View URL for dialog display
+ */
+function getEmployeeViewUrl_() {
+  const empSS = getEmployeeViewSpreadsheet_();
+  return empSS.getUrl();
+}
+
 /** Employees tab URL in employee-view spreadsheet (for QR/Print Out) */
 function getEmployeeViewEmployeesUrl_() {
   try {

@@ -157,6 +157,9 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Auto-generate Poster ID for the new row (column K)
     ensurePosterIdsInInventory_();
     
+    // Sort Inventory by release date to maintain consistent ordering
+    sortInventoryByReleaseDate_();
+    
     // Update last updated timestamp
     updateInventoryLastUpdated_();
     

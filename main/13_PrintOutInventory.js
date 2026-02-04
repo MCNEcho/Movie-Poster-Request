@@ -17,9 +17,15 @@ function refreshPrintOut() {
 
   try {
     const ss = SpreadsheetApp.getActive();
+    ss.toast('⏳ Updating Print Out layout...', 'Updating', -1);
+    
     buildPrintOutLayout_();
 
-    ss.toast('Print Out updated successfully', 'Update Complete', 3);
+    ss.toast('✅ Print Out updated successfully!', 'Update Complete', 3);
+  } catch (err) {
+    const ss = SpreadsheetApp.getActive();
+    ss.toast('❌ Error updating Print Out: ' + err.message, 'Error', 5);
+    throw err;
   } finally {
     lock.releaseLock();
   }
