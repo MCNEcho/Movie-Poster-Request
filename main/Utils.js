@@ -1,4 +1,4 @@
-/** 02_Utils.gs **/
+/** Utils.js **/
 
 function now_() { return new Date(); }
 

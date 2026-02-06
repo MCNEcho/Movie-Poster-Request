@@ -1,6 +1,6 @@
 /**
+ * DEBUG.JS - DEBUGGING UTILITIES
  * ACTIVE DEBUGGING FUNCTIONS
- */
 
 function debugFormAndLinks() {
   const form = getOrCreateForm_();

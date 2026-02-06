@@ -1,4 +1,4 @@
-/** 21_ManualPosterEntry.js **/
+/** ManualPoster.js **/
 
 function showManualPosterDialog() {
   const html = HtmlService.createHtmlOutput(`
@@ -163,9 +163,22 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Update last updated timestamp
     updateInventoryLastUpdated_();
     
+    // Automatically update dependent systems
+    Logger.log(`[addManualPoster] Updating Print Out, Form, and Display dropdowns...`);
+    try {
+      refreshPrintOut();
+      syncPostersToForm();
+      refreshPosterOutsideDropdowns_();
+      refreshPosterInsideDropdowns_();
+      Logger.log(`[addManualPoster] All systems updated successfully`);
+    } catch (updateErr) {
+      Logger.log(`[addManualPoster] Warning: System update failed: ${updateErr.message}`);
+      // Don't fail the entire operation if updates fail - poster was successfully added
+    }
+    
     // Visual feedback after dialog closes
     SpreadsheetApp.getActive().toast(
-      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}`,
+      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}\n📄 Print Out, Form, & Displays updated`,
       'Poster Added',
       5
     );

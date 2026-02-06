@@ -1,4 +1,4 @@
-/** 19_ManualRequestEntry.js **/
+/** ManualRequest.js **/
 /** Manual request entry for data migration from legacy systems **/
 
 function showManualRequestDialog() {

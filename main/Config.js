@@ -1,4 +1,4 @@
-/** 00_Config.gs **/
+/** Config.js **/
 
 const CONFIG = {
   TIMEZONE: 'America/Los_Angeles',

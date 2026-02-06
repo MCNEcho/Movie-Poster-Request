@@ -1,9 +1,16 @@
-/** 11_Boards.js **/
+/** Boards.js **/
 
 function rebuildBoards() {
   buildMainBoard_();
   buildEmployeesBoard_();
-  syncEmployeeViewSpreadsheet_();
+  
+  // Sync employee view with graceful error handling
+  try {
+    syncEmployeeViewSpreadsheet_();
+  } catch (err) {
+    Logger.log(`[WARN] Employee View sync failed (access denied): ${err.message}`);
+    // Continue without crashing - employee view will show stale data but refresh completes
+  }
   
   // Refresh health banner after board rebuild
   try {
@@ -31,6 +38,11 @@ function resetBoardArea_(sheet, colsToClear) {
 
 function buildMainBoard_() {
   const main = getSheet_(CONFIG.SHEETS.MAIN);
+  
+  // Reset all colors and formatting before updating
+  main.getRange(1, 1, main.getMaxRows(), main.getMaxColumns()).setBackground(null);
+  main.getRange(1, 1, main.getMaxRows(), main.getMaxColumns()).setFontColor(null);
+  
   resetBoardArea_(main, 2);
 
   const rows = getActiveRequests_();
@@ -98,6 +110,11 @@ function buildMainBoard_() {
 
 function buildEmployeesBoard_() {
   const empSheet = getSheet_(CONFIG.SHEETS.EMPLOYEES);
+  
+  // Reset all colors and formatting before updating
+  empSheet.getRange(1, 1, empSheet.getMaxRows(), empSheet.getMaxColumns()).setBackground(null);
+  empSheet.getRange(1, 1, empSheet.getMaxRows(), empSheet.getMaxColumns()).setFontColor(null);
+  
   resetBoardArea_(empSheet, 2);
 
   const rows = getActiveRequests_();

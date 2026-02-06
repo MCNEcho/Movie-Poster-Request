@@ -1,4 +1,4 @@
-/** 22_PosterDisplays.js **/
+/** PosterDisplay.js **/
 
 /**
  * Display Management Module
@@ -36,7 +36,7 @@ function setupPosterOutsideTab_() {
     // ROW 1: Last Updated (merged A-H)
     sheet.getRange(1, 1, 1, 8).merge();
     sheet.getRange('A1')
-      .setValue(`Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy HH:mm')}`)
+      .setValue(`Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy hh:mm a')}`)
       .setHorizontalAlignment('right')
       .setFontSize(10)
       .setFontColor('#666666');
@@ -104,7 +104,7 @@ function setupPosterOutsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    ss.toast('Poster Outside tab setup complete', 'Setup Complete', 3);
+    ss.toast('✅ Poster Outside display initialized!', 'Setup Complete', 3);
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterOutsideTab_', 'Setting up Poster Outside tab');
@@ -143,7 +143,7 @@ function setupPosterInsideTab_() {
     // ROW 1: Last Updated (merged A-D)
     sheet.getRange(1, 1, 1, 4).merge();
     sheet.getRange('A1')
-      .setValue(`Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy HH:mm')}`)
+      .setValue(`Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy hh:mm a')}`)
       .setHorizontalAlignment('right')
       .setFontSize(10)
       .setFontColor('#666666');
@@ -189,7 +189,7 @@ function setupPosterInsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    ss.toast('Poster Inside tab setup complete', 'Setup Complete', 3);
+    ss.toast('✅ Poster Inside display initialized!', 'Setup Complete', 3);
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterInsideTab_', 'Setting up Poster Inside tab');
@@ -289,7 +289,7 @@ function updatePosterOutsideTimestamp_() {
     if (!sheet) return;
     
     sheet.getRange('A1').setValue(
-      `Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy HH:mm')}`
+      `Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy hh:mm a')}`
     );
   } catch (err) {
     Logger.log(`[updatePosterOutsideTimestamp_] Error: ${err.message}`);
@@ -305,7 +305,7 @@ function updatePosterInsideTimestamp_() {
     if (!sheet) return;
     
     sheet.getRange('A1').setValue(
-      `Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy HH:mm')}`
+      `Last Updated: ${fmtDate_(now_(), 'MM/dd/yyyy hh:mm a')}`
     );
   } catch (err) {
     Logger.log(`[updatePosterInsideTimestamp_] Error: ${err.message}`);
@@ -340,10 +340,10 @@ function refreshDisplayDropdowns_() {
       updatePosterInsideTimestamp_();
     }
     
-    ss.toast('Display dropdowns refreshed successfully', 'Refresh Complete', 3);
+    ss.toast('✅ Display dropdowns refreshed!', 'Refresh Complete', 3);
   } catch (err) {
     logError_(err, 'refreshDisplayDropdowns_', 'Refreshing display dropdowns');
-    SpreadsheetApp.getActive().toast('Error refreshing dropdowns', 'Error', 5);
+    SpreadsheetApp.getActive().toast('❌ Error refreshing displays', 'Error', 5);
   } finally {
     lock.releaseLock();
   }

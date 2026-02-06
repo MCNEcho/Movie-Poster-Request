@@ -1,4 +1,4 @@
-/** 04_FormManager.js **/
+/** FormManager.js **/
 
 function getEffectiveFormId_() {
   const cfg = String(CONFIG.FORM_ID || '').trim();
@@ -46,6 +46,37 @@ function getFormPublishedUrlSafe_() {
   } catch (e) {
     // Fall back to viewform URL if user lacks access
     return `https://docs.google.com/forms/d/${id}/viewform`;
+  }
+}
+
+/**
+ * Get cached Form URL from properties (set during initial setup)
+ * This ensures the URL never changes even if form is modified
+ */
+function getCachedFormUrl_() {
+  const props = PropertiesService.getScriptProperties();
+  let cachedUrl = props.getProperty('CACHED_FORM_URL');
+  
+  // If not cached, get it now and cache it
+  if (!cachedUrl) {
+    cachedUrl = getFormPublishedUrlSafe_();
+    if (cachedUrl) {
+      props.setProperty('CACHED_FORM_URL', cachedUrl);
+    }
+  }
+  
+  return cachedUrl;
+}
+
+/**
+ * Initialize Form URL cache during setup (called once)
+ */
+function initializeFormUrlCache_() {
+  const url = getFormPublishedUrlSafe_();
+  if (url) {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('CACHED_FORM_URL', url);
+    Logger.log('[initializeFormUrlCache_] Cached Form URL: ' + url);
   }
 }
 

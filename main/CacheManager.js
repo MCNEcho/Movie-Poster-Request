@@ -1,4 +1,4 @@
-/** 02A_CacheManager.gs **/
+/** CacheManager.js **/
 
 /**
  * Caching layer for performance optimization

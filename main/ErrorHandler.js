@@ -1,4 +1,4 @@
-/** 03_ErrorHandler.js **/
+/** ErrorHandler.js **/
 
 /**
  * Centralized error handling and logging system

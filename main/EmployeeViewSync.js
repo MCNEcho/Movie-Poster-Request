@@ -1,8 +1,9 @@
-/** 15_EmployeeViewSync.js (CROSS-SPREADSHEET SAFE) **/
+/** EmployeeViewSync.js (CROSS-SPREADSHEET SAFE) **/
 
 /**
  * Creates (if needed) and syncs the employee-view spreadsheet.
  * Uses native sheet.copyTo() to copy Main and Employees sheets.
+ * Gracefully handles permission errors for non-master accounts.
  */
 function syncEmployeeViewSpreadsheet_() {
   const lock = LockService.getScriptLock();
@@ -11,7 +12,15 @@ function syncEmployeeViewSpreadsheet_() {
   try {
     Logger.log(`[syncEmployeeViewSpreadsheet_] Starting sync`);
     const adminSS = SpreadsheetApp.getActive();
-    const empSS = getOrCreateEmployeeViewSpreadsheet_();
+    
+    let empSS;
+    try {
+      empSS = getOrCreateEmployeeViewSpreadsheet_();
+    } catch (accessErr) {
+      // Permission denied - non-master account cannot access Employee View
+      Logger.log(`[syncEmployeeViewSpreadsheet_] WARN: Cannot access Employee View (permission denied). Only the master account can sync. Employee View will show stale data until master account syncs.`);
+      return; // Exit gracefully - don't crash, just skip the sync
+    }
 
     // Add a temporary sheet to allow deleting all others
     let tempSheet = empSS.getSheetByName('TEMP_DELETE_ME');
@@ -60,17 +69,26 @@ function syncEmployeeViewSpreadsheet_() {
 
     Logger.log(`[syncEmployeeViewSpreadsheet_] Sync complete`);
 
-    // After sync, update Print Out tab B2 with Employees sheet URL
-    const empUrl = getEmployeeViewEmployeesUrl_();
+    // Only update Print Out tab B2 if URL is currently empty (first-time setup)
+    // This preserves the link across multiple syncs by different users
     const printSheet = adminSS.getSheetByName(CONFIG.SHEETS.PRINT_OUT);
-    if (printSheet && empUrl) {
-      printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).setValue(empUrl);
-      Logger.log(`[syncEmployeeViewSpreadsheet_] Updated Print Out tab B2 with Employee View URL: ${empUrl}`);
+    if (printSheet) {
+      const currentUrl = printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).getValue();
+      if (!currentUrl || currentUrl.trim() === '') {
+        const empUrl = getEmployeeViewEmployeesUrl_();
+        if (empUrl) {
+          printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).setValue(empUrl);
+          Logger.log(`[syncEmployeeViewSpreadsheet_] Set Print Out tab B2 Employee View URL (first time): ${empUrl}`);
+        }
+      } else {
+        Logger.log(`[syncEmployeeViewSpreadsheet_] Print Out URL already set, preserving link: ${currentUrl}`);
+      }
     }
 
   } catch (err) {
     Logger.log(`[syncEmployeeViewSpreadsheet_] ERROR: ${err.message}`);
-    throw err;
+    // Don't rethrow - allow graceful degradation for permission errors
+    // Employee View will just show stale data until master account syncs
   } finally {
     lock.releaseLock();
   }
@@ -224,7 +242,7 @@ function showEmployeeViewManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .setupEmployeeViewWithReturn_();
+              .setupEmployeeViewWithReturn();
           }
           
           function syncEmployeeView() {
@@ -236,7 +254,7 @@ function showEmployeeViewManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .syncEmployeeViewSpreadsheet_();
+              .syncEmployeeView();
           }
           
           function showLink() {
@@ -249,7 +267,7 @@ function showEmployeeViewManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .getEmployeeViewUrl_();
+              .getEmployeeViewUrl();
           }
           
           function showStatus(message, isSuccess) {
@@ -276,20 +294,36 @@ function showEmployeeViewManagerDialog() {
 }
 
 /**
- * Setup helper that returns URL for dialog display
+ * PUBLIC wrapper - Setup helper that returns URL for dialog display
  */
-function setupEmployeeViewWithReturn_() {
+function setupEmployeeViewWithReturn() {
   const empSS = getOrCreateEmployeeViewSpreadsheet_();
   syncEmployeeViewSpreadsheet_();
   return empSS.getUrl();
 }
 
 /**
- * Get Employee View URL for dialog display
+ * PUBLIC wrapper - Get Employee View URL for dialog display
  */
-function getEmployeeViewUrl_() {
+function getEmployeeViewUrl() {
   const empSS = getEmployeeViewSpreadsheet_();
   return empSS.getUrl();
+}
+
+/**
+ * PUBLIC wrapper - Sync employee view from dialog
+ */
+function syncEmployeeView() {
+  syncEmployeeViewSpreadsheet_();
+}
+
+// Keep private versions for backward compatibility
+function setupEmployeeViewWithReturn_() {
+  return setupEmployeeViewWithReturn();
+}
+
+function getEmployeeViewUrl_() {
+  return getEmployeeViewUrl();
 }
 
 /** Employees tab URL in employee-view spreadsheet (for QR/Print Out) */
@@ -310,6 +344,49 @@ function getEmployeeViewEmployeesUrl_() {
   } catch (err) {
     Logger.log(`[getEmployeeViewEmployeesUrl_] Error: ${err.message} - Employee View not set up yet`);
     return ''; // Return empty if employee view not set up
+  }
+}
+
+/**
+ * Get cached Employee View URL from properties (set during initial setup)
+ * This ensures the URL never changes even if spreadsheet access becomes denied
+ */
+function getCachedEmployeeViewUrl_() {
+  const props = PropertiesService.getScriptProperties();
+  let cachedUrl = props.getProperty('CACHED_EMPLOYEE_VIEW_URL');
+  
+  // If not cached, try to get it now and cache it
+  if (!cachedUrl) {
+    try {
+      cachedUrl = getEmployeeViewEmployeesUrl_();
+      if (cachedUrl) {
+        props.setProperty('CACHED_EMPLOYEE_VIEW_URL', cachedUrl);
+        Logger.log('[getCachedEmployeeViewUrl_] Cached Employee View URL: ' + cachedUrl);
+      }
+    } catch (err) {
+      Logger.log('[getCachedEmployeeViewUrl_] Could not cache URL: ' + err.message);
+      // Return empty string - graceful degradation
+      return '';
+    }
+  }
+  
+  return cachedUrl || '';
+}
+
+/**
+ * Initialize Employee View URL cache during setup (called once)
+ */
+function initializeEmployeeViewUrlCache_() {
+  try {
+    const url = getEmployeeViewEmployeesUrl_();
+    if (url) {
+      const props = PropertiesService.getScriptProperties();
+      props.setProperty('CACHED_EMPLOYEE_VIEW_URL', url);
+      Logger.log('[initializeEmployeeViewUrlCache_] Cached Employee View URL: ' + url);
+    }
+  } catch (err) {
+    Logger.log('[initializeEmployeeViewUrlCache_] Warning - could not cache Employee View URL: ' + err.message);
+    // Don't throw - graceful degradation during setup
   }
 }
 

@@ -1,4 +1,4 @@
-/** 06_SubmitHandler.gs**/
+/** FormSubmit.js **/
 
 function handleFormSubmit(e) {
   const lock = LockService.getScriptLock();

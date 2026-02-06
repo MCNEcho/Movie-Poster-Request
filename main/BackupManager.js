@@ -1,4 +1,4 @@
-/** 10_BackupManager.js **/
+/** BackupManager.js **/
 
 /**
  * Nightly data backup/export to Google Drive

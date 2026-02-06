@@ -1,4 +1,4 @@
-/** 01_Setup.gs **/
+/** Setup.js **/
 
 function onOpen() {
   buildAdminMenu_();
@@ -13,42 +13,60 @@ function onOpen() {
 function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
   
-  ui.createMenu('Poster System')
+  // Main menu: Poster Request System
+  const mainMenu = ui.createMenu('Poster Request System');
+  
+  // Top-level item: Add New Poster (most commonly used)
+  mainMenu.addItem('➕ Add New Poster', 'showManualPosterDialog');
+  
+  mainMenu.addSeparator();
+  
+  // Advanced Menu (with nested items)
+  const advancedMenu = ui.createMenu('⚙️ Advanced');
+  
+  // Main functions
+  advancedMenu.addItem('🔄 Refresh Manager', 'showRefreshManagerDialog');
+  advancedMenu.addItem('👥 Employee View Manager', 'showEmployeeViewManagerDialog');
+  advancedMenu.addItem('➕ Manually Add Request', 'showManualRequestDialog');
+  
+  advancedMenu.addSeparator();
+  
+  // Reports submenu
+  advancedMenu.addSubMenu(ui.createMenu('📊 Reports')
+    .addItem('Rebuild Boards', 'rebuildBoards')
+    .addItem('Sync Form Options', 'syncPostersToForm')
+    .addItem('Refresh Documentation', 'buildDocumentationTab'));
+  
+  // Announcements submenu
+  advancedMenu.addSubMenu(ui.createMenu('📧 Announcements')
+    .addItem('Preview Pending', 'previewPendingAnnouncement')
+    .addItem('Send Now', 'sendAnnouncementNow'));
+  
+  // Display Management submenu
+  advancedMenu.addSubMenu(ui.createMenu('🖼️ Display Management')
+    .addItem('Manage Display Sheets', 'showDisplayManagerDialog'));
+  
+  // System submenu (with Run Setup / Repair inside)
+  advancedMenu.addSubMenu(ui.createMenu('🔐 System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
-    .addItem('🔄 Refresh Manager', 'showRefreshManagerDialog')
-    .addSeparator()
-    .addItem('➕ Manually Add Request', 'showManualRequestDialog')
-    .addItem('➕ Add New Poster', 'showManualPosterDialog')
-    .addSeparator()
-    .addSubMenu(ui.createMenu('📊 Reports')
-      .addItem('Rebuild Boards', 'rebuildBoards')
-      .addItem('Sync Form Options', 'syncPostersToForm')
-      .addItem('Refresh Documentation', 'buildDocumentationTab'))
-    .addSubMenu(ui.createMenu('🖨️ Print & Layout')
-      .addItem('Update Print Out', 'refreshPrintOut'))
-    .addSubMenu(ui.createMenu('🖼️ Display Management')
-      .addItem('Manage Display Sheets', 'showDisplayManagerDialog'))
-    .addSubMenu(ui.createMenu('📧 Announcements')
-      .addItem('Preview Pending', 'previewPendingAnnouncement')
-      .addItem('Send Now', 'sendAnnouncementNow'))
-    .addSubMenu(ui.createMenu('⚙️ Advanced')
-      .addItem('Run Backup Now', 'manualBackupTrigger')
-      .addItem('Manage Employee View', 'showEmployeeViewManagerDialog'))
-    .addToUi();
+    .addItem('Run Backup Now', 'manualBackupTrigger'));
+  
+  mainMenu.addSubMenu(advancedMenu);
+  mainMenu.addToUi();
 }
 
 /**
  * Refresh All: Executes the 3 main refresh operations
- * Rebuilds boards, syncs form options, and refreshes health banner
+ * Rebuilds boards and syncs form options
  */
 function refreshAll_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   try {
-    ss.toast('Rebuilding boards...', 'Refresh All', 3);
+    ss.toast('⏳ Rebuilding boards...', 'Refresh All', 3);
     rebuildBoards();
     
-    ss.toast('Syncing form options...', 'Refresh All', 3);
+    ss.toast('⏳ Syncing form options...', 'Refresh All', 3);
     syncPostersToForm();
     
     ss.toast('✅ All systems refreshed!', 'Refresh All Complete', 5);
@@ -65,46 +83,38 @@ function setupPosterSystem() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Task Group 1: Core Infrastructure (must run first)
-    ss.toast('Initializing core infrastructure...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 1/6: Initializing infrastructure...', 'Setup Progress', -1);
     ensureSheetSchemas_();
     applyAdminFormatting_();
     ensureFormStructure_();
     ensureTriggers_();
 
-    // Task Group 1.5: Migration (if needed)
-    ss.toast('Checking for data migration...', 'Setup Progress', 3);
-    try {
-      migratePostersFromMoviePostersToInventory_();
-    } catch (err) {
-      Logger.log(`[WARN] Migration failed: ${err.message}`);
-      // Continue setup even if migration fails
-    }
-
     // Task Group 2: Data Syncing
-    ss.toast('Syncing data...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 2/6: Syncing data...', 'Setup Progress', -1);
     ensurePosterIdsInInventory_();  // Inventory is now primary source
+    initializeFormUrlCache_();  // Cache Form URL (set once, persist forever)
+    initializeEmployeeViewUrlCache_();  // Cache Employee View URL (set once, persist forever)
     syncPostersToForm();
 
     // Task Group 3: Visual Displays
-    ss.toast('Generating views...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 3/6: Generating views...', 'Setup Progress', -1);
     rebuildBoards();
     buildDocumentationTab();
     buildPrintOutLayout_();
     
     // Setup employee view (must be before print out layout so links are available)
-    ss.toast('Setting up employee view...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 4/6: Setting up employee view...', 'Setup Progress', -1);
     setupEmployeeViewSpreadsheet();
     
     // Refresh print out to include employee view link
-    ss.toast('Refreshing print layout...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 5/6: Refreshing print layout...', 'Setup Progress', -1);
     buildPrintOutLayout_();
 
     // Task Group 4: Monitoring (last)
-    ss.toast('Finalizing setup...', 'Setup Progress', 3);
+    ss.toast('⏳ Step 6/6: Finalizing setup...', 'Setup Progress', -1);
     updateInventoryLastUpdated_();
-    initializeHealthBanner_();
     
-    ss.toast('Setup complete!', 'Setup Complete', 5);
+    ss.toast('✅ Setup complete!', 'Setup Complete', 5);
     SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
   } finally {
     lock.releaseLock();

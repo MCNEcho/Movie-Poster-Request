@@ -1,4 +1,4 @@
-/** 07_Ledger.js **/
+/** Ledger.js **/
 
 function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);

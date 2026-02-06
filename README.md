@@ -71,7 +71,7 @@ clasp push
 - **Caching:** Expensive queries use a TTL cache. Caches are invalidated on related writes to avoid stale views.
 
 ### Request Flow
-1. **Google Form Submission** → handled by `06_SubmitHandler.js`
+1. **Google Form Submission** → handled by `FormSubmit.js`
 2. Parse answers, validate employee name/email, capture subscription preference
 3. Apply removals and additions with slot limit and dedup checks
 4. Write to the Requests ledger (audit trail)
@@ -81,45 +81,45 @@ clasp push
 8. Invalidate caches tied to posters, boards, and employee slots
 
 ### Operational Automations
-- **Announcements** (`17_Announcements.js`)
+- **Announcements** (`Announcements.js`)
   - Sends all pending new posters in a single email (no batching)
   - 1s throttle, 3 retries with backoff
   - Template variables: `{{TITLE}}`, `{{RELEASE}}`, `{{STOCK}}`, `{{ACTIVE_COUNT}}`, `{{FORM_LINK}}`, `{{COUNT}}`, `{{POSTER_LIST}}`
   - Dry-run preview available before sending
-- **Backups** (`10_BackupManager.js`)
+- **Backups** (`BackupManager.js`)
   - Nightly at 2am to a Drive folder (CSV or Sheet), 30-day retention
   - Manual trigger available via Admin Menu → "Run Backup Now"
   - Backup logs tracked in Analytics sheet
-- **Bulk Simulator** (`20_BulkSimulator.js`)
+- **Bulk Simulator** (removed - use RefreshManager for testing)
   - Stress test up to 100 randomized submissions (warn ≥50 live)
   - Dry-run option; logs execution stats (time, sheet reads, cache hits, lock waits) to Analytics
-- **System Health Monitoring** (`16_AdminHealthBanner.js`)
+- **Display Management** (`PosterDisplay.js` and `RefreshManager.js`)
   - Tracks trigger installation and status
   - Cache health metrics (valid vs total)
   - Last error and announcement queue size
   - Displayed in Documentation tab for quick reference
 
-### Key Modules (selected)
-- `00_Config.js` – Central configuration, column mappings, and property keys
-- `01_Setup.js` – Initialization, Admin Menu, triggers, repair routine
-- `02_Utils.js` – Common sheet ops, poster fetching, validation
-- `02A_CacheManager.js` – TTL cache helpers + invalidation after writes
-- `03_ErrorHandler.js` – Central error logging, CRITICAL notifications
-- `04_FormManager.js` – Form creation, email collection setup, subscription checkbox
-- `05_SyncForm.js` – Sync form options from Movie Posters sheet (maintains form structure)
-- `06_SubmitHandler.js` – Handle additions/removals, slot/dedup enforcement
-- `07_Ledger.js` – Query ledger, duplicate checks, slot counts
-- `08_Analytics.js` – Event logging, performance metrics
-- `10_BackupManager.js` – Backups, retention, Drive operations
-- `11_Boards.js` – Main and Employees boards generation from ledger
-- `13_PrintOutInventory.js` – Print layout generation, inventory syncing, QR codes
-- `14_Documentation.js` – Auto-generated documentation sheet with system health and form link
-- `15_EmployeeViewSync.js` – Sync employee-facing spreadsheet
-- `16_AdminHealthBanner.js` – System health metrics collection
-- `17_Announcements.js` – Email queue, batched notifications with templates
-- `18_CustomAnnouncements.js` – Custom announcement handler
-- `19_ManualRequestEntry.js` – Dialog for manual request entry (migration)
-- `20_BulkSimulator.js` – Stress testing and performance analysis
+### Key Modules
+- **Config.js** – Central configuration, column mappings, and property keys
+- **Setup.js** – Initialization, Admin Menu, triggers, repair routine
+- **Utils.js** – Common sheet ops, poster fetching, validation
+- **CacheManager.js** – TTL cache helpers + invalidation after writes
+- **ErrorHandler.js** – Central error logging, CRITICAL notifications
+- **FormManager.js** – Form creation, email collection setup, subscription checkbox
+- **FormSync.js** – Sync form options from Inventory sheet (maintains form structure)
+- **FormSubmit.js** – Handle additions/removals, slot/dedup enforcement
+- **Ledger.js** – Query ledger, duplicate checks, slot counts
+- **Analytics.js** – Event logging, performance metrics
+- **BackupManager.js** – Backups, retention, Drive operations
+- **Boards.js** – Main and Employees boards generation from ledger
+- **PrintOut.js** – Print layout generation, inventory syncing, QR codes
+- **Documentation.js** – Auto-generated documentation sheet with system health and form link
+- **EmployeeViewSync.js** – Sync employee-facing spreadsheet
+- **Announcements.js** – Email queue, batched notifications with templates
+- **ManualRequest.js** – Dialog for manual request entry (migration)
+- **ManualPoster.js** – Manual poster addition dialog
+- **PosterDisplay.js** – Poster Outside/Inside display management
+- **RefreshManager.js** – Consolidated refresh operations dialog
 
 ### Admin Menu (high level)
 - **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation, Refresh Health Banner

@@ -1,4 +1,4 @@
-/** 24_RefreshManager.js **/
+/** RefreshManager.js **/
 
 /**
  * Shows consolidated Refresh Manager dialog with all refresh operations
@@ -269,14 +269,24 @@ function executeRefreshAll_() {
     // 2. Sync form options
     Logger.log('[executeRefreshAll_] Syncing form options...');
     ss.toast('⏳ Step 2/5: Syncing form options...', 'Refreshing All', -1);
-    syncPostersToForm();
-    ss.toast('✓ Form synced', 'Progress', 2);
+    try {
+      syncPostersToForm();
+      ss.toast('✓ Form synced', 'Progress', 2);
+    } catch (err) {
+      Logger.log(`[WARN] Form sync failed (access denied): ${err.message}`);
+      ss.toast('⚠ Form sync skipped (access denied)', 'Progress', 3);
+    }
     
     // 3. Refresh Print Out
     Logger.log('[executeRefreshAll_] Updating Print Out...');
     ss.toast('⏳ Step 3/5: Updating Print Out...', 'Refreshing All', -1);
-    buildPrintOutLayout_();
-    ss.toast('✓ Print Out updated', 'Progress', 2);
+    try {
+      buildPrintOutLayout_();
+      ss.toast('✓ Print Out updated', 'Progress', 2);
+    } catch (err) {
+      Logger.log(`[WARN] Print Out update failed: ${err.message}`);
+      ss.toast('⚠ Print Out update skipped', 'Progress', 3);
+    }
     
     // 4. Refresh Poster Outside dropdowns
     Logger.log('[executeRefreshAll_] Updating Poster Outside...');

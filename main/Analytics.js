@@ -1,4 +1,4 @@
-/** 08_Analytics.js **/
+/** Analytics.js **/
 
 /**
  * Comprehensive analytics and logging for system monitoring

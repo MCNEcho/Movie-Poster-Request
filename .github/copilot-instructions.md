@@ -15,35 +15,30 @@ Google Apps Script system for employee poster requests with strict slot limits (
 - Bulk submission simulator (up to 100, warning ≥50 live) with dry-run, logs execution time/sheet reads/cache hits/lock waits to Analytics.
 - UI/UX: admin menu grouped (Reports/Print & Layout/Announcements/Advanced) plus Refresh All; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
 
-### Module Organization (Numbered Files = Execution Order)
-- **00_Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
-- **01_Setup.js** - Initialization, admin menu, triggers, health banner
-- **02_Utils.js** - Sheet operations, poster fetching, name validation
-- **02A_CacheManager.js** - TTL-based caching layer to reduce sheet quota usage
-- **03_ErrorHandler.js** - Centralized error logging and admin notifications
-- **04_FormManager.js** - Google Form creation and field setup
-- **05_SyncForm.js** - Dynamic form option updates from Movie Posters sheet
-- **06_SubmitHandler.js** - Form submission processing, validation, additions/removals
-- **07_Ledger.js** - Request ledger queries (counting, checking duplicates)
-- **08_Analytics.js** - Analytics tracking and logging
-- **09_DataIntegrity.js** - Data validation and auto-repair (orphaned requests, duplicates)
-- **10_BackupManager.js** - Nightly backups to Google Drive with retention
-- **11_Boards.js** - Main and Employees board generation from ledger
-- **12_PrintSelection.js** - Print area selection utilities
-- **13_PrintOutInventory.js** - Print layout generation, inventory syncing
-- **14_Documentation.js** - Auto-generated system documentation sheet
-- **15_EmployeeViewSync.js** - Sync to separate employee-facing spreadsheet
-- **16_AdminHealthBanner.js** - System health metrics display
-- **17_Announcements.js** - Email queue processing (batched notifications)
-- **18_CustomAnnouncements.js** - Admin custom message handler
-- **19_ManualRequestEntry.js** - Historical request migration dialog
-- **20_BulkSimulator.js** - Stress test with randomized submissions
-- **21_ManualPosterEntry.js** - Manual poster addition dialog
-- **22_PosterDisplays.js** - Poster Outside/Inside display management
-- **23_InventoryMigration.js** - Legacy data migration utilities
-- **24_RefreshManager.js** - Consolidated refresh operations dialog
-- **99_BackupTests.js** - Backup testing suite
-- **99_Debuging.js** - Cleanup and repair utilities
+### Module Organization
+- **Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
+- **Setup.js** - Initialization, admin menu, triggers
+- **Utils.js** - Sheet operations, poster fetching, name validation
+- **CacheManager.js** - TTL-based caching layer to reduce sheet quota usage
+- **ErrorHandler.js** - Centralized error logging and admin notifications
+- **FormManager.js** - Google Form creation and field setup
+- **FormSync.js** - Dynamic form option updates from Inventory sheet
+- **FormSubmit.js** - Form submission processing, validation, additions/removals
+- **Ledger.js** - Request ledger queries (counting, checking duplicates)
+- **Analytics.js** - Analytics tracking and logging
+- **DataIntegrity.js** - Data validation and auto-repair (orphaned requests, duplicates)
+- **BackupManager.js** - Nightly backups to Google Drive with retention
+- **Boards.js** - Main and Employees board generation from ledger
+- **PrintOut.js** - Print layout generation, inventory syncing, QR codes
+- **Documentation.js** - Auto-generated system documentation sheet
+- **EmployeeViewSync.js** - Sync to separate employee-facing spreadsheet
+- **Announcements.js** - Email queue processing (batched notifications)
+- **ManualRequest.js** - Historical request migration dialog
+- **ManualPoster.js** - Manual poster addition dialog
+- **PosterDisplay.js** - Poster Outside/Inside display management
+- **RefreshManager.js** - Consolidated refresh operations dialog
+- **BackupTest.js** - Backup testing suite
+- **Debug.js** - Cleanup and repair utilities
 
 ### Critical Data Flow
 ```
@@ -157,16 +152,16 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 ## Common Workflows & Commands
 
 ### Adding a New Feature
-1. Create new file with `XX_FeatureName.js` (follow numbering)
-2. Define config in `00_Config.js` if needed
-3. Add menu item in `01_Setup.js` buildAdminMenu_()
+1. Create new file with descriptive name (e.g., `FeatureName.js`)
+2. Define config in `Config.js` if needed
+3. Add menu item in `Setup.js` buildAdminMenu_()
 4. Hook into appropriate trigger (form submit, sheet edit, timer)
 5. Follow error handling + caching patterns above
-6. Test with Bulk Simulator (20_BulkSimulator.js) before production
+6. Test with Bulk Simulator (BackupTest.js) before production
 
 ### Debugging & Testing
-- **Manual Testing:** Use `prepareAndSelectPrintArea()` → submit test form → check boards
-- **Bulk Testing:** Run `showBulkSimulatorDialog()` to stress-test with N submissions
+- **Manual Testing:** Check Print Out → submit test form → check boards
+- **Bulk Testing:** Run stress test with randomized submissions
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics
@@ -215,10 +210,10 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 ## Key Files to Read First
 
 For understanding the system:
-1. **00_Config.js** - All settings and column mappings
+1. **Config.js** - All settings and column mappings
 2. **PROJECT_DOCUMENTATION.txt** - Full architecture & rationale
-3. **07_Ledger.js** + **06_SubmitHandler.js** - Core request logic
-4. **11_Boards.js** - How requests become visualizations
+3. **Ledger.js** + **FormSubmit.js** - Core request logic
+4. **Boards.js** - How requests become visualizations
 5. **Issue #19** - Known bugs, redundancies, and refactor opportunities
 
 ---
