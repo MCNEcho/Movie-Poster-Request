@@ -8,7 +8,10 @@ function handleSheetEdit(e) {
     updateInventoryLastUpdated_();
     sortInventoryByReleaseDate_();           // Auto-sort after edits
     ensurePosterIdsInInventory_();          // Ensure IDs exist
-    processInventoryEdit_(e);               // Handle ACTIVE checkbox changes
+    const removalHandled = detectInventoryRemovalsFromEdit_(e); // Detect title/release clears
+    if (!removalHandled) {
+      processInventoryEdit_(e);             // Handle ACTIVE checkbox changes
+    }
     // Print Out now updates manually only - removed automatic refresh
     return;
   }

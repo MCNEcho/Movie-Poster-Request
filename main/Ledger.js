@@ -181,5 +181,47 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs) {
   sh.appendRow(row);
 }
 
+/**
+ * Close ACTIVE requests for the given poster IDs.
+ * Returns { closedCount, empCounts } where empCounts is a map of email -> closed count.
+ */
+function closeActiveRequestsByPosterIds_(posterIds, newStatus, statusTs) {
+  const ids = (posterIds || []).map(id => String(id || '').trim()).filter(Boolean);
+  if (ids.length === 0) return { closedCount: 0, empCounts: {} };
+
+  const sh = getRequestsSheet_();
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { closedCount: 0, empCounts: {} };
+
+  const idMap = {};
+  ids.forEach(id => { idMap[id] = true; });
+
+  const range = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn());
+  const values = range.getValues();
+
+  let changed = false;
+  let closedCount = 0;
+  const empCounts = {};
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+    const pid = String(r[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+    const status = String(r[COLS.REQUESTS.STATUS - 1] || '').trim();
+
+    if (idMap[pid] && status === STATUS.ACTIVE) {
+      r[COLS.REQUESTS.STATUS - 1] = newStatus;
+      r[COLS.REQUESTS.STATUS_TS - 1] = statusTs;
+      changed = true;
+      closedCount++;
+
+      const email = String(r[COLS.REQUESTS.EMP_EMAIL - 1] || '').toLowerCase().trim();
+      if (email) empCounts[email] = (empCounts[email] || 0) + 1;
+    }
+  }
+
+  if (changed) range.setValues(values);
+  return { closedCount, empCounts };
+}
+
 
 

@@ -24,6 +24,11 @@ function resetAllTriggers() {
     .onEdit()
     .create();
 
+  ScriptApp.newTrigger('handleSheetChange')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onChange()
+    .create();
+
   ScriptApp.newTrigger('processAnnouncementQueue')
     .timeBased()
     .everyMinutes(15)

@@ -49,6 +49,7 @@ function buildAdminMenu_() {
   // System submenu (with Run Setup / Repair inside)
   advancedMenu.addSubMenu(ui.createMenu('🔐 System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
+    .addItem('🧷 Create Triggers', 'createTriggersNow_')
     .addItem('Run Backup Now', 'manualBackupTrigger'));
   
   mainMenu.addSubMenu(advancedMenu);
@@ -92,6 +93,7 @@ function setupPosterSystem() {
     // Task Group 2: Data Syncing
     ss.toast('⏳ Step 2/6: Syncing data...', 'Setup Progress', -1);
     ensurePosterIdsInInventory_();  // Inventory is now primary source
+    initializeInventorySnapshot_();  // Seed inventory snapshot for deletion detection
     initializeFormUrlCache_();  // Cache Form URL (set once, persist forever)
     initializeEmployeeViewUrlCache_();  // Cache Employee View URL (set once, persist forever)
     syncPostersToForm();
@@ -122,11 +124,17 @@ function setupPosterSystem() {
 }
 
 function ensureTriggers_() {
-  const form = getOrCreateForm_();
   const existing = ScriptApp.getProjectTriggers();
   const has = (handler) => existing.some(t => t.getHandlerFunction() === handler);
 
-  if (!has('handleFormSubmit')) {
+  let form = null;
+  try {
+    form = getOrCreateForm_();
+  } catch (err) {
+    Logger.log(`[ensureTriggers_] Form trigger skipped: ${err.message}`);
+  }
+
+  if (form && !has('handleFormSubmit')) {
     ScriptApp.newTrigger('handleFormSubmit')
       .forForm(form)
       .onFormSubmit()
@@ -137,6 +145,13 @@ function ensureTriggers_() {
     ScriptApp.newTrigger('handleSheetEdit')
       .forSpreadsheet(SpreadsheetApp.getActive())
       .onEdit()
+      .create();
+  }
+
+  if (!has('handleSheetChange')) {
+    ScriptApp.newTrigger('handleSheetChange')
+      .forSpreadsheet(SpreadsheetApp.getActive())
+      .onChange()
       .create();
   }
 
@@ -153,6 +168,21 @@ function ensureTriggers_() {
       .atHour(2)  // Run at 2 AM
       .everyDays(1)
       .create();
+  }
+}
+
+function createTriggersNow_() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    ensureTriggers_();
+    SpreadsheetApp.getActive().toast('✅ Triggers created/verified', 'Triggers', 4);
+  } catch (err) {
+    SpreadsheetApp.getActive().toast('❌ Error creating triggers: ' + err.message, 'Triggers', 6);
+    logError_(err, 'createTriggersNow_', 'Manual trigger creation');
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -188,6 +218,12 @@ function ensureSheetSchemas_() {
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);
+
+  // System logging/monitoring sheets
+  ensureErrorTrackingSheet_();
+  ensureAnalyticsSheet_();
+  ensureAnalyticsSummarySheet_();
+  ensureDataIntegritySheet_();
 
   // Remove all frozen headers and frozen columns from all sheets
   removeFrozenHeadersFromAllSheets_();
