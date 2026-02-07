@@ -33,7 +33,7 @@ function showManualRequestDialog() {
     <label for="time">Request Time:</label>
     <input type="time" id="time" placeholder="HH:MM">
     
-    <button onclick="submitRequest()">Add Request</button>
+    <button id="submitBtn" onclick="submitRequest()">Add Request</button>
     <div id="status"></div>
     
     <script>
@@ -47,7 +47,11 @@ function showManualRequestDialog() {
         });
       }).getActivePostersForManualEntry();
       
+      let isSubmitting = false;
+
       function submitRequest() {
+        if (isSubmitting) return;
+
         const email = document.getElementById('email').value.trim();
         const name = document.getElementById('name').value.trim();
         const posterId = document.getElementById('poster').value;
@@ -58,6 +62,9 @@ function showManualRequestDialog() {
           showStatus('Please fill in all required fields', 'error');
           return;
         }
+
+        isSubmitting = true;
+        toggleSubmit_(true, 'Adding...');
         
         // Combine date and time into timestamp string
         let timestamp = '';
@@ -72,20 +79,36 @@ function showManualRequestDialog() {
           }
         }
         
-        google.script.run.withSuccessHandler(function(result) {
-          if (result.success) {
-            showStatus('Request added successfully!', 'success');
-            setTimeout(() => google.script.host.close(), 1500);
-          } else {
-            showStatus('Error: ' + result.message, 'error');
-          }
-        }).addManualRequest(email, name, posterId, timestamp);
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showStatus('Request added successfully!', 'success');
+              setTimeout(() => google.script.host.close(), 1500);
+            } else {
+              showStatus('Error: ' + result.message, 'error');
+              isSubmitting = false;
+              toggleSubmit_(false, 'Add Request');
+            }
+          })
+          .withFailureHandler(function(err) {
+            showStatus('Error: ' + err.message, 'error');
+            isSubmitting = false;
+            toggleSubmit_(false, 'Add Request');
+          })
+          .addManualRequest(email, name, posterId, timestamp);
       }
       
       function showStatus(msg, type) {
         const status = document.getElementById('status');
         status.textContent = msg;
         status.className = type;
+      }
+
+      function toggleSubmit_(disabled, label) {
+        const btn = document.getElementById('submitBtn');
+        if (!btn) return;
+        btn.disabled = disabled;
+        btn.textContent = label;
       }
     </script>
   `).setWidth(400).setHeight(500);
@@ -111,6 +134,8 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
   lock.waitLock(30000);
 
   try {
+    SpreadsheetApp.getActive().toast('⏳ Adding manual request...', 'Manual Request', 3);
+
     // Validate inputs
     if (!empEmail || !empName || !posterId) {
       return { success: false, message: 'Missing required fields' };
@@ -183,6 +208,7 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
     invalidateCachesAfterWrite_({ empEmail });
     
     // Rebuild boards to reflect new entry
+    SpreadsheetApp.getActive().toast('🔄 Updating boards and form...', 'Manual Request', 3);
     rebuildBoards();
     syncPostersToForm();
     

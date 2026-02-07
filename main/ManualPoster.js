@@ -47,11 +47,15 @@ function showManualPosterDialog() {
       <input type="checkbox" id="active"> Active? (add to form immediately)
     </label>
     
-    <button onclick="submitPoster()">Add Poster</button>
+    <button id="submitBtn" onclick="submitPoster()">Add Poster</button>
     <div id="status"></div>
     
     <script>
+      let isSubmitting = false;
+
       function submitPoster() {
+        if (isSubmitting) return;
+
         const title = document.getElementById('title').value.trim();
         const releaseDate = document.getElementById('releaseDate').value;
         const company = document.getElementById('company').value.trim();
@@ -67,6 +71,9 @@ function showManualPosterDialog() {
           showStatus('Please fill in all required fields (Title and Release Date)', 'error');
           return;
         }
+
+        isSubmitting = true;
+        toggleSubmit_(true, 'Adding...');
         
         google.script.run
           .withSuccessHandler(function(result) {
@@ -75,10 +82,14 @@ function showManualPosterDialog() {
               setTimeout(() => google.script.host.close(), 1500);
             } else {
               showStatus('Error: ' + result.message, 'error');
+              isSubmitting = false;
+              toggleSubmit_(false, 'Add Poster');
             }
           })
           .withFailureHandler(function(err) {
             showStatus('Error: ' + err.message, 'error');
+            isSubmitting = false;
+            toggleSubmit_(false, 'Add Poster');
           })
           .addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes);
       }
@@ -87,6 +98,13 @@ function showManualPosterDialog() {
         const status = document.getElementById('status');
         status.textContent = msg;
         status.className = type;
+      }
+
+      function toggleSubmit_(disabled, label) {
+        const btn = document.getElementById('submitBtn');
+        if (!btn) return;
+        btn.disabled = disabled;
+        btn.textContent = label;
       }
     </script>
   `)
@@ -101,6 +119,8 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
   lock.waitLock(30000);
   
   try {
+    SpreadsheetApp.getActive().toast('⏳ Adding poster to inventory...', 'Manual Poster', 3);
+
     const ss = SpreadsheetApp.getActive();
     const userEmail = String(Session.getActiveUser().getEmail() || '').toLowerCase().trim();
     if (userEmail) {
@@ -166,6 +186,7 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Automatically update dependent systems
     Logger.log(`[addManualPoster] Updating Print Out, Form, and Display dropdowns...`);
     try {
+      SpreadsheetApp.getActive().toast('🔄 Updating Print Out, Form, and Displays...', 'Manual Poster', 3);
       refreshPrintOut();
       syncPostersToForm();
       refreshPosterOutsideDropdowns_();
