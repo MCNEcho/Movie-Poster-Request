@@ -1,22 +1,31 @@
-/** 12_PrintSelection.gs **/
+/** PrintOut.js **/
+/**
+ * Print Out system - MANUAL UPDATE ONLY
+ * Print Out is updated only when user clicks "Update Print Out" from admin menu.
+ * This prevents automatic tab switching that interrupts workflow.
+ */
 
-function prepareAndSelectPrintArea() {
+function updateInventoryLastUpdated_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  inv.getRange(CONFIG.INVENTORY_LAST_UPDATED_CELL)
+    .setValue(`Last Updated: ${fmtDate_(now_(), 'yyyy-MM-dd hh:mm:ss a')}`);
+}
+
+function refreshPrintOut() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
 
   try {
-    const sh = getSheet_(CONFIG.SHEETS.PRINT_OUT);
-    const { lastMovieRow, empQrEndRow } = buildPrintOutLayout_();
+    const ss = SpreadsheetApp.getActive();
+    ss.toast('⏳ Updating Print Out layout...', 'Updating', -1);
+    
+    buildPrintOutLayout_();
 
-    // Select the printable area
-    sh.activate();
-    sh.setActiveRange(sh.getRange(4, 1, empQrEndRow - 4 + 1, 3));
-
-    SpreadsheetApp.getActive().toast(
-      `Selected print area. Now Ctrl+P → "Selected cells".`,
-      'Print Ready',
-      8
-    );
+    ss.toast('✅ Print Out updated successfully!', 'Update Complete', 3);
+  } catch (err) {
+    const ss = SpreadsheetApp.getActive();
+    ss.toast('❌ Error updating Print Out: ' + err.message, 'Error', 5);
+    throw err;
   } finally {
     lock.releaseLock();
   }
@@ -50,8 +59,14 @@ function buildPrintOutLayout_() {
   removeAllFloatingImages_(sh);
 
   // --- Row 1-2: URLs (always at top) ---
-  const formUrl = getOrCreateForm_().getPublishedUrl();
-  const empUrl = getEmployeeViewEmployeesUrl_();
+  const formUrl = getCachedFormUrl_();  // Use cached URL from setup
+  let empUrl = '';
+  try {
+    empUrl = getCachedEmployeeViewUrl_();  // Use cached URL with graceful fallback
+  } catch (err) {
+    Logger.log('[buildPrintOutLayout_] Warning - could not get Employee View URL: ' + err.message);
+    empUrl = '';  // Graceful degradation - continue without crashing
+  }
 
   sh.getRange('A1').setValue('Form URL').setFontWeight('bold');
   sh.getRange('B1').setValue(formUrl);
@@ -80,12 +95,13 @@ function buildPrintOutLayout_() {
   sh.setColumnWidth(2, 520);
   sh.setColumnWidth(3, 260);
 
-  // --- Get ACTIVE posters from Inventory sheet ---
+  // --- Get ALL posters from Inventory sheet (active or not) ---
+  // The ACTIVE flag controls form availability; Print Out shows ALL to display upcoming movies
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const invData = getNonEmptyData_(inv, 11, 3);
   
-  const activePosters = invData
-    .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
+  const allPosters = invData
+    .slice(1)  // Skip header row (row 2 from Inventory) - data starts at row 3
     .map(r => ({
       release: r[COLS.INVENTORY.RELEASE - 1],
       title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),
@@ -96,13 +112,13 @@ function buildPrintOutLayout_() {
   // --- Insert poster rows starting at row 6 ---
   const startRow = 6;
   let lastPopulatedRow = startRow;
-  if (activePosters.length > 0) {
-    const rows = activePosters.map(p => [p.release, p.title]);
+  if (allPosters.length > 0) {
+    const rows = allPosters.map(p => [p.release, p.title]);
     sh.getRange(startRow, 1, rows.length, 2).setValues(rows);
     sh.getRange(startRow, 1, rows.length, 1).setNumberFormat('m/d/yyyy');
     lastPopulatedRow = startRow + rows.length - 1;
   } else {
-    sh.getRange('A6').setValue('(No active posters)');
+    sh.getRange('A6').setValue('(No posters in inventory)');
     lastPopulatedRow = 6;
   }
 

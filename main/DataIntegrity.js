@@ -1,4 +1,4 @@
-/** 09_DataIntegrity.js **/
+/** DataIntegrity.js **/
 
 /**
  * Data validation and integrity checking framework

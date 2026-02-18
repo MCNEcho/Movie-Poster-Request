@@ -1,4 +1,4 @@
-/** 04_FormManager.js **/
+/** FormManager.js **/
 
 function getEffectiveFormId_() {
   const cfg = String(CONFIG.FORM_ID || '').trim();
@@ -14,10 +14,17 @@ function getOrCreateForm_() {
     try { 
       return FormApp.openById(existingId); 
     } catch (e) {
-      // Form was deleted or ID is invalid - clear it and create a new one
-      Logger.log('Form not found (ID: ' + existingId + '). Creating new form...');
+      // Form not accessible or ID invalid
+      if (!isMasterAccount_()) {
+        throw new Error('Form access denied. Contact the master admin to manage the form.');
+      }
+      Logger.log('Form not found or inaccessible (ID: ' + existingId + '). Creating new form...');
       getProps_().deleteProperty(CONFIG.PROPS.FORM_ID);
     }
+  }
+
+  if (!isMasterAccount_()) {
+    throw new Error('Form not set up yet. Contact the master admin to initialize the form.');
   }
 
   // Create new form
@@ -29,6 +36,48 @@ function getOrCreateForm_() {
   Logger.log('Created new form. EDIT URL: ' + form.getEditUrl());
   Logger.log('NEW FORM_ID: ' + form.getId());
   return form;
+}
+
+function getFormPublishedUrlSafe_() {
+  const id = getEffectiveFormId_();
+  if (!id) return '';
+  try {
+    return FormApp.openById(id).getPublishedUrl();
+  } catch (e) {
+    // Fall back to viewform URL if user lacks access
+    return `https://docs.google.com/forms/d/${id}/viewform`;
+  }
+}
+
+/**
+ * Get cached Form URL from properties (set during initial setup)
+ * This ensures the URL never changes even if form is modified
+ */
+function getCachedFormUrl_() {
+  const props = PropertiesService.getScriptProperties();
+  let cachedUrl = props.getProperty('CACHED_FORM_URL');
+  
+  // If not cached, get it now and cache it
+  if (!cachedUrl) {
+    cachedUrl = getFormPublishedUrlSafe_();
+    if (cachedUrl) {
+      props.setProperty('CACHED_FORM_URL', cachedUrl);
+    }
+  }
+  
+  return cachedUrl;
+}
+
+/**
+ * Initialize Form URL cache during setup (called once)
+ */
+function initializeFormUrlCache_() {
+  const url = getFormPublishedUrlSafe_();
+  if (url) {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('CACHED_FORM_URL', url);
+    Logger.log('[initializeFormUrlCache_] Cached Form URL: ' + url);
+  }
 }
 
 function setCheckboxChoicesByTitle_(form, itemTitle, choices, required) {

@@ -1,20 +1,17 @@
-/** 17_Announcements.js **/
+/** Announcements.js **/
 
 function handleSheetEdit(e) {
   const sh = e.range.getSheet();
   const name = sh.getName();
 
   if (name === CONFIG.SHEETS.INVENTORY) {
-    // Invalidate caches when Inventory is manually edited
-    invalidatePostersWithLabels_();
-    invalidatePosterAvailability_();
-    invalidateBoardMain_();
-    invalidateBoardEmployees_();
-    
     updateInventoryLastUpdated_();
     sortInventoryByReleaseDate_();           // Auto-sort after edits
     ensurePosterIdsInInventory_();          // Ensure IDs exist
-    processInventoryEdit_(e);               // Handle ACTIVE checkbox changes
+    const removalHandled = detectInventoryRemovalsFromEdit_(e); // Detect title/release clears
+    if (!removalHandled) {
+      processInventoryEdit_(e);             // Handle ACTIVE checkbox changes
+    }
     // Print Out now updates manually only - removed automatic refresh
     return;
   }
@@ -131,7 +128,7 @@ function getActiveSubscriberEmails_() {
  */
 function generateAnnouncementPreview_(queue, ids) {
   const recipients = getActiveSubscriberEmails_();
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   
   // Select appropriate template
   const template = ids.length === 1 ? CONFIG.TEMPLATES.SINGLE_POSTER : CONFIG.TEMPLATES.BATCH;
@@ -204,7 +201,7 @@ function generateAnnouncementPreview_(queue, ids) {
  */
 function processBatchedAnnouncements_(queue, ids, recipients) {
   // Send all posters in a single email instead of batching
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
   
   const template = CONFIG.TEMPLATES.BATCH;
@@ -235,7 +232,7 @@ function processBatchedAnnouncements_(queue, ids, recipients) {
  * @param {Array<string>} recipients - Email addresses
  */
 function processIndividualAnnouncements_(queue, ids, recipients) {
-  const formUrl = getOrCreateForm_().getPublishedUrl();
+  const formUrl = getFormPublishedUrlSafe_();
   const activeCount = getPostersWithLabels_().filter(p => p.active).length;
   
   ids.forEach((id, index) => {

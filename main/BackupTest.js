@@ -1,4 +1,4 @@
-/** 99_BackupTests.js **/
+/** BackupTest.js **/
 
 /**
  * Manual tests for backup functionality

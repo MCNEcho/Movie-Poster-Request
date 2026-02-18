@@ -1,21 +1,12 @@
-/** 02A_CacheManager.gs **/
+/** CacheManager.js **/
 
 /**
  * Caching layer for performance optimization
- * Multi-layer caching: In-memory execution cache + TTL-based ScriptProperties cache
- * Reduces sheet read quota by caching computed results
+ * Reduces sheet read quota by caching computed results with TTL
  */
 
 /**
- * In-memory execution-scoped cache
- * Cleared automatically between executions by Google Apps Script runtime.
- * Ultra-fast for repeated queries within same execution context.
- * Does NOT persist across different execution sessions.
- */
-const _sheetCache_ = {};
-
-/**
- * Cache configuration keys for persistent ScriptProperties cache
+ * Cache configuration
  */
 const CACHE_CONFIG = {
   EMPLOYEE_SLOTS: 'CACHE_EMPLOYEE_SLOTS',
@@ -36,16 +27,12 @@ function getCacheTTL_() {
 }
 
 /**
- * Set a cache entry with TTL (persistent + in-memory)
+ * Set a cache entry with TTL
  * @param {string} key - Cache key from CACHE_CONFIG
  * @param {*} value - Value to cache
  */
 function setCache_(key, value) {
   try {
-    // Set in-memory cache first
-    _sheetCache_[key] = value;
-    
-    // Then persist to ScriptProperties with TTL
     const entry = {
       value: value,
       timestamp: now_().getTime(),
@@ -58,18 +45,12 @@ function setCache_(key, value) {
 }
 
 /**
- * Get a cache entry if still valid (checks in-memory first, then persistent)
+ * Get a cache entry if still valid
  * @param {string} key - Cache key from CACHE_CONFIG
  * @returns {*} Cached value or null if expired/missing
  */
 function getCache_(key) {
   try {
-    // Check in-memory cache first (ultra-fast)
-    if (_sheetCache_[key] !== undefined) {
-      return _sheetCache_[key];
-    }
-    
-    // Fall back to persistent cache
     const entry = readJsonProp_(key, null);
     if (!entry) return null;
 
@@ -79,8 +60,6 @@ function getCache_(key) {
       return null;
     }
 
-    // Populate in-memory cache for next access
-    _sheetCache_[key] = entry.value;
     return entry.value;
   } catch (err) {
     Logger.log(`[WARN] Cache get failed for ${key}: ${err.message}`);
@@ -89,15 +68,11 @@ function getCache_(key) {
 }
 
 /**
- * Clear a specific cache entry (both in-memory and persistent)
+ * Clear a specific cache entry
  * @param {string} key - Cache key from CACHE_CONFIG
  */
 function clearCache_(key) {
   try {
-    // Clear in-memory cache
-    delete _sheetCache_[key];
-    
-    // Clear persistent cache
     getProps_().deleteProperty(key);
   } catch (err) {
     Logger.log(`[WARN] Cache clear failed for ${key}: ${err.message}`);
@@ -105,24 +80,13 @@ function clearCache_(key) {
 }
 
 /**
- * Clear all caches (both in-memory and persistent)
+ * Clear all caches
  */
 function clearAllCaches_() {
-  // Clear all in-memory cache keys
-  Object.keys(_sheetCache_).forEach(key => {
-    delete _sheetCache_[key];
-  });
-  
-  // Clear all persistent cache keys
   Object.values(CACHE_CONFIG).forEach(key => {
-    try {
-      getProps_().deleteProperty(key);
-    } catch (err) {
-      Logger.log(`[WARN] Failed to clear cache key ${key}: ${err.message}`);
-    }
+    clearCache_(key);
   });
-  
-  Logger.log('[CACHE] All caches cleared (in-memory + persistent)');
+  Logger.log('[CACHE] All caches cleared');
 }
 
 /**

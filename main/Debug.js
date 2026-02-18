@@ -1,6 +1,6 @@
 /**
+ * DEBUG.JS - DEBUGGING UTILITIES
  * ACTIVE DEBUGGING FUNCTIONS
- */
 
 function debugFormAndLinks() {
   const form = getOrCreateForm_();
@@ -22,6 +22,11 @@ function resetAllTriggers() {
   ScriptApp.newTrigger('handleSheetEdit')
     .forSpreadsheet(SpreadsheetApp.getActive())
     .onEdit()
+    .create();
+
+  ScriptApp.newTrigger('handleSheetChange')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onChange()
     .create();
 
   ScriptApp.newTrigger('processAnnouncementQueue')

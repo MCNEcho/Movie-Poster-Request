@@ -1,4 +1,4 @@
-/** 21_ManualPosterEntry.js **/
+/** ManualPoster.js **/
 
 function showManualPosterDialog() {
   const html = HtmlService.createHtmlOutput(`
@@ -47,11 +47,15 @@ function showManualPosterDialog() {
       <input type="checkbox" id="active"> Active? (add to form immediately)
     </label>
     
-    <button onclick="submitPoster()">Add Poster</button>
+    <button id="submitBtn" onclick="submitPoster()">Add Poster</button>
     <div id="status"></div>
     
     <script>
+      let isSubmitting = false;
+
       function submitPoster() {
+        if (isSubmitting) return;
+
         const title = document.getElementById('title').value.trim();
         const releaseDate = document.getElementById('releaseDate').value;
         const company = document.getElementById('company').value.trim();
@@ -67,6 +71,9 @@ function showManualPosterDialog() {
           showStatus('Please fill in all required fields (Title and Release Date)', 'error');
           return;
         }
+
+        isSubmitting = true;
+        toggleSubmit_(true, 'Adding...');
         
         google.script.run
           .withSuccessHandler(function(result) {
@@ -75,10 +82,14 @@ function showManualPosterDialog() {
               setTimeout(() => google.script.host.close(), 1500);
             } else {
               showStatus('Error: ' + result.message, 'error');
+              isSubmitting = false;
+              toggleSubmit_(false, 'Add Poster');
             }
           })
           .withFailureHandler(function(err) {
             showStatus('Error: ' + err.message, 'error');
+            isSubmitting = false;
+            toggleSubmit_(false, 'Add Poster');
           })
           .addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes);
       }
@@ -87,6 +98,13 @@ function showManualPosterDialog() {
         const status = document.getElementById('status');
         status.textContent = msg;
         status.className = type;
+      }
+
+      function toggleSubmit_(disabled, label) {
+        const btn = document.getElementById('submitBtn');
+        if (!btn) return;
+        btn.disabled = disabled;
+        btn.textContent = label;
       }
     </script>
   `)
@@ -101,6 +119,19 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
   lock.waitLock(30000);
   
   try {
+    SpreadsheetApp.getActive().toast('⏳ Adding poster to inventory...', 'Manual Poster', 3);
+
+    const ss = SpreadsheetApp.getActive();
+    const userEmail = String(Session.getActiveUser().getEmail() || '').toLowerCase().trim();
+    if (userEmail) {
+      const ownerEmail = String(ss.getOwner().getEmail() || '').toLowerCase().trim();
+      const editorEmails = ss.getEditors().map(e => String(e.getEmail() || '').toLowerCase().trim());
+      const hasEditAccess = userEmail === ownerEmail || editorEmails.includes(userEmail);
+      if (!hasEditAccess) {
+        return { success: false, message: 'You need edit access to add posters. Ask the sheet owner to grant editor access.' };
+      }
+    }
+
     // Validate required fields
     if (!title || !title.trim() || !releaseDate) {
       return { success: false, message: 'Title and Release Date are required' };
@@ -146,8 +177,32 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     // Auto-generate Poster ID for the new row (column K)
     ensurePosterIdsInInventory_();
     
+    // Sort Inventory by release date to maintain consistent ordering
+    sortInventoryByReleaseDate_();
+    
     // Update last updated timestamp
     updateInventoryLastUpdated_();
+    
+    // Automatically update dependent systems
+    Logger.log(`[addManualPoster] Updating Print Out, Form, and Display dropdowns...`);
+    try {
+      SpreadsheetApp.getActive().toast('🔄 Updating Print Out, Form, and Displays...', 'Manual Poster', 3);
+      refreshPrintOut();
+      syncPostersToForm();
+      refreshPosterOutsideDropdowns_();
+      refreshPosterInsideDropdowns_();
+      Logger.log(`[addManualPoster] All systems updated successfully`);
+    } catch (updateErr) {
+      Logger.log(`[addManualPoster] Warning: System update failed: ${updateErr.message}`);
+      // Don't fail the entire operation if updates fail - poster was successfully added
+    }
+    
+    // Visual feedback after dialog closes
+    SpreadsheetApp.getActive().toast(
+      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}\n📄 Print Out, Form, & Displays updated`,
+      'Poster Added',
+      5
+    );
     
     Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title}`);
     
@@ -159,7 +214,12 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     
   } catch (err) {
     Logger.log(`[addManualPoster] Error: ${err.message}`);
-    return { success: false, message: `Error: ${err.message}` };
+    logError_(err, 'addManualPoster', { title, releaseDate, active });
+    const msg = String(err && err.message ? err.message : err);
+    if (msg.toLowerCase().includes('permission')) {
+      return { success: false, message: 'Permission denied. Make sure you have edit access to the spreadsheet and reauthorize the script.' };
+    }
+    return { success: false, message: `Error: ${msg}` };
   } finally {
     lock.releaseLock();
   }

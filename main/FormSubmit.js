@@ -1,4 +1,4 @@
-/** 06_SubmitHandler.gs**/
+/** FormSubmit.js **/
 
 function handleFormSubmit(e) {
   const lock = LockService.getScriptLock();
@@ -62,10 +62,10 @@ function handleFormSubmit(e) {
       notes: result.notes.join(' | '),
     });
 
-    // DEFERRED REBUILD: Mark system for refresh instead of blocking rebuild
-    Logger.log(`[handleFormSubmit] Marking system for deferred refresh (non-blocking)`);
-    markSystemNeedingRefresh_();
-    Logger.log(`[handleFormSubmit] Form submission completed (boards will rebuild on next trigger)`);
+    Logger.log(`[handleFormSubmit] About to rebuild boards. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
+    rebuildBoards();
+    Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
+    syncPostersToForm();
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {
