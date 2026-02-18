@@ -1,5 +1,14 @@
 /** Utils.js **/
 
+const _sheetCache_ = {};
+let _postersWithLabelsCache_ = null;
+let _activeRequestsCache_ = null;
+
+function clearInMemoryCaches_() {
+  _postersWithLabelsCache_ = null;
+  _activeRequestsCache_ = null;
+}
+
 function now_() { return new Date(); }
 
 function fmtDate_(d, pattern) {
@@ -50,8 +59,10 @@ function ensureSheetWithHeaders_(ss, name, headers) {
 }
 
 function getSheet_(name) {
+  if (_sheetCache_[name]) return _sheetCache_[name];
   const sh = SpreadsheetApp.getActive().getSheetByName(name);
   if (!sh) throw new Error(`Missing sheet: ${name}`);
+  _sheetCache_[name] = sh;
   return sh;
 }
 
@@ -106,6 +117,8 @@ function normalizeEmployeeName_(input) {
  * Returns array of { posterId, title, release, active, label, invCount }
  */
 function getPostersWithLabels_() {
+  if (_postersWithLabelsCache_) return _postersWithLabelsCache_;
+
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const data = getNonEmptyData_(inv, 11);  // reads from row 2; header row is filtered out downstream
   
@@ -131,6 +144,7 @@ function getPostersWithLabels_() {
     p.label = dup ? `${p.title} (${rd})` : p.title;
   });
 
+  _postersWithLabelsCache_ = posters;
   return posters;
 }
 
@@ -139,9 +153,12 @@ function getPostersWithLabels_() {
  * Returns array of request rows with full data.
  */
 function getActiveRequests_() {
+  if (_activeRequestsCache_) return _activeRequestsCache_;
+
   const sh = getSheet_(CONFIG.SHEETS.REQUESTS);
   const data = getNonEmptyData_(sh, 10);
-  return data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+  _activeRequestsCache_ = data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+  return _activeRequestsCache_;
 }
 
 /**
