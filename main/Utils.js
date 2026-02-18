@@ -107,7 +107,7 @@ function normalizeEmployeeName_(input) {
  */
 function getPostersWithLabels_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 11, 3);  // headers on row 2, data from row 3
+  const data = getNonEmptyData_(inv, 11);  // reads from row 2; header row is filtered out downstream
   
   const posters = data.map(r => ({
     posterId: String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim(),
