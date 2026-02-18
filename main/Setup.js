@@ -192,7 +192,6 @@ function ensureSheetSchemas_() {
   // Inventory: row 1 reserved (merged A1:L1) for Last Updated, headers on row 2
   let inv = ss.getSheetByName(CONFIG.SHEETS.INVENTORY);
   if (!inv) inv = ss.insertSheet(CONFIG.SHEETS.INVENTORY);
-  formatInventorySheet_();
 
   // Movie Posters sheet is deprecated - no longer created during setup
   // Kept in config for backward compatibility with existing deployments
