@@ -171,7 +171,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .syncPostersToForm();
+              .syncFormOptions();
           }
           
           function refreshPrintOut() {
@@ -251,6 +251,35 @@ function refreshPosterInside() {
 }
 
 /**
+ * Public wrapper - Rebuild boards only
+ * Called from Refresh Manager dialog
+ */
+function rebuildBoards() {
+  rebuildBoards_();
+}
+
+/**
+ * Public wrapper - Sync form options
+ * Called from Refresh Manager dialog  
+ */
+function syncFormOptions() {
+  syncPostersToForm();
+}
+
+/**
+ * Public wrapper - Refresh Print Out only
+ * Called from Refresh Manager dialog
+ */
+function refreshPrintOut() {
+  if (typeof buildPrintOutLayout_ === 'function') {
+    buildPrintOutLayout_();
+  } else {
+    // Fallback for module import scenarios
+    SpreadsheetApp.getActiveSheet().toast('Print Out layout function not available', 'Error', 5);
+  }
+}
+
+/**
  * Executes all refresh operations in sequence (master refresh function)
  */
 function executeRefreshAll_() {
@@ -263,7 +292,7 @@ function executeRefreshAll_() {
     // 1. Rebuild boards
     Logger.log('[executeRefreshAll_] Rebuilding boards...');
     ss.toast('⏳ Step 1/5: Rebuilding boards...', 'Refreshing All', -1);
-    rebuildBoards();
+    rebuildBoards_();
     ss.toast('✓ Boards rebuilt', 'Progress', 2);
     
     // 2. Sync form options
@@ -317,25 +346,20 @@ function executeRefreshAll_() {
  */
 function refreshPosterOutsideDropdowns_() {
   const ss = SpreadsheetApp.getActive();
-  const outsideSheet = ss.getSheetByName('Poster Outside');
+  const outsideSheet = ss.getSheetByName(CONFIG.SHEETS.POSTER_OUTSIDE);
   
   if (!outsideSheet) {
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside sheet not found');
-    ss.toast('❌ Poster Outside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    ss.toast('⏳ Updating Poster Outside dropdowns...', 'Updating', -1);
-    
     setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
     setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
     updatePosterOutsideTimestamp_();
     
-    ss.toast('✅ Poster Outside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside dropdowns updated');
   } catch (err) {
-    ss.toast('❌ Error updating Poster Outside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterOutsideDropdowns_] Error: ' + err.message);
     throw err;
   }
@@ -346,27 +370,63 @@ function refreshPosterOutsideDropdowns_() {
  */
 function refreshPosterInsideDropdowns_() {
   const ss = SpreadsheetApp.getActive();
-  const insideSheet = ss.getSheetByName('Poster Inside');
+  const insideSheet = ss.getSheetByName(CONFIG.SHEETS.POSTER_INSIDE);
   
   if (!insideSheet) {
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside sheet not found');
-    ss.toast('❌ Poster Inside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    ss.toast('⏳ Updating Poster Inside dropdowns...', 'Updating', -1);
-    
     setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
     setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
     setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
     updatePosterInsideTimestamp_();
     
-    ss.toast('✅ Poster Inside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside dropdowns updated');
   } catch (err) {
-    ss.toast('❌ Error updating Poster Inside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterInsideDropdowns_] Error: ' + err.message);
     throw err;
+  }
+}
+
+/**
+ * Mark system needing refresh (called by background handlers like form submit)
+ * Defers expensive rebuilds to Refresh Manager or time-triggered refresh
+ */
+function markSystemNeedingRefresh_() {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(CONFIG.PROPS.NEEDS_REFRESH, String(now_()));
+  Logger.log('[markSystemNeedingRefresh_] System marked for deferred refresh at ' + now_());
+}
+
+/**
+ * Check if refresh is needed and do it (called by time-triggered handler)
+ * Returns true if refresh was performed, false if not needed
+ */
+function refreshIfNeeded_(force = false) {
+  const props = PropertiesService.getScriptProperties();
+  const refreshTs = props.getProperty(CONFIG.PROPS.NEEDS_REFRESH);
+  
+  if (!force && !refreshTs) {
+    Logger.log('[refreshIfNeeded_] No refresh needed');
+    return false;
+  }
+  
+  if (force) {
+    Logger.log('[refreshIfNeeded_] Force refresh requested');
+  } else {
+    Logger.log('[refreshIfNeeded_] Refresh needed (marked at ' + refreshTs + ') - executing');
+  }
+  
+  try {
+    rebuildBoards_();
+    syncPostersToForm();
+    props.deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+    Logger.log('[refreshIfNeeded_] Deferred refresh completed and cleared');
+    return true;
+  } catch (err) {
+    logError_(err, 'refreshIfNeeded_', 'Deferred refresh');
+    return false;
   }
 }
