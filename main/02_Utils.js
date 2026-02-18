@@ -94,8 +94,14 @@ function normalizeEmployeeName_(input) {
  * Fetches all posters from Inventory sheet with computed display labels.
  * Handles duplicate titles by adding (Release Date) suffix.
  * Returns array of { posterId, title, release, active, label, invCount }
+ * OPTIMIZED: Uses cache when available
  */
 function getPostersWithLabels_() {
+  // Check cache first
+  const cached = getPostersWithLabels_Cached();
+  if (cached && cached.length > 0) return cached;
+  
+  // Cache miss - compute fresh
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const data = getNonEmptyData_(inv, 11, 3);  // headers on row 2, data from row 3
   
@@ -120,6 +126,9 @@ function getPostersWithLabels_() {
     const rd = (p.release instanceof Date) ? fmtDate_(p.release, 'yyyy-MM-dd') : String(p.release);
     p.label = dup ? `${p.title} (${rd})` : p.title;
   });
+  
+  // Cache the result
+  setCache_(CACHE_CONFIG.POSTERS_WITH_LABELS, posters);
 
   return posters;
 }
@@ -145,4 +154,47 @@ function sortInventoryByReleaseDate_() {
   if (lastRow < 3) return;
   const range = inv.getRange(3, 1, lastRow - 2, inv.getLastColumn());
   range.sort(COLS.INVENTORY.RELEASE); // Sort by release date ascending
+}
+
+/**
+ * Marks the system as needing a refresh (deferred rebuild pattern).
+ * This avoids blocking form submissions with expensive board rebuilds.
+ */
+function markSystemNeedingRefresh_() {
+  try {
+    getProps_().setProperty(CONFIG.PROPS.NEEDS_REFRESH, 'true');
+    Logger.log('[DEFERRED] System marked for refresh');
+  } catch (err) {
+    Logger.log(`[WARN] Failed to mark system for refresh: ${err.message}`);
+  }
+}
+
+/**
+ * Checks if system needs refresh and performs it if flagged.
+ * This is the deferred rebuild execution triggered by time-based or manual events.
+ * @returns {boolean} True if refresh was performed, false otherwise
+ */
+function refreshIfNeeded_() {
+  try {
+    const needsRefresh = getProps_().getProperty(CONFIG.PROPS.NEEDS_REFRESH);
+    
+    if (needsRefresh === 'true') {
+      Logger.log('[DEFERRED] Performing deferred refresh...');
+      
+      // Execute the full refresh pipeline
+      rebuildBoards();
+      syncPostersToForm();
+      
+      // Clear the refresh flag
+      getProps_().deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+      Logger.log('[DEFERRED] Refresh completed and flag cleared');
+      
+      return true;
+    }
+    
+    return false;
+  } catch (err) {
+    logError_(err, 'refreshIfNeeded_', 'Deferred refresh execution');
+    return false;
+  }
 }

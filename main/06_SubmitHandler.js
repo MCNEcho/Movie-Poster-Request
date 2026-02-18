@@ -62,10 +62,10 @@ function handleFormSubmit(e) {
       notes: result.notes.join(' | '),
     });
 
-    Logger.log(`[handleFormSubmit] About to rebuild boards. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
-    rebuildBoards();
-    Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
-    syncPostersToForm();
+    // DEFERRED REBUILD: Mark system for refresh instead of blocking rebuild
+    Logger.log(`[handleFormSubmit] Marking system for deferred refresh (non-blocking)`);
+    markSystemNeedingRefresh_();
+    Logger.log(`[handleFormSubmit] Form submission completed (boards will rebuild on next trigger)`);
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {

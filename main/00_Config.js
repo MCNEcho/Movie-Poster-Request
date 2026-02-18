@@ -96,6 +96,7 @@ const CONFIG = {
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
+    NEEDS_REFRESH: 'NEEDS_REFRESH_FLAG',  // Deferred rebuild flag
   },
 
   // Announcement batching configuration

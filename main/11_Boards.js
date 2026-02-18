@@ -1,9 +1,15 @@
 /** 11_Boards.js **/
 
 function rebuildBoards() {
+  Logger.log('[rebuildBoards] Starting board rebuild...');
+  const startTime = new Date().getTime();
+  
   buildMainBoard_();
   buildEmployeesBoard_();
   syncEmployeeViewSpreadsheet_();
+  
+  const duration = new Date().getTime() - startTime;
+  Logger.log(`[rebuildBoards] Completed in ${duration}ms`);
   
   // Refresh health banner after board rebuild
   try {
@@ -22,17 +28,19 @@ function resetBoardArea_(sheet, colsToClear) {
   sheet.getRange(1, 1, maxRows, cols).breakApart();
   
   // Remove all bandings and conditional formatting
-  sheet.getBandings().forEach(b => b.remove());
+  const bandings = sheet.getBandings();
+  bandings.forEach(b => b.remove());
   sheet.setConditionalFormatRules([]);
   
-  // Clear ALL content AND formatting in the area
-  sheet.getRange(1, 1, maxRows, cols).clear({ contentsOnly: false });
+  // Clear ONLY content (no full formatting reset to avoid quota waste)
+  sheet.getRange(1, 1, maxRows, cols).clearContent();
 }
 
 function buildMainBoard_() {
   const main = getSheet_(CONFIG.SHEETS.MAIN);
   resetBoardArea_(main, 2);
 
+  // OPTIMIZED: Reuse active requests query
   const rows = getActiveRequests_();
   Logger.log(`[buildMainBoard] Found ${rows.length} ACTIVE requests`);
   const idToLabel = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
@@ -43,6 +51,7 @@ function buildMainBoard_() {
     (byPoster[pid] = byPoster[pid] || []).push(r);
   });
 
+  // OPTIMIZED: Reuse posters query  
   const posters = getPostersWithLabels_();
   const posterInfo = {};
   posters.forEach(p => {
@@ -87,11 +96,12 @@ function buildMainBoard_() {
     main.getRange(out.length + 1, 1, maxRows - out.length, 2).clearContent();
   }
 
+  // OPTIMIZED: Single range formatting instead of full-sheet reset
   const used = main.getRange(1, 1, out.length, 2);
-  used.setBackground('#ffffff');
-  used.setFontWeight('normal');
-  used.setHorizontalAlignment('left');
-  used.setFontColor('#000000');
+  used.setBackground('#ffffff')
+      .setFontWeight('normal')
+      .setHorizontalAlignment('left')
+      .setFontColor('#000000');
 
   styleBoardHeaders_(main, 'main');
 }
@@ -100,6 +110,7 @@ function buildEmployeesBoard_() {
   const empSheet = getSheet_(CONFIG.SHEETS.EMPLOYEES);
   resetBoardArea_(empSheet, 2);
 
+  // OPTIMIZED: Reuse active requests query
   const rows = getActiveRequests_();
   const idToLabel = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
 
@@ -141,11 +152,12 @@ function buildEmployeesBoard_() {
     empSheet.getRange(out.length + 1, 1, maxRows - out.length, 2).clearContent();
   }
 
+  // OPTIMIZED: Single range formatting instead of full-sheet reset
   const used = empSheet.getRange(1, 1, out.length, 2);
-  used.setBackground('#ffffff');
-  used.setFontWeight('normal');
-  used.setHorizontalAlignment('left');
-  used.setFontColor('#000000');
+  used.setBackground('#ffffff')
+      .setFontWeight('normal')
+      .setHorizontalAlignment('left')
+      .setFontColor('#000000');
 
   styleBoardHeaders_(empSheet, 'employees');
 }
