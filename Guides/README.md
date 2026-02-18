@@ -8,22 +8,22 @@ Welcome! This folder contains in-depth guides for every aspect of the Movie Post
 
 ### For First-Time Users
 Start here if you're new to the system:
-1. **[Getting Started](01_GETTING_STARTED.md)** — Setup, configuration, and first-time checklist
-2. **[Understanding the Form](04_UNDERSTANDING_THE_FORM.md)** — What employees see when they request posters
+1. **[Getting Started](GETTING_STARTED.md)** — Setup, configuration, and first-time checklist
+2. **[Understanding the Form](UNDERSTANDING_THE_FORM.md)** — What employees see when they request posters
 
 ### For Regular Admins
 Use these for day-to-day operations:
-3. **[Admin Menu Guide](02_ADMIN_MENU_GUIDE.md)** — What every button does (detailed explanations)
-4. **[Adding Posters](03_ADDING_POSTERS.md)** — Step-by-step: how to add movies to the system
-5. **[Understanding Requests](05_UNDERSTANDING_REQUESTS.md)** — How the system tracks and displays requests
+3. **[Admin Menu Guide](ADMIN_MENU_GUIDE.md)** — What every button does (detailed explanations)
+4. **[Adding Posters](ADDING_POSTERS.md)** — Step-by-step: how to add movies to the system
+5. **[Understanding Requests](UNDERSTANDING_REQUESTS.md)** — How the system tracks and displays requests
 
 ### For Troubleshooting
 When something goes wrong:
-6. **[Troubleshooting Guide](06_TROUBLESHOOTING.md)** — Common problems and solutions
+6. **[Troubleshooting Guide](TROUBLESHOOTING.md)** — Common problems and solutions
 
 ### For Advanced Users
 Fine-tune the system:
-7. **[Advanced Configuration](07_ADVANCED_CONFIG.md)** — Customize settings in 00_Config.js
+7. **[Advanced Configuration](ADVANCED_CONFIG.md)** — Customize settings in Config.js
 
 ---
 
@@ -32,31 +32,31 @@ Fine-tune the system:
 ### "I want to..."
 
 **Set up the system for the first time**
-→ [Getting Started](01_GETTING_STARTED.md)
+→ [Getting Started](GETTING_STARTED.md)
 
 **Add a movie poster**
-→ [Adding Posters](03_ADDING_POSTERS.md)
+→ [Adding Posters](ADDING_POSTERS.md)
 
 **Understand what the Admin Menu does**
-→ [Admin Menu Guide](02_ADMIN_MENU_GUIDE.md)
+→ [Admin Menu Guide](ADMIN_MENU_GUIDE.md)
 
 **See how many posters each employee has**
-→ [Understanding Requests](05_UNDERSTANDING_REQUESTS.md)
+→ [Understanding Requests](UNDERSTANDING_REQUESTS.md)
 
 **Fix something that's broken**
-→ [Troubleshooting Guide](06_TROUBLESHOOTING.md)
+→ [Troubleshooting Guide](TROUBLESHOOTING.md)
 
 **Change the 7-poster limit or other settings**
-→ [Advanced Configuration](07_ADVANCED_CONFIG.md)
+→ [Advanced Configuration](ADVANCED_CONFIG.md)
 
 **Know what the form looks like for employees**
-→ [Understanding the Form](04_UNDERSTANDING_THE_FORM.md)
+→ [Understanding the Form](UNDERSTANDING_THE_FORM.md)
 
 ---
 
 ## 📖 Detailed Guide Descriptions
 
-### 1. Getting Started (01_GETTING_STARTED.md)
+### 1. Getting Started (GETTING_STARTED.md)
 
 **What's in it:**
 - Prerequisites (what you need)
@@ -77,7 +77,7 @@ Fine-tune the system:
 
 ---
 
-### 2. Admin Menu Guide (02_ADMIN_MENU_GUIDE.md)
+### 2. Admin Menu Guide (ADMIN_MENU_GUIDE.md)
 
 **What's in it:**
 - Every button in the Poster System menu
@@ -97,7 +97,7 @@ Fine-tune the system:
 
 ---
 
-### 3. Adding Posters (03_ADDING_POSTERS.md)
+### 3. Adding Posters (ADDING_POSTERS.md)
 
 **What's in it:**
 - How to open the Movie Posters sheet
@@ -118,7 +118,7 @@ Fine-tune the system:
 
 ---
 
-### 4. Understanding the Form (04_UNDERSTANDING_THE_FORM.md)
+### 4. Understanding the Form (UNDERSTANDING_THE_FORM.md)
 
 **What's in it:**
 - What the Google Form looks like to employees
@@ -139,7 +139,7 @@ Fine-tune the system:
 
 ---
 
-### 5. Understanding Requests (05_UNDERSTANDING_REQUESTS.md)
+### 5. Understanding Requests (UNDERSTANDING_REQUESTS.md)
 
 **What's in it:**
 - Where requests are stored (Requests sheet)
@@ -161,7 +161,7 @@ Fine-tune the system:
 
 ---
 
-### 6. Troubleshooting Guide (06_TROUBLESHOOTING.md)
+### 6. Troubleshooting Guide (TROUBLESHOOTING.md)
 
 **What's in it:**
 - Most common problems and solutions
@@ -186,10 +186,10 @@ Fine-tune the system:
 
 ---
 
-### 7. Advanced Configuration (07_ADVANCED_CONFIG.md)
+### 7. Advanced Configuration (ADVANCED_CONFIG.md)
 
 **What's in it:**
-- Where configuration lives (00_Config.js)
+- Where configuration lives (Config.js)
 - How to change the 7-slot limit
 - Allow/disallow re-requesting after removal
 - Cooldown periods
@@ -215,26 +215,26 @@ Fine-tune the system:
 ## 🚀 Common Workflows
 
 ### Workflow: First-Time Setup
-1. **[Getting Started](01_GETTING_STARTED.md)** — Follow steps 1-5
+1. **[Getting Started](GETTING_STARTED.md)** — Follow steps 1-5
 2. Open the system and verify everything
-3. Read **[Adding Posters](03_ADDING_POSTERS.md)** to understand how to add posters
+3. Read **[Adding Posters](ADDING_POSTERS.md)** to understand how to add posters
 4. Ready to use!
 
 ### Workflow: Daily Operations
 1. Check **Main Board** for active requests
-2. Use **[Adding Posters](03_ADDING_POSTERS.md)** when new movies arrive
+2. Use **[Adding Posters](ADDING_POSTERS.md)** when new movies arrive
 3. Announcements send automatically
 4. Check **Employees Board** to see who has what
 
 ### Workflow: Solving a Problem
-1. Go to **[Troubleshooting Guide](06_TROUBLESHOOTING.md)**
+1. Go to **[Troubleshooting Guide](TROUBLESHOOTING.md)**
 2. Find your problem in the table of contents
 3. Follow the solution
-4. If still stuck, check **[Admin Menu Guide](02_ADMIN_MENU_GUIDE.md)** to understand buttons
+4. If still stuck, check **[Admin Menu Guide](ADMIN_MENU_GUIDE.md)** to understand buttons
 
 ### Workflow: Customizing Settings
 1. Decide what you want to change
-2. Go to **[Advanced Configuration](07_ADVANCED_CONFIG.md)**
+2. Go to **[Advanced Configuration](ADVANCED_CONFIG.md)**
 3. Find the setting
 4. Follow instructions to change it
 5. Test your change
@@ -245,16 +245,16 @@ Fine-tune the system:
 
 | Question | Answer |
 |----------|--------|
-| How do I set this up? | [Getting Started](01_GETTING_STARTED.md) |
-| What does this button do? | [Admin Menu Guide](02_ADMIN_MENU_GUIDE.md) |
-| How do I add a poster? | [Adding Posters](03_ADDING_POSTERS.md) |
-| What do employees see? | [Understanding the Form](04_UNDERSTANDING_THE_FORM.md) |
-| Why does Sarah have 3 posters? | [Understanding Requests](05_UNDERSTANDING_REQUESTS.md) |
-| It's broken, what do I do? | [Troubleshooting Guide](06_TROUBLESHOOTING.md) |
-| How do I change the limit to 5? | [Advanced Configuration](07_ADVANCED_CONFIG.md) |
-| What does "ACTIVE" mean? | [Understanding Requests](05_UNDERSTANDING_REQUESTS.md) |
-| The form doesn't show the new poster | [Adding Posters](03_ADDING_POSTERS.md) (Sync step) |
-| I want to announce new posters | [Admin Menu Guide](02_ADMIN_MENU_GUIDE.md) (Send Announcement) |
+| How do I set this up? | [Getting Started](GETTING_STARTED.md) |
+| What does this button do? | [Admin Menu Guide](ADMIN_MENU_GUIDE.md) |
+| How do I add a poster? | [Adding Posters](ADDING_POSTERS.md) |
+| What do employees see? | [Understanding the Form](UNDERSTANDING_THE_FORM.md) |
+| Why does Sarah have 3 posters? | [Understanding Requests](UNDERSTANDING_REQUESTS.md) |
+| It's broken, what do I do? | [Troubleshooting Guide](TROUBLESHOOTING.md) |
+| How do I change the limit to 5? | [Advanced Configuration](ADVANCED_CONFIG.md) |
+| What does "ACTIVE" mean? | [Understanding Requests](UNDERSTANDING_REQUESTS.md) |
+| The form doesn't show the new poster | [Adding Posters](ADDING_POSTERS.md) (Sync step) |
+| I want to announce new posters | [Admin Menu Guide](ADMIN_MENU_GUIDE.md) (Send Announcement) |
 
 ---
 
@@ -291,7 +291,7 @@ Fine-tune the system:
 
 ## Getting Help Beyond These Guides
 
-- **Configuration questions?** Check 00_Config.js comments in Google Apps Script
+- Configuration questions?** Check Config.js comments in Google Apps Script
 - **Error messages?** Go to Documentation tab in your Sheet and check System Health section
 - **Still stuck?** Try "Run Setup / Repair" button — fixes 90% of issues
 - **Last resort?** Check the error logs in Google Apps Script (Script Editor → Logs)
@@ -312,16 +312,16 @@ The guides may need updating. Check the main [README.md](../README.md) to see if
 ## Start Here!
 
 **Never used this before?** 
-→ Open [Getting Started](01_GETTING_STARTED.md)
+→ Open [Getting Started](GETTING_STARTED.md)
 
 **System is running, want to add a poster?**
-→ Open [Adding Posters](03_ADDING_POSTERS.md)
+→ Open [Adding Posters](ADDING_POSTERS.md)
 
 **Something is broken?**
-→ Open [Troubleshooting Guide](06_TROUBLESHOOTING.md)
+→ Open [Troubleshooting Guide](TROUBLESHOOTING.md)
 
 **Want to customize settings?**
-→ Open [Advanced Configuration](07_ADVANCED_CONFIG.md)
+→ Open [Advanced Configuration](ADVANCED_CONFIG.md)
 
 ---
 

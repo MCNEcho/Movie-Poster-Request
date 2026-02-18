@@ -57,7 +57,7 @@ Once code is deployed, you need to tell the system where your Google Sheet is an
 1. Open the deployed code in Google Apps Script:
    - Go to [script.google.com](https://script.google.com)
    - Find and open your project (should be named something like "Movie Poster System")
-   - Click on `00_Config.js` file
+   - Click on `Config.js` file
 
 2. Change these settings:
    ```javascript

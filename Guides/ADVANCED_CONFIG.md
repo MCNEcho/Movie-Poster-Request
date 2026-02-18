@@ -6,12 +6,12 @@ Fine-tune system settings for your specific needs.
 
 ## Where Configuration Lives
 
-All system configuration is in **00_Config.js** file (in Google Apps Script).
+All system configuration is in **Config.js** file (in Google Apps Script).
 
 **To access:**
 1. Go to [script.google.com](https://script.google.com)
 2. Find your Movie Poster System project
-3. Click on **00_Config.js**
+3. Click on **Config.js**
 4. All settings are in the `CONFIG` object
 
 ---
@@ -313,7 +313,7 @@ CONFIG.ANNOUNCEMENT = {
 - `{{COUNT}}` - Number of new posters
 
 **To customize the announcement email:**
-1. Open 00_Config.js
+1. Open Config.js
 2. Find ANNOUNCEMENT section
 3. Edit the TEMPLATE text
 4. Use variables above to customize
@@ -357,7 +357,7 @@ After changing any config:
 
 If something breaks after a config change:
 
-1. Open 00_Config.js
+1. Open Config.js
 2. Change back to previous value
 3. Save (Ctrl+S)
 4. Go to sheet
@@ -383,7 +383,7 @@ If something breaks after a config change:
 
 ### "I can't find the config file"
 **Problem:** You're looking in the wrong place
-**Solution:** Go to script.google.com, find your project, look for "00_Config.js" file
+**Solution:** Go to script.google.com, find your project, look for "Config.js" file
 
 ---
 
@@ -458,6 +458,6 @@ RETENTION_DAYS: 60,  // Keep more backups (uses more Drive space)
 
 - **Default values not working?** See "Getting Started" guide
 - **Something broke after I changed config?** Roll back to previous value
-- **Want to understand the code?** Check comments in 00_Config.js
+- **Want to understand the code?** Check comments in Config.js
 - **Configuration too complex?** Stick with defaults—they're well-tested!
 

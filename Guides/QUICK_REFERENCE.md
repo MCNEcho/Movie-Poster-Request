@@ -180,7 +180,7 @@ Guides/
 **"I want to change the 7-poster limit"**
 1. Go to: 07_ADVANCED_CONFIG.md
 2. Find: The MAX_ACTIVE setting
-3. Edit: 00_Config.js
+3. Edit: Config.js
 4. Follow: Save and test instructions
 5. Done! ✅
 
