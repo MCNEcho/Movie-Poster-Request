@@ -1,4 +1,4 @@
-/** Setup.js **/
+/** 01_Setup.gs **/
 
 function onOpen() {
   buildAdminMenu_();
@@ -13,52 +13,39 @@ function onOpen() {
 function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
   
-  // Main menu: Poster Request System
-  const mainMenu = ui.createMenu('Poster Request System');
-  
-  // Top-level item: Add New Poster (most commonly used)
-  mainMenu.addItem('➕ Add New Poster', 'showManualPosterDialog');
-  
-  mainMenu.addSeparator();
-  
-  // Advanced Menu (with nested items)
-  const advancedMenu = ui.createMenu('⚙️ Advanced');
-  
-  // Main functions
-  advancedMenu.addItem('🔄 Refresh Manager', 'showRefreshManagerDialog');
-  advancedMenu.addItem('👥 Employee View Manager', 'showEmployeeViewManagerDialog');
-  advancedMenu.addItem('➕ Manually Add Request', 'showManualRequestDialog');
-  
-  advancedMenu.addSeparator();
-  
-  // Reports submenu
-  advancedMenu.addSubMenu(ui.createMenu('📊 Reports')
-    .addItem('Rebuild Boards', 'rebuildBoards')
-    .addItem('Sync Form Options', 'syncPostersToForm')
-    .addItem('Refresh Documentation', 'buildDocumentationTab'));
-  
-  // Announcements submenu
-  advancedMenu.addSubMenu(ui.createMenu('📧 Announcements')
-    .addItem('Preview Pending', 'previewPendingAnnouncement')
-    .addItem('Send Now', 'sendAnnouncementNow'));
-  
-  // Display Management submenu
-  advancedMenu.addSubMenu(ui.createMenu('🖼️ Display Management')
-    .addItem('Manage Display Sheets', 'showDisplayManagerDialog'));
-  
-  // System submenu (with Run Setup / Repair inside)
-  advancedMenu.addSubMenu(ui.createMenu('🔐 System')
+  ui.createMenu('Poster System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
-    .addItem('🧷 Create Triggers', 'createTriggersNow_')
-    .addItem('Run Backup Now', 'manualBackupTrigger'));
-  
-  mainMenu.addSubMenu(advancedMenu);
-  mainMenu.addToUi();
+    .addItem('🔄 Refresh All', 'refreshAll_')
+    .addSeparator()
+    .addItem('➕ Manually Add Request', 'showManualRequestDialog')
+    .addItem('➕ Add New Poster', 'showManualPosterDialog')
+    .addSeparator()
+    .addSubMenu(ui.createMenu('📊 Reports')
+      .addItem('Rebuild Boards', 'rebuildBoards')
+      .addItem('Sync Form Options', 'syncPostersToForm')
+      .addItem('Refresh Documentation', 'buildDocumentationTab')
+      .addItem('Refresh Health Banner', 'refreshHealthBanner'))
+    .addSubMenu(ui.createMenu('🖨️ Print & Layout')
+      .addItem('Update Print Out', 'refreshPrintOut'))
+    .addSubMenu(ui.createMenu('🖼️ Display Management')
+      .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
+      .addItem('Setup Poster Inside', 'setupPosterInsideTab_')
+      .addItem('Refresh Display Dropdowns', 'refreshDisplayDropdowns_'))
+    .addSubMenu(ui.createMenu('📧 Announcements')
+      .addItem('Preview Pending', 'previewPendingAnnouncement')
+      .addItem('Send Now', 'sendAnnouncementNow'))
+    .addSubMenu(ui.createMenu('⚙️ Advanced')
+      .addItem('Run Backup Now', 'manualBackupTrigger')
+      .addItem('Setup Employee View', 'setupEmployeeViewSpreadsheet')
+      .addItem('Sync Employee View', 'syncEmployeeViewSpreadsheet_')
+      .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet'))
+    .addToUi();
 }
 
 /**
  * Refresh All: Executes the 3 main refresh operations
- * Rebuilds boards and syncs form options
+ * Rebuilds boards, syncs form options, and refreshes health banner
+ * Uses non-blocking spinner UI for better UX
  */
 function refreshAll_() {
   showLoadingSpinner_('Refreshing all systems...');
@@ -109,37 +96,41 @@ function executeSetupPosterSystem_() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Task Group 1: Core Infrastructure (must run first)
-    Logger.log('[Setup] Step 1/6: Initializing infrastructure...');
+    Logger.log('[Setup] Initializing core infrastructure...');
     ensureSheetSchemas_();
     applyAdminFormatting_();
     ensureFormStructure_();
     ensureTriggers_();
 
+    // Task Group 1.5: Migration (if needed)
+    Logger.log('[Setup] Checking for data migration...');
+    try {
+      migratePostersFromMoviePostersToInventory_();
+    } catch (err) {
+      Logger.log(`[WARN] Migration failed: ${err.message}`);
+      // Continue setup even if migration fails
+    }
+
     // Task Group 2: Data Syncing
-    Logger.log('[Setup] Step 2/6: Syncing data...');
+    Logger.log('[Setup] Syncing data...');
     ensurePosterIdsInInventory_();  // Inventory is now primary source
-    initializeInventorySnapshot_();  // Seed inventory snapshot for deletion detection
-    initializeFormUrlCache_();  // Cache Form URL (set once, persist forever)
-    initializeEmployeeViewUrlCache_();  // Cache Employee View URL (set once, persist forever)
     syncPostersToForm();
 
     // Task Group 3: Visual Displays
-    Logger.log('[Setup] Step 3/6: Generating views...');
+    Logger.log('[Setup] Generating views...');
     rebuildBoards();
     buildDocumentationTab();
     buildPrintOutLayout_();
     
-    // Setup employee view (must be before print out layout so links are available)
-    Logger.log('[Setup] Step 4/6: Setting up employee view...');
-    setupEmployeeViewSpreadsheet();
-    
-    // Refresh print out to include employee view link
-    Logger.log('[Setup] Step 5/6: Refreshing print layout...');
-    buildPrintOutLayout_();
+    // Setup display management tabs
+    Logger.log('[Setup] Setting up display tabs...');
+    setupPosterOutsideTab_();
+    setupPosterInsideTab_();
 
     // Task Group 4: Monitoring (last)
-    Logger.log('[Setup] Step 6/6: Finalizing setup...');
+    Logger.log('[Setup] Finalizing setup...');
     updateInventoryLastUpdated_();
+    initializeHealthBanner_();
     
     Logger.log('[Setup] Setup complete!');
   } finally {
@@ -148,17 +139,11 @@ function executeSetupPosterSystem_() {
 }
 
 function ensureTriggers_() {
+  const form = getOrCreateForm_();
   const existing = ScriptApp.getProjectTriggers();
   const has = (handler) => existing.some(t => t.getHandlerFunction() === handler);
 
-  let form = null;
-  try {
-    form = getOrCreateForm_();
-  } catch (err) {
-    Logger.log(`[ensureTriggers_] Form trigger skipped: ${err.message}`);
-  }
-
-  if (form && !has('handleFormSubmit')) {
+  if (!has('handleFormSubmit')) {
     ScriptApp.newTrigger('handleFormSubmit')
       .forForm(form)
       .onFormSubmit()
@@ -169,13 +154,6 @@ function ensureTriggers_() {
     ScriptApp.newTrigger('handleSheetEdit')
       .forSpreadsheet(SpreadsheetApp.getActive())
       .onEdit()
-      .create();
-  }
-
-  if (!has('handleSheetChange')) {
-    ScriptApp.newTrigger('handleSheetChange')
-      .forSpreadsheet(SpreadsheetApp.getActive())
-      .onChange()
       .create();
   }
 
@@ -194,27 +172,12 @@ function ensureTriggers_() {
       .create();
   }
 
-  // Performance Optimization: Deferred refresh trigger (every 5 minutes)
+  // DEFERRED REFRESH: Time-based trigger to execute pending refreshes
   if (!has('executeDeferredRefresh')) {
     ScriptApp.newTrigger('executeDeferredRefresh')
       .timeBased()
-      .everyMinutes(5)
+      .everyMinutes(5)  // Check every 5 minutes for pending refreshes
       .create();
-  }
-}
-
-function createTriggersNow_() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
-  try {
-    ensureTriggers_();
-    Logger.log('[createTriggersNow_] Triggers created/verified');
-  } catch (err) {
-    Logger.log('[createTriggersNow_] Error creating triggers: ' + err.message);
-    logError_(err, 'createTriggersNow_', 'Manual trigger creation');
-  } finally {
-    lock.releaseLock();
   }
 }
 
@@ -250,12 +213,6 @@ function ensureSheetSchemas_() {
   ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);
-
-  // System logging/monitoring sheets
-  ensureErrorTrackingSheet_();
-  ensureAnalyticsSheet_();
-  ensureAnalyticsSummarySheet_();
-  ensureDataIntegritySheet_();
 
   // Remove all frozen headers and frozen columns from all sheets
   removeFrozenHeadersFromAllSheets_();
@@ -410,5 +367,33 @@ function formatInventorySheet_() {
   const dataEnd = Math.max(3, sh.getLastRow());
   if (dataEnd >= 3) {
     setCheckboxColumn_(sh, 1, 3, dataEnd);
+  }
+}
+
+/**
+ * DEFERRED REFRESH TRIGGER
+ * Called by time-based trigger every 5 minutes to execute pending refresh operations.
+ * This ensures form submissions don't block while still keeping boards up-to-date.
+ */
+function executeDeferredRefresh() {
+  const lock = LockService.getScriptLock();
+  
+  // Try to acquire lock, but don't block if another process is running
+  if (!lock.tryLock(1000)) {
+    Logger.log('[executeDeferredRefresh] Could not acquire lock, skipping this interval');
+    return;
+  }
+  
+  try {
+    const didRefresh = refreshIfNeeded_();
+    if (didRefresh) {
+      Logger.log('[executeDeferredRefresh] Refresh executed successfully');
+    } else {
+      Logger.log('[executeDeferredRefresh] No refresh needed');
+    }
+  } catch (err) {
+    logError_(err, 'executeDeferredRefresh', 'Deferred refresh trigger');
+  } finally {
+    lock.releaseLock();
   }
 }

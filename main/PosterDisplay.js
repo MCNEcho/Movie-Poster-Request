@@ -104,7 +104,7 @@ function setupPosterOutsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    ss.toast('✅ Poster Outside display initialized!', 'Setup Complete', 3);
+    Logger.log('[setupPosterOutsideTab_] Poster Outside display initialized');
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterOutsideTab_', 'Setting up Poster Outside tab');
@@ -189,7 +189,7 @@ function setupPosterInsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    ss.toast('✅ Poster Inside display initialized!', 'Setup Complete', 3);
+    Logger.log('[setupPosterInsideTab_] Poster Inside display initialized');
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterInsideTab_', 'Setting up Poster Inside tab');
@@ -346,10 +346,9 @@ function refreshDisplayDropdowns_() {
       updatePosterInsideTimestamp_();
     }
     
-    ss.toast('✅ Display dropdowns refreshed!', 'Refresh Complete', 3);
+    Logger.log('[refreshDisplayDropdowns_] Display dropdowns refreshed');
   } catch (err) {
     logError_(err, 'refreshDisplayDropdowns_', 'Refreshing display dropdowns');
-    SpreadsheetApp.getActive().toast('❌ Error refreshing displays', 'Error', 5);
   } finally {
     lock.releaseLock();
   }
