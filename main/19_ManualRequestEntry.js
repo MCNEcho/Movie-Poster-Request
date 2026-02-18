@@ -165,12 +165,11 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
 
     invalidateCachesAfterWrite_({ empEmail });
     
-    // Rebuild boards to reflect new entry
-    rebuildBoards();
-    syncPostersToForm();
+    // Use deferred refresh pattern for performance (admin can run Refresh All manually)
+    markSystemNeedingRefresh_();
     
     Logger.log(`[addManualRequest] Successfully added request: ${empEmail} - ${label}`);
-    return { success: true, message: 'Request added successfully' };
+    return { success: true, message: 'Request added successfully (run Refresh All to update boards)' };
     
   } catch (err) {
     Logger.log(`[addManualRequest] Error: ${err.message}`);
