@@ -328,8 +328,10 @@ function refreshPosterOutsideDropdowns_() {
   try {
     ss.toast('⏳ Updating Poster Outside dropdowns...', 'Updating', -1);
     
-    setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
-    setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
+    // Performance Optimization: Cache inventory read for all dropdowns
+    const titles = getMovieTitlesFromInventory_();
+    setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8, titles);  // Yoke's Side
+    setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8, titles);  // Dairy Queen Side
     updatePosterOutsideTimestamp_();
     
     ss.toast('✅ Poster Outside dropdowns updated successfully!', 'Complete', 3);
@@ -357,9 +359,11 @@ function refreshPosterInsideDropdowns_() {
   try {
     ss.toast('⏳ Updating Poster Inside dropdowns...', 'Updating', -1);
     
-    setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
-    setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
-    setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
+    // Performance Optimization: Cache inventory read for all dropdowns
+    const titles = getMovieTitlesFromInventory_();
+    setupMovieTitleDropdowns_(insideSheet, 3, 1, 4, titles);  // Video Games Wall Top
+    setupMovieTitleDropdowns_(insideSheet, 4, 1, 4, titles);  // Video Games Wall Bottom
+    setupMovieTitleDropdowns_(insideSheet, 7, 1, 3, titles);  // Box Wall
     updatePosterInsideTimestamp_();
     
     ss.toast('✅ Poster Inside dropdowns updated successfully!', 'Complete', 3);
@@ -368,5 +372,58 @@ function refreshPosterInsideDropdowns_() {
     ss.toast('❌ Error updating Poster Inside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterInsideDropdowns_] Error: ' + err.message);
     throw err;
+  }
+}
+/**
+ * DEFERRED REFRESH ARCHITECTURE (Performance Optimization)
+ * Marks the system as needing a refresh without blocking current operation
+ * Actual refresh executes via time-based trigger (every 1-5 minutes)
+ */
+function markSystemNeedingRefresh_() {
+  try {
+    const props = getProps_();
+    props.setProperty(CONFIG.PROPS.NEEDS_REFRESH, 'true');
+    Logger.log('[markSystemNeedingRefresh_] System marked for deferred refresh');
+  } catch (err) {
+    Logger.log(`[WARN] Failed to mark system for refresh: ${err.message}`);
+    // Don't throw - deferred refresh failure should not block operations
+  }
+}
+
+/**
+ * Executes deferred refresh if system is marked as needing it
+ * Called by time-based trigger (every 1-5 minutes)
+ * Performance: Non-blocking for form submissions and admin operations
+ */
+function executeDeferredRefresh() {
+  const lock = LockService.getScriptLock();
+  
+  // Try to get lock but don't wait - if another process is running, skip this cycle
+  if (!lock.tryLock(1000)) {
+    Logger.log('[executeDeferredRefresh] Locked by another process, skipping this cycle');
+    return;
+  }
+  
+  try {
+    const props = getProps_();
+    const needsRefresh = props.getProperty(CONFIG.PROPS.NEEDS_REFRESH);
+    
+    if (needsRefresh === 'true') {
+      Logger.log('[executeDeferredRefresh] Executing deferred refresh...');
+      
+      // Clear flag BEFORE refresh to prevent duplicate execution
+      props.deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+      
+      // Execute full refresh
+      executeRefreshAll_();
+      
+      Logger.log('[executeDeferredRefresh] Deferred refresh complete');
+    } else {
+      Logger.log('[executeDeferredRefresh] No refresh needed, skipping');
+    }
+  } catch (err) {
+    logError_(err, 'executeDeferredRefresh', 'Executing deferred system refresh');
+  } finally {
+    lock.releaseLock();
   }
 }
