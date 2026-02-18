@@ -139,15 +139,13 @@ function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts) {
 }
 
 function getActivePosterIdMap_() {
-  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 11, 3);
+  // OPTIMIZED: Use cached posters instead of reading inventory directly
+  const posters = getPostersWithLabels_();
   const map = {};
-  data.forEach(r => {
-    const active = r[COLS.INVENTORY.ACTIVE - 1] === true;
-    const pid = String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
-    const title = String(r[COLS.INVENTORY.TITLE - 1] || '').trim();
-    const release = r[COLS.INVENTORY.RELEASE - 1];
-    if (active && pid && title && release) map[pid] = true;
+  posters.forEach(p => {
+    if (p.active && p.posterId) {
+      map[p.posterId] = true;
+    }
   });
   return map;
 }

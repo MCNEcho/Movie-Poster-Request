@@ -149,6 +149,14 @@ function ensureTriggers_() {
       .everyDays(1)
       .create();
   }
+
+  // DEFERRED REFRESH: Time-based trigger to execute pending refreshes
+  if (!has('executeDeferredRefresh')) {
+    ScriptApp.newTrigger('executeDeferredRefresh')
+      .timeBased()
+      .everyMinutes(5)  // Check every 5 minutes for pending refreshes
+      .create();
+  }
 }
 
 function ensureSheetSchemas_() {
@@ -337,5 +345,33 @@ function formatInventorySheet_() {
   const dataEnd = Math.max(3, sh.getLastRow());
   if (dataEnd >= 3) {
     setCheckboxColumn_(sh, 1, 3, dataEnd);
+  }
+}
+
+/**
+ * DEFERRED REFRESH TRIGGER
+ * Called by time-based trigger every 5 minutes to execute pending refresh operations.
+ * This ensures form submissions don't block while still keeping boards up-to-date.
+ */
+function executeDeferredRefresh() {
+  const lock = LockService.getScriptLock();
+  
+  // Try to acquire lock, but don't block if another process is running
+  if (!lock.tryLock(1000)) {
+    Logger.log('[executeDeferredRefresh] Could not acquire lock, skipping this interval');
+    return;
+  }
+  
+  try {
+    const didRefresh = refreshIfNeeded_();
+    if (didRefresh) {
+      Logger.log('[executeDeferredRefresh] Refresh executed successfully');
+    } else {
+      Logger.log('[executeDeferredRefresh] No refresh needed');
+    }
+  } catch (err) {
+    logError_(err, 'executeDeferredRefresh', 'Deferred refresh trigger');
+  } finally {
+    lock.releaseLock();
   }
 }
