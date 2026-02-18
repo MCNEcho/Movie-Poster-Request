@@ -8,7 +8,9 @@
 
 /**
  * In-memory execution-scoped cache
- * Cleared on each execution but ultra-fast for repeated queries within same execution
+ * Cleared automatically between executions by Google Apps Script runtime.
+ * Ultra-fast for repeated queries within same execution context.
+ * Does NOT persist across different execution sessions.
  */
 const _sheetCache_ = {};
 
