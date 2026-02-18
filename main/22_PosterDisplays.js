@@ -205,11 +205,12 @@ function setupPosterInsideTab_() {
  * @param {number} row - The row number
  * @param {number} startCol - Starting column (1-indexed)
  * @param {number} numCols - Number of columns to add dropdowns
+ * @param {Array<string>} [cachedTitles] - Optional pre-fetched titles (performance optimization)
  */
-function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
+function setupMovieTitleDropdowns_(sheet, row, startCol, numCols, cachedTitles) {
   try {
-    // Get movie titles from Inventory tab
-    const titles = getMovieTitlesFromInventory_();
+    // Get movie titles from Inventory tab (or use cached)
+    const titles = cachedTitles || getMovieTitlesFromInventory_();
     
     if (titles.length === 0) {
       titles.push('(No movies in inventory)');
@@ -307,6 +308,7 @@ function updatePosterInsideTimestamp_() {
 /**
  * Refresh all display tab dropdowns when Inventory changes
  * This function updates dropdowns on both Poster Outside and Poster Inside tabs
+ * Performance optimized: Reads inventory once and reuses titles for all dropdowns
  */
 function refreshDisplayDropdowns_() {
   const lock = LockService.getScriptLock();
@@ -315,20 +317,23 @@ function refreshDisplayDropdowns_() {
   try {
     const ss = SpreadsheetApp.getActive();
     
+    // Fetch titles once for all dropdowns (performance optimization)
+    const titles = getMovieTitlesFromInventory_();
+    
     // Refresh Poster Outside
     const outsideSheet = ss.getSheetByName('Poster Outside');
     if (outsideSheet) {
-      setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
-      setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
+      setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8, titles);  // Yoke's Side
+      setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8, titles);  // Dairy Queen Side
       updatePosterOutsideTimestamp_();
     }
     
     // Refresh Poster Inside
     const insideSheet = ss.getSheetByName('Poster Inside');
     if (insideSheet) {
-      setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
-      setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
-      setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
+      setupMovieTitleDropdowns_(insideSheet, 3, 1, 4, titles);  // Video Games Wall Top
+      setupMovieTitleDropdowns_(insideSheet, 4, 1, 4, titles);  // Video Games Wall Bottom
+      setupMovieTitleDropdowns_(insideSheet, 7, 1, 3, titles);  // Box Wall
       updatePosterInsideTimestamp_();
     }
     
