@@ -1,7 +1,7 @@
 # Copilot Instructions: Movie Poster Request System
 
 ## Project Overview
-Google Apps Script system for employee poster requests with strict slot limits (7), deduplication, auditability, batching announcements, backups, and automation across Sheets/Forms.
+Google Apps Script system for employee poster requests with strict slot limits (7), auditability, announcements, backups, and automation across Sheets/Forms. Inventory is the canonical poster source; the Movie Posters sheet is deprecated.
 
 **Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, MailApp/GmailApp, DriveApp, UrlFetchApp (QuickChart)
 
@@ -9,11 +9,11 @@ Google Apps Script system for employee poster requests with strict slot limits (
 
 ## Architecture Essentials
 
-### Feature Highlights (from notes)
-- Announcement batching/templates/dry-run with throttled retries; variables {{TITLE}}, {{RELEASE}}, {{STOCK}}, {{ACTIVE_COUNT}}, {{FORM_LINK}}, {{COUNT}}, {{POSTER_LIST}}. Defaults: batching on, size 5, 1s throttle, 3 retries.
-- Nightly backups 2am to Drive folder (CSV or Sheet), 30-day retention, manual trigger available; log to Analytics/Error Log.
-- Bulk submission simulator (up to 100, warning ≥50 live) with dry-run, logs execution time/sheet reads/cache hits/lock waits to Analytics.
-- UI/UX: admin menu grouped (Reports/Print & Layout/Announcements/Advanced) plus Refresh All; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
+### Feature Highlights
+- Announcement templates and dry-run preview with variables {{TITLE}}, {{RELEASE}}, {{STOCK}}, {{ACTIVE_COUNT}}, {{FORM_LINK}}, {{COUNT}}, {{POSTER_LIST}}. When batching is enabled and multiple posters are queued, a single email is sent with the batch template.
+- Nightly backups at 2am to Drive folder (CSV or Sheet), 30-day retention, manual trigger available; logged to Analytics and Error Log on failure.
+- Refresh Manager dialog consolidates board rebuilds, form sync, Print Out refresh, and display dropdown refresh.
+- UI/UX: admin menu with an Advanced submenu; frozen headers removed; internal audit sheets hidden; Print Out layout includes QR codes.
 
 ### Module Organization
 - **Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
@@ -56,23 +56,23 @@ Queue announcements (if new poster activated)
 ### Key Architectural Decisions
 1. **Ledger-Based Design:** All requests stored in Requests sheet (audit trail), boards computed from it
 2. **Status-Based Filtering:** Requests marked ACTIVE/REMOVED (never deleted), enables historical queries
-3. **Inventory ≠ Constraint:** Inventory sheet is informational only; never blocks requests
+3. **Inventory Is Canonical:** Inventory sheet drives poster data and form options; Movie Posters sheet is deprecated
 4. **Per-Employee Slot Limit:** MAX_ACTIVE (7) limits each employee, NOT per-poster quantities
-5. **Dedup by Email+Poster:** Each employee can request each poster once (historical block)
+5. **Dedup by Email+Poster:** Blocks only if an ACTIVE request exists; historical requests can be allowed by config with optional cooldown
 6. **Lock-Based Concurrency:** 30-second lock on all sheet operations; no async parallelization
 
 ### Operational Defaults
-- ANNOUNCEMENT: batching enabled (size 5), throttle 1s, 3 retries with backoff; preview available.
+- ANNOUNCEMENT: batching enabled; throttling and retry settings in CONFIG.ANNOUNCEMENT; preview available.
 - BACKUP: nightly 2am, 30-day retention, CSV default, dedicated Drive folder, manual "Run Backup Now".
-- BULK_SIMULATOR: max 100 runs, warn ≥50 live, dry-run default; metrics logged to Analytics.
-- CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate after writes to related data).
+- BULK_SIMULATOR: max 100 runs, warn at 50+, dry-run default; metrics logged to Analytics (when simulator is used).
+- CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate related caches after writes).
 
 ---
 
 ## Essential Patterns & Conventions
 
 ### Configuration Pattern
-All settings in `00_Config.js` under `CONFIG` object:
+All settings in `Config.js` under `CONFIG` object:
 ```javascript
 // Access: CONFIG.MAX_ACTIVE (7), CONFIG.SHEETS.REQUESTS, CONFIG.PROPS.LABEL_TO_ID
 // Edit here, not in code - enables non-technical admin changes
@@ -80,7 +80,7 @@ All settings in `00_Config.js` under `CONFIG` object:
 
 ### Column Reference Pattern
 ```javascript
-// Instead of magic numbers, use CONFIG.COLS
+// Instead of magic numbers, use COLS
 const email = r[COLS.REQUESTS.EMP_EMAIL - 1];  // 1-indexed columns
 const status = r[COLS.REQUESTS.STATUS - 1];
 // COLS object maps sheet → column indices
@@ -97,21 +97,21 @@ try {
 }
 ```
 
-### Caching Pattern (Task 2)
+### Caching Pattern
 ```javascript
 // Expensive queries cached with TTL:
-countActiveSlots_Cached_(email)  // Uses cache
-// Invalidated on sheet edits: invalidateCachesAfterWrite_('poster')
+countActiveSlots_Cached(email)  // Uses cache
+// Invalidated on writes: invalidateCachesAfterWrite_({ empEmail })
 ```
 
-### Error Handling Pattern (Task 1)
+### Error Handling Pattern
 ```javascript
 // Use centralized error logger, not console.error
-logError_(error, 'functionName', 'context', 'CRITICAL|MEDIUM|LOW');
-// Logs to ERROR_LOG sheet + notifies admin if CRITICAL
+logError_(error, 'functionName', { contextKey: 'value' });
+// Logs to ERROR_LOG sheet; notifyAdminOfError_ handles CRITICAL alerts
 ```
 
-### Dedup Logic Pattern (CRITICAL)
+### Dedup Logic Pattern
 ```javascript
 // Email + Poster combo check (prevent same employee requesting same poster twice)
 const canRequest = canRequestPoster_(empEmail, posterId);
@@ -132,19 +132,24 @@ if (!canRequest.allowed) {
 - **QuickChart API** - Generate QR codes (form link, employee view link)
 
 ### Data Flow Between Modules
-- **Config → All modules** - 00_Config provides global settings
-- **Ledger → Boards** - 07_Ledger.js queries → 11_Boards.js visualizes
-- **Form changes → Boards** - 05_SyncForm updates form → 06_SubmitHandler processes → 11_Boards rebuilds
-- **Sheet edits → Triggers** - 17_Announcements.js listens to MOVIE_POSTERS sheet edits → syncs form, rebuilds boards, refreshes print
-- **Analytics logging** - 08_Analytics.js logs all events (submissions, rebuilds, anomalies)
+- **Config → All modules** - Config provides global settings
+- **Ledger → Boards** - Ledger queries → Boards visualizes
+- **Form changes → Boards** - FormSync updates form → FormSubmit processes → Boards rebuilds
+- **Sheet edits → Triggers** - Announcements listens to Inventory edits → syncs form, rebuilds boards
+- **Analytics logging** - Analytics logs key events (submissions, backups, anomalies)
 
 ### Stored Data (ScriptProperties)
 ```javascript
 // Persistent cache/mapping data:
+FORM_ID            // Stored form ID when auto-creating
+EMPLOYEE_VIEW_SSID // Employee view spreadsheet ID
 LABEL_TO_ID        // Poster title → Poster ID
 ID_TO_CURRENT_LABEL // Poster ID → current title (handles name changes)
-ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
-HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
+INVENTORY_SNAPSHOT  // Inventory snapshot for delete detection
+ANNOUNCE_QUEUE      // Pending announcement queue
+ANNOUNCED_IDS       // Already-announced poster IDs
+CUSTOM_ANNOUNCE_QUEUE // Optional custom queue
+BACKUP_FOLDER_ID    // Drive folder id for backups
 ```
 
 ---
@@ -161,14 +166,13 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 
 ### Debugging & Testing
 - **Manual Testing:** Check Print Out → submit test form → check boards
-- **Bulk Testing:** Run stress test with randomized submissions
 - **Log Inspection:** Extensions → Apps Script → Logs
-- **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
+- **Data Inspection:** Check Requests sheet (ledger), Request Order sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics
-- **Admin Menu Map:** Reports (boards/form/docs), Print & Layout (print out), Display Management (manage displays), Announcements (preview/send), Advanced (backup, employee view) plus top-level Setup/Repair and Refresh Manager.
+- **Admin Menu Map:** Poster Request System → Add New Poster; Advanced → Refresh Manager, Employee View Manager, Manually Add Request; Reports (Rebuild Boards, Sync Form Options, Refresh Documentation); Announcements (Preview Pending, Send Now); Display Management; System (Run Setup / Repair, Create Triggers, Run Backup Now).
 
 ### Fixing Broken State
-- **One-click repair:** "Run Setup / Repair" button in admin menu
+- **One-click repair:** "Run Setup / Repair" in System submenu
 - **Manual data fix:** "Manually Add Request" for migration/corrections
 - **Full rebuild:** setupPosterSystem() recreates all sheets, triggers, form options
 - **Data integrity:** runFullIntegrityCheck_() detects & auto-repairs orphaned/duplicate requests
@@ -177,9 +181,9 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 
 ## Critical Gotchas & Non-Standard Patterns
 
-⚠️ **Dedup is per-employee-per-poster, NOT per-poster total:** Multiple employees CAN request same poster; one employee CANNOT request same poster twice (unless ALLOW_REREQUEST_AFTER_REMOVAL=true).
+⚠️ **Dedup is per-employee-per-poster, NOT per-poster total:** Multiple employees CAN request same poster; one employee CANNOT request same poster twice while ACTIVE (re-requests allowed only when config permits, optionally with cooldown).
 
-⚠️ **Inventory never blocks:** INVENTORY sheet is FYI only. Form always accepts requests regardless of stock count.
+⚠️ **Inventory never blocks:** INVENTORY sheet is canonical for poster metadata and form options, but stock counts are advisory only. The form always accepts requests regardless of current inventory levels.
 
 ⚠️ **Column indices are 1-based:** `COLS.REQUESTS.EMAIL = 2` means column B in Sheets, but `r[COLS.REQUESTS.EMAIL - 1]` when reading arrays (0-indexed).
 
@@ -198,7 +202,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] Inventory counts never block requests (test with 1 poster, 10 requests)
 - [ ] MAX_ACTIVE enforced per employee (test 8th request denied with "limit (7-slot)")
 - [ ] Boards rebuild automatically after form submit
-- [ ] Form options update after MOVIE_POSTERS sheet change
+- [ ] Form options update after Inventory sheet change
 - [ ] Announcements batch correctly (multiple new posters → single email)
 - [ ] Analytics logs all events (check Analytics sheet)
 - [ ] Error paths logged to ERROR_LOG sheet
@@ -211,7 +215,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 
 For understanding the system:
 1. **Config.js** - All settings and column mappings
-2. **PROJECT_DOCUMENTATION.txt** - Full architecture & rationale
+2. **Guides/README.md** - Documentation index
 3. **Ledger.js** + **FormSubmit.js** - Core request logic
 4. **Boards.js** - How requests become visualizations
 5. **Issue #19** - Known bugs, redundancies, and refactor opportunities
