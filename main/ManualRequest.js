@@ -207,21 +207,18 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
 
     invalidateCachesAfterWrite_({ empEmail });
     
-    // Rebuild boards to reflect new entry
-    SpreadsheetApp.getActive().toast('🔄 Updating boards and form...', 'Manual Request', 3);
-    rebuildBoards();
-    syncPostersToForm();
+    // Performance Optimization: Use deferred refresh for admin operations
+    // Allows manual request add to complete in ~200-300ms instead of ~2-3s
+    markSystemNeedingRefresh_();
     
     Logger.log(`[addManualRequest] Successfully added request: ${empEmail} - ${label}`);
-    
-    // Visual feedback after dialog closes
     SpreadsheetApp.getActive().toast(
-      `✅ Request added!\n${empName} → ${label}`,
+      `✅ Request added!\n${empName} → ${label}\n🔄 Boards will refresh in 1-5 minutes`,
       'Request Added',
       5
     );
     
-    return { success: true, message: 'Request added successfully' };
+    return { success: true, message: 'Request added successfully (refresh pending)' };
     
   } catch (err) {
     Logger.log(`[addManualRequest] Error: ${err.message}`);

@@ -169,6 +169,14 @@ function ensureTriggers_() {
       .everyDays(1)
       .create();
   }
+
+  // Performance Optimization: Deferred refresh trigger (every 5 minutes)
+  if (!has('executeDeferredRefresh')) {
+    ScriptApp.newTrigger('executeDeferredRefresh')
+      .timeBased()
+      .everyMinutes(5)
+      .create();
+  }
 }
 
 function createTriggersNow_() {
