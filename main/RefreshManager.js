@@ -262,49 +262,40 @@ function executeRefreshAll_() {
     
     // 1. Rebuild boards
     Logger.log('[executeRefreshAll_] Rebuilding boards...');
-    ss.toast('⏳ Step 1/5: Rebuilding boards...', 'Refreshing All', -1);
     rebuildBoards();
-    ss.toast('✓ Boards rebuilt', 'Progress', 2);
+    Logger.log('[executeRefreshAll_] Boards rebuilt');
     
     // 2. Sync form options
     Logger.log('[executeRefreshAll_] Syncing form options...');
-    ss.toast('⏳ Step 2/5: Syncing form options...', 'Refreshing All', -1);
     try {
       syncPostersToForm();
-      ss.toast('✓ Form synced', 'Progress', 2);
+      Logger.log('[executeRefreshAll_] Form synced');
     } catch (err) {
       Logger.log(`[WARN] Form sync failed (access denied): ${err.message}`);
-      ss.toast('⚠ Form sync skipped (access denied)', 'Progress', 3);
     }
     
     // 3. Refresh Print Out
     Logger.log('[executeRefreshAll_] Updating Print Out...');
-    ss.toast('⏳ Step 3/5: Updating Print Out...', 'Refreshing All', -1);
     try {
       buildPrintOutLayout_();
-      ss.toast('✓ Print Out updated', 'Progress', 2);
+      Logger.log('[executeRefreshAll_] Print Out updated');
     } catch (err) {
       Logger.log(`[WARN] Print Out update failed: ${err.message}`);
-      ss.toast('⚠ Print Out update skipped', 'Progress', 3);
     }
     
     // 4. Refresh Poster Outside dropdowns
     Logger.log('[executeRefreshAll_] Updating Poster Outside...');
-    ss.toast('⏳ Step 4/5: Updating Poster Outside...', 'Refreshing All', -1);
     refreshPosterOutsideDropdowns_();
-    ss.toast('✓ Poster Outside updated', 'Progress', 2);
+    Logger.log('[executeRefreshAll_] Poster Outside updated');
     
     // 5. Refresh Poster Inside dropdowns
     Logger.log('[executeRefreshAll_] Updating Poster Inside...');
-    ss.toast('⏳ Step 5/5: Updating Poster Inside...', 'Refreshing All', -1);
     refreshPosterInsideDropdowns_();
     
     Logger.log('[executeRefreshAll_] All refresh operations complete');
-    ss.toast('✅ All displays refreshed successfully!', 'Refresh Complete', 5);
     
   } catch (err) {
-    const ss = SpreadsheetApp.getActive();
-    ss.toast('❌ Error during refresh: ' + err.message, 'Error', 5);
+    Logger.log(`[executeRefreshAll_] Error: ${err.message}`);
     logError_(err, 'executeRefreshAll_', 'Running all refresh operations');
     throw err;
   } finally {
@@ -321,12 +312,11 @@ function refreshPosterOutsideDropdowns_() {
   
   if (!outsideSheet) {
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside sheet not found');
-    ss.toast('❌ Poster Outside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    ss.toast('⏳ Updating Poster Outside dropdowns...', 'Updating', -1);
+    Logger.log('[refreshPosterOutsideDropdowns_] Updating Poster Outside dropdowns...');
     
     // Performance Optimization: Cache inventory read for all dropdowns
     const titles = getMovieTitlesFromInventory_();
@@ -334,10 +324,8 @@ function refreshPosterOutsideDropdowns_() {
     setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8, titles);  // Dairy Queen Side
     updatePosterOutsideTimestamp_();
     
-    ss.toast('✅ Poster Outside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside dropdowns updated');
   } catch (err) {
-    ss.toast('❌ Error updating Poster Outside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterOutsideDropdowns_] Error: ' + err.message);
     throw err;
   }
@@ -352,12 +340,11 @@ function refreshPosterInsideDropdowns_() {
   
   if (!insideSheet) {
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside sheet not found');
-    ss.toast('❌ Poster Inside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    ss.toast('⏳ Updating Poster Inside dropdowns...', 'Updating', -1);
+    Logger.log('[refreshPosterInsideDropdowns_] Updating Poster Inside dropdowns...');
     
     // Performance Optimization: Cache inventory read for all dropdowns
     const titles = getMovieTitlesFromInventory_();
@@ -366,10 +353,8 @@ function refreshPosterInsideDropdowns_() {
     setupMovieTitleDropdowns_(insideSheet, 7, 1, 3, titles);  // Box Wall
     updatePosterInsideTimestamp_();
     
-    ss.toast('✅ Poster Inside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside dropdowns updated');
   } catch (err) {
-    ss.toast('❌ Error updating Poster Inside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterInsideDropdowns_] Error: ' + err.message);
     throw err;
   }

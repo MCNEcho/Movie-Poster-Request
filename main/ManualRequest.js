@@ -134,7 +134,7 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
   lock.waitLock(30000);
 
   try {
-    SpreadsheetApp.getActive().toast('⏳ Adding manual request...', 'Manual Request', 3);
+    Logger.log(`[addManualRequest] Adding manual request for ${empEmail}`);
 
     // Validate inputs
     if (!empEmail || !empName || !posterId) {

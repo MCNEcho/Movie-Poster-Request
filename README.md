@@ -2,6 +2,13 @@
 
 A Google Apps Script system for employee poster requests. It enforces a strict per-employee slot limit (default 7), prevents duplicate requests per poster, keeps a ledger for auditability, batches announcement emails, runs nightly backups, and optimizes read limits via a TTL cache.
 
+**✨ Version 2.0: Enhanced UX with Non-Blocking Spinners & Persistent Admin Notes**
+
+Recent improvements include:
+- **Non-Blocking Spinner UI** — All long-running operations now show elegant CSS spinners instead of blocking toast messages. Users can continue working while operations complete.
+- **Persistent Admin Notes Column** — Column C on Main and Employees boards now provides a protected space for admin annotations that survive all rebuilds and updates.
+- **Project Cleanup** — Removed duplicate files and dead code for better maintainability.
+
 **👉 NEW: Comprehensive Guides Folder**
 
 For detailed, beginner-friendly tutorials on every aspect of the system, see the [**Guides folder**](Guides/README.md). Topics include:
@@ -13,7 +20,7 @@ For detailed, beginner-friendly tutorials on every aspect of the system, see the
 - Troubleshooting common problems
 - Advanced configuration
 
-Start with [Guides/01_GETTING_STARTED.md](Guides/01_GETTING_STARTED.md) for first-time setup!
+Start with [Guides/GETTING_STARTED.md](Guides/GETTING_STARTED.md) for first-time setup!
 
 ## Quick Setup
 
@@ -40,7 +47,7 @@ The script will guide you through:
 - Pushing code to Apps Script
 
 ### Configure
-1. Open `main/00_Config.js` and set your environment:
+1. Open `main/Config.js` and set your environment:
    - Spreadsheet and sheet names/IDs
    - `CONFIG.MAX_ACTIVE` slot limit (default 7)
    - `CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL` (allow re-requesting same poster after removal)
@@ -54,11 +61,12 @@ clasp push
 ```
 
 3. In the Google Sheet, use the Admin Menu:
-   - Click **Poster System** → **Run Setup / Repair**
+   - Click **Poster System** → **Run Setup / Repair** (non-blocking spinner UX)
    - This creates all sheets, menus, triggers, and form
 4. First-time sync:
-   - The form will be auto-created with options from the Movie Posters sheet
+   - The form will be auto-created with options from the Inventory sheet
    - All boards and dashboards will be generated
+   - Admin Notes column will be initialized on Main and Employees boards
 
 ## How It Works
 
@@ -100,35 +108,42 @@ clasp push
   - Displayed in Documentation tab for quick reference
 
 ### Key Modules (selected)
-- `00_Config.js` – Central configuration, column mappings, and property keys
-- `01_Setup.js` – Initialization, Admin Menu, triggers, repair routine
-- `02_Utils.js` – Common sheet ops, poster fetching, validation
-- `02A_CacheManager.js` – TTL cache helpers + invalidation after writes
-- `03_ErrorHandler.js` – Central error logging, CRITICAL notifications
-- `04_FormManager.js` – Form creation, email collection setup, subscription checkbox
-- `05_SyncForm.js` – Sync form options from Movie Posters sheet (maintains form structure)
-- `06_SubmitHandler.js` – Handle additions/removals, slot/dedup enforcement
-- `07_Ledger.js` – Query ledger, duplicate checks, slot counts
-- `08_Analytics.js` – Event logging, performance metrics
-- `10_BackupManager.js` – Backups, retention, Drive operations
-- `11_Boards.js` – Main and Employees boards generation from ledger
-- `13_PrintOutInventory.js` – Print layout generation, inventory syncing, QR codes
-- `14_Documentation.js` – Auto-generated documentation sheet with system health and form link
-- `15_EmployeeViewSync.js` – Sync employee-facing spreadsheet
-- `16_AdminHealthBanner.js` – System health metrics collection
-- `17_Announcements.js` – Email queue, batched notifications with templates
-- `18_CustomAnnouncements.js` – Custom announcement handler
-- `19_ManualRequestEntry.js` – Dialog for manual request entry (migration)
-- `20_BulkSimulator.js` – Stress testing and performance analysis
+- `Config.js` – Central configuration, column mappings, and property keys
+- `Setup.js` – Initialization, Admin Menu, triggers, repair routine
+- `Utils.js` – Common sheet ops, poster fetching, validation
+- `CacheManager.js` – TTL cache helpers + invalidation after writes
+- `ErrorHandler.js` – Central error logging, CRITICAL notifications
+- `FormManager.js` – Form creation, email collection setup, subscription checkbox
+- `FormSync.js` – Sync form options from Inventory sheet (maintains form structure)
+- `FormSubmit.js` – Handle additions/removals, slot/dedup enforcement
+- `Ledger.js` – Query ledger, duplicate checks, slot counts
+- `Analytics.js` – Event logging, performance metrics
+- `BackupManager.js` – Backups, retention, Drive operations
+- `Boards.js` – Main and Employees boards generation from ledger (includes Admin Notes column persistence)
+- `PrintOut.js` – Print layout generation, inventory syncing, QR codes
+- `Documentation.js` – Auto-generated documentation sheet with system health and form link
+- `EmployeeViewSync.js` – Sync employee-facing spreadsheet
+- `Announcements.js` – Email queue, batched notifications with templates
+- `ManualRequestEntry.js` – Dialog for manual request entry (migration)
+- `ManualPosterEntry.js` – Dialog for adding new posters
+- `PosterDisplay.js` – Display management for Poster Outside/Inside tabs
+- `UISpinner.js` – Non-blocking spinner UI for long-running operations (NEW in v2.0)
 
 ### Admin Menu (high level)
 - **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation, Refresh Health Banner
-- **Print & Layout:** Update Print Out (manual refresh)
+- **Print & Layout:** Update Print Out (manual refresh, now with spinner UI)
 - **Announcements:** Preview Pending, Send Now
-- **Advanced:** Manually Add Request, Add New Poster, Run Bulk Simulator, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
-- **Top-level:** Run Setup / Repair, Refresh All
+- **Advanced:** Manually Add Request, Add New Poster, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
+- **Top-level:** Run Setup / Repair (with spinner), Refresh All (with spinner)
 
-### UI/UX Enhancements
+### UI/UX Enhancements (Version 2.0)
+- **Non-Blocking Spinner Dialogs:** Long-running operations (Setup, Refresh, Print updates) now display elegant CSS spinners with auto-close instead of blocking toast messages. Users can continue working.
+- **Persistent Admin Notes Column:** Column C on Main and Employees boards provides a protected space for admin annotations. Notes persist across:
+  - Board rebuilds
+  - Form submissions
+  - Deferred refresh triggers
+  - Setup/repair operations
+  - Inventory changes
 - **Tab Colors:** Sheets have purposeful color coding for easy navigation
   - BLUE: Primary user-facing (Inventory, Main Board, Employees Board)
   - CYAN: Display/Print (Poster Outside/Inside, Print Out)
