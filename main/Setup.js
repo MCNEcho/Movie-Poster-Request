@@ -125,7 +125,7 @@ function executeSetupPosterSystem_() {
 
     // Task Group 3: Visual Displays
     Logger.log('[Setup] Step 3/6: Generating views...');
-    rebuildBoards();
+    rebuildBoards();  // This now includes initializeAdminNotesColumn_()
     buildDocumentationTab();
     buildPrintOutLayout_();
     
