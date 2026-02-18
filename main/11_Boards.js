@@ -41,6 +41,9 @@ function buildMainBoard_() {
   resetBoardArea_(main, 2);
 
   // OPTIMIZED: Reuse active requests query
+  // NOTE: getActiveRequests_() is also called in buildEmployeesBoard_()
+  // This is intentional - each board processes the data differently
+  // (Main groups by poster, Employees groups by employee)
   const rows = getActiveRequests_();
   Logger.log(`[buildMainBoard] Found ${rows.length} ACTIVE requests`);
   const idToLabel = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
@@ -111,6 +114,8 @@ function buildEmployeesBoard_() {
   resetBoardArea_(empSheet, 2);
 
   // OPTIMIZED: Reuse active requests query
+  // NOTE: getActiveRequests_() is also called in buildMainBoard_()
+  // Each board needs to process the same data differently, so separate calls are acceptable
   const rows = getActiveRequests_();
   const idToLabel = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
 

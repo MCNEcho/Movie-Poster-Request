@@ -172,6 +172,7 @@ function markSystemNeedingRefresh_() {
 /**
  * Checks if system needs refresh and performs it if flagged.
  * This is the deferred rebuild execution triggered by time-based or manual events.
+ * Implements retry logic with max 3 attempts to prevent infinite retry loops.
  * @returns {boolean} True if refresh was performed, false otherwise
  */
 function refreshIfNeeded_() {
@@ -185,8 +186,9 @@ function refreshIfNeeded_() {
       rebuildBoards();
       syncPostersToForm();
       
-      // Clear the refresh flag
+      // Clear the refresh flag and retry counter on success
       getProps_().deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+      getProps_().deleteProperty(CONFIG.PROPS.REFRESH_RETRY_COUNT);
       Logger.log('[DEFERRED] Refresh completed and flag cleared');
       
       return true;
@@ -194,7 +196,23 @@ function refreshIfNeeded_() {
     
     return false;
   } catch (err) {
-    logError_(err, 'refreshIfNeeded_', 'Deferred refresh execution');
+    // Implement retry backoff logic to prevent infinite retries
+    const retryCount = Number(getProps_().getProperty(CONFIG.PROPS.REFRESH_RETRY_COUNT) || '0');
+    const newCount = retryCount + 1;
+    
+    if (newCount >= 3) {
+      // Max retries reached - clear flag and alert admin
+      getProps_().deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+      getProps_().deleteProperty(CONFIG.PROPS.REFRESH_RETRY_COUNT);
+      logError_(err, 'refreshIfNeeded_', 'Deferred refresh failed after 3 retries', 'CRITICAL');
+      Logger.log('[DEFERRED] Max retries (3) reached, clearing flag to prevent infinite loop');
+    } else {
+      // Increment retry counter and log attempt
+      getProps_().setProperty(CONFIG.PROPS.REFRESH_RETRY_COUNT, String(newCount));
+      logError_(err, 'refreshIfNeeded_', `Deferred refresh attempt ${newCount}/3 failed, will retry`, 'MEDIUM');
+      Logger.log(`[DEFERRED] Retry ${newCount}/3 failed, keeping flag for next attempt`);
+    }
+    
     return false;
   }
 }

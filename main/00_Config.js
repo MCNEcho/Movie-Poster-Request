@@ -97,6 +97,7 @@ const CONFIG = {
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
     NEEDS_REFRESH: 'NEEDS_REFRESH_FLAG',  // Deferred rebuild flag
+    REFRESH_RETRY_COUNT: 'REFRESH_RETRY_COUNT',  // Deferred refresh retry counter
   },
 
   // Announcement batching configuration

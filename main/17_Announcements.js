@@ -5,6 +5,12 @@ function handleSheetEdit(e) {
   const name = sh.getName();
 
   if (name === CONFIG.SHEETS.INVENTORY) {
+    // Invalidate caches when Inventory is manually edited
+    invalidatePostersWithLabels_();
+    invalidatePosterAvailability_();
+    invalidateBoardMain_();
+    invalidateBoardEmployees_();
+    
     updateInventoryLastUpdated_();
     sortInventoryByReleaseDate_();           // Auto-sort after edits
     ensurePosterIdsInInventory_();          // Ensure IDs exist
