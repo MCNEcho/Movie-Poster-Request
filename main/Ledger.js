@@ -91,22 +91,18 @@ function canRequestPoster_(empEmail, posterId) {
 }
 
 function countActiveSlotsByEmail_(empEmail) {
-  const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 9);
+  const email = String(empEmail).toLowerCase().trim();
+  const data = getActiveRequests_();
   return data.filter(r =>
-    String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
-    String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE
+    String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === email
   ).length;
 }
 
 function getPosterIdsWithAnyActiveRequests_() {
-  const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 9);
+  const data = getActiveRequests_();
   const out = {};
   data.forEach(r => {
-    if (String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE) {
-      out[String(r[COLS.REQUESTS.POSTER_ID - 1])] = true;
-    }
+    out[String(r[COLS.REQUESTS.POSTER_ID - 1])] = true;
   });
   return out;
 }
@@ -140,7 +136,7 @@ function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts) {
 
 function getActivePosterIdMap_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, 11, 3);
+  const data = getNonEmptyData_(inv, 11);  // reads from row 2; header row is filtered out downstream
   const map = {};
   data.forEach(r => {
     const active = r[COLS.INVENTORY.ACTIVE - 1] === true;
@@ -222,6 +218,3 @@ function closeActiveRequestsByPosterIds_(posterIds, newStatus, statusTs) {
   if (changed) range.setValues(values);
   return { closedCount, empCounts };
 }
-
-
-

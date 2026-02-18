@@ -86,6 +86,9 @@ function clearAllCaches_() {
   Object.values(CACHE_CONFIG).forEach(key => {
     clearCache_(key);
   });
+  if (typeof clearInMemoryCaches_ === 'function') {
+    clearInMemoryCaches_();
+  }
   Logger.log('[CACHE] All caches cleared');
 }
 
@@ -278,6 +281,10 @@ function invalidateCachesAfterWrite_(opts) {
   invalidateBoardEmployees_();
   invalidatePosterAvailability_();
   invalidatePostersWithLabels_();
+
+  if (typeof clearInMemoryCaches_ === 'function') {
+    clearInMemoryCaches_();
+  }
 }
 
 /**
