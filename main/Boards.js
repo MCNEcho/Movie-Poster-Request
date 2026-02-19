@@ -35,6 +35,10 @@ function initializeAdminNotesColumn_() {
 }
 
 function rebuildBoards() {
+  if (PropertiesService.getScriptProperties().getProperty('SETUP_RUNNING')) {
+    Logger.log('[rebuildBoards] Setup in progress — skipping.');
+    return;
+  }
   buildMainBoard_();
   buildEmployeesBoard_();
   

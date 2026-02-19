@@ -153,54 +153,53 @@
   </div>
   
   <script>
-    let isComplete = false;
-    let pollCount = 0;
+    let progressInterval = null;
     let setupStarted = false;
-    const MAX_POLLS = 600; // 5 minutes at 500ms intervals
     
-    function closeDialog() {
-      google.script.host.close();
-    }
-    
-    function updateStatus() {
-      if (isComplete) {
-        clearInterval(pollInterval);
-        return;
-      }
-      
-      pollCount++;
-      if (pollCount > MAX_POLLS) {
-        showError('Setup took too long. Please check the logs.');
-        return;
-      }
-      
+    function startSetup() {
+      if (setupStarted) return;
+      setupStarted = true;
       google.script.run
-        .withSuccessHandler(function(result) {
-          if (result && result.message) {
-            document.getElementById('status').textContent = result.message;
-          }
-          
-          if (result && result.complete) {
-            isComplete = true;
-            clearInterval(pollInterval);
-            document.getElementById('spinnerArea').classList.add('hidden');
-            document.getElementById('successArea').classList.remove('hidden');
-          }
-          
-          if (result && result.error) {
-            isComplete = true;
-            clearInterval(pollInterval);
-            showError(result.error);
-          }
+        .withFailureHandler(handleError)
+        .withSuccessHandler(function() {
+          pollProgress();
         })
-        .withFailureHandler(function(err) {
-          isComplete = true;
-          clearInterval(pollInterval);
-          showError('Communication error: ' + err);
-        })
-        .getSetupProgress_();
+        .setupPosterSystemWithProgress();
     }
-    
+
+    function pollProgress() {
+      if (progressInterval) return;
+      progressInterval = setInterval(() => {
+        google.script.run
+          .withSuccessHandler(updateProgress)
+          .getSetupProgress();
+      }, 500);
+    }
+
+    function updateProgress(message) {
+      if (!message) return;
+
+      document.getElementById('status').innerText = message;
+
+      if (message === 'COMPLETE') {
+        clearInterval(progressInterval);
+        progressInterval = null;
+        setTimeout(() => {
+          google.script.host.close();
+        }, 800);
+      }
+    }
+
+    function handleError(err) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      document.getElementById('status').innerText =
+        'Error: ' + (err.message || err);
+      showError('Error: ' + (err.message || err));
+    }
+
     function showError(message) {
       document.getElementById('spinnerArea').classList.add('hidden');
       document.getElementById('successArea').classList.add('hidden');
@@ -208,22 +207,23 @@
       document.getElementById('errorMessage').textContent = message;
     }
 
-    function startSetup() {
-      if (setupStarted) return;
-      setupStarted = true;
-      google.script.run
-        .withFailureHandler(function(err) {
-          isComplete = true;
-          clearInterval(pollInterval);
-          showError('Setup error: ' + err.message);
-        })
-        .setupPosterSystemWithProgress();
+    function closeDialog() {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      google.script.host.close();
     }
-    
-    // Start setup and poll every 500ms
+
+    window.addEventListener('beforeunload', () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    });
+
+    // Start setup and begin polling
     startSetup();
-    const pollInterval = setInterval(updateStatus, 500);
-    updateStatus();
+    pollProgress();
   </script>
 </body>
 </html>
