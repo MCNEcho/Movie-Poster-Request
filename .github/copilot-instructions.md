@@ -168,7 +168,7 @@ ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu
-- **Manual data fix:** "Manually Add Request" for migration/corrections
+- **Manual data fix:** "Manually Add Request" for corrections
 - **Full rebuild:** setupPosterSystem() recreates all sheets, triggers, form options
 - **Data integrity:** runFullIntegrityCheck_() detects & auto-repairs orphaned/duplicate requests
 

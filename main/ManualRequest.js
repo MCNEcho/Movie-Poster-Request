@@ -1,5 +1,5 @@
 /** ManualRequest.js **/
-/** Manual request entry for data migration from legacy systems **/
+/** Manual request entry for admin corrections and backfills **/
 
 function showManualRequestDialog() {
   const html = HtmlService.createHtmlOutput(`
@@ -14,7 +14,7 @@ function showManualRequestDialog() {
       .error { background-color: #f8d7da; color: #721c24; }
     </style>
     
-    <h2>Manually Add Request (Migration)</h2>
+    <h2>Manually Add Request</h2>
     
     <label for="email">Employee Email:</label>
     <input type="email" id="email" placeholder="employee@example.com">
