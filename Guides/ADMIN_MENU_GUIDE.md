@@ -21,7 +21,6 @@ The **Poster System** menu is your control center. Here's what every button does
 - Creates/fixes the Google Form
 - Sets up automatic triggers (watches for changes)
 - Rebuilds the Main Board and Employees Board
-- Sets up Health monitoring
 
 **How long:** 30-60 seconds
 
@@ -41,7 +40,6 @@ The **Poster System** menu is your control center. Here's what every button does
 **What happens:**
 - Rebuilds the Main Board and Employees Board (refreshes all request data)
 - Updates the form with current posters
-- Refreshes system health info in Documentation tab
 
 **How long:** 5-10 seconds
 
@@ -103,21 +101,6 @@ The **Poster System** menu is your control center. Here's what every button does
 - Updates form link
 
 **How long:** 2-3 seconds
-
----
-
-### 💚 Refresh Health Banner
-**What it does:** Updates system health info (same as Refresh Documentation).
-
-**When to use it:**
-- You want the latest system status
-- Checking if there are any errors
-
-**What happens:**
-- Collects latest trigger status, cache stats, error info
-- Updates Documentation tab with health section
-
-**How long:** 1-2 seconds
 
 ---
 

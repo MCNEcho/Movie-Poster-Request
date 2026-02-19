@@ -164,7 +164,7 @@ ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics
-- **Admin Menu Map:** Reports (boards/form/docs/health), Print & Layout (print area/print out), Announcements (preview/send), Advanced (manual add, bulk sim, backup, employee view, show link) plus top-level Refresh All.
+- **Admin Menu Map:** Reports (boards/form/docs), Print & Layout (print area/print out), Announcements (preview/send), Advanced (manual add, bulk sim, backup, employee view, show link) plus top-level Refresh All.
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu
@@ -202,7 +202,6 @@ ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
 - [ ] Analytics logs all events (check Analytics sheet)
 - [ ] Error paths logged to ERROR_LOG sheet
 - [ ] Backups run nightly without errors
-- [ ] Health banner displays accurate cache hit rate + execution times
 
 ---
 

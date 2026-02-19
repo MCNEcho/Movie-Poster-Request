@@ -125,7 +125,7 @@ clasp push
 - `UISpinner.js` – Non-blocking spinner UI for long-running operations (NEW in v2.0)
 
 ### Admin Menu (high level)
-- **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation, Refresh Health Banner
+- **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation
 - **Print & Layout:** Update Print Out (manual refresh, now with spinner UI)
 - **Announcements:** Preview Pending, Send Now
 - **Advanced:** Manually Add Request, Add New Poster, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
@@ -168,7 +168,6 @@ clasp push
 - Announcements batch correctly for multiple new posters
 - Analytics logs events; errors recorded in Error Log
 - Nightly backups succeed; retention applies
-- Health banner shows accurate cache hit rate and execution times
 
 ### Troubleshooting
 - Use Admin Menu → "Run Setup / Repair" for one-click fixes
