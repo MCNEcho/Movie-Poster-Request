@@ -8,7 +8,7 @@ function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
   
   ui.createMenu('Poster System')
-    .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
+    .addItem('🔧 Run Setup / Repair', 'launchSetupWithSpinner_')
     .addItem('🔄 Refresh All', 'refreshAll_')
     .addSeparator()
     .addItem('➕ Manually Add Request', 'showManualRequestDialog')
@@ -60,60 +60,101 @@ function executeRefreshAll_() {
   }
 }
 
-function setupPosterSystem() {
+/**
+ * Launch Setup with Live Progress Spinner
+ * Opens a modeless dialog to show real-time setup progress
+ */
+function launchSetupWithSpinner_() {
+  const spinnerHtml = HtmlService.createHtmlOutputFromFile('SetupSpinner');
+  const ui = SpreadsheetApp.getUi();
+  ui.showModelessDialog(spinnerHtml, 'Setup')
+    .setWidth(400)
+    .setHeight(280);
+  
+  // Start setup in background
+  setupPosterSystemWithProgress();
+}
+
+/**
+ * Report current setup progress step
+ * Called by SetupSpinner.html to display live status
+ */
+function reportProgress_(message) {
+  const cache = CacheService.getScriptCache();
+  cache.put('SETUP_PROGRESS', JSON.stringify({ message, complete: false }), 600);
+  Logger.log(`[Setup Progress] ${message}`);
+}
+
+/**
+ * Get current setup progress status
+ * Returns { message, complete, error }
+ */
+function getSetupProgress_() {
+  const cache = CacheService.getScriptCache();
+  const stored = cache.get('SETUP_PROGRESS');
+  
+  if (!stored) {
+    return { message: 'Initializing...', complete: false };
+  }
+  
   try {
-    Logger.log('[Setup] Running setup via menu action...');
-    executeSetupPosterSystem_();
-    SpreadsheetApp.getUi().alert('Setup complete!');
-  } catch (err) {
-    logError_(err, 'setupPosterSystem', 'Setup action', 'CRITICAL');
-    SpreadsheetApp.getUi().alert('Setup failed: ' + err.message);
+    return JSON.parse(stored);
+  } catch (e) {
+    return { message: 'Processing...', complete: false };
   }
 }
 
-function executeSetupPosterSystem_() {
+/**
+ * Mark setup as complete (success or error)
+ */
+function completeSetupProgress_(isSuccess, errorMessage) {
+  const cache = CacheService.getScriptCache();
+  if (isSuccess) {
+    cache.put('SETUP_PROGRESS', JSON.stringify({ message: 'Setup complete!', complete: true }), 600);
+  } else {
+    cache.put('SETUP_PROGRESS', JSON.stringify({ message: '', error: errorMessage, complete: true }), 600);
+  }
+}
+
+function setupPosterSystemWithProgress() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Task Group 1: Core Infrastructure (must run first)
-    Logger.log('[Setup] Initializing core infrastructure...');
+    reportProgress_('Initializing core infrastructure...');
     ensureSheetSchemas_();
     applyAdminFormatting_();
     ensureFormStructure_();
     ensureTriggers_();
 
-    // Task Group 1.5: Migration (if needed)
-    Logger.log('[Setup] Checking for data migration...');
-    try {
-      migratePostersFromMoviePostersToInventory_();
-    } catch (err) {
-      Logger.log(`[WARN] Migration failed: ${err.message}`);
-      // Continue setup even if migration fails
-    }
-
     // Task Group 2: Data Syncing
-    Logger.log('[Setup] Syncing data...');
+    reportProgress_('Syncing data with inventory...');
     ensurePosterIdsInInventory_();  // Inventory is now primary source
     syncPostersToForm();
 
     // Task Group 3: Visual Displays
-    Logger.log('[Setup] Generating views...');
+    reportProgress_('Generating visual displays...');
     rebuildBoards();  // This now includes initializeAdminNotesColumn_()
     buildDocumentationTab();
     buildPrintOutLayout_();
     
     // Setup display management tabs
-    Logger.log('[Setup] Setting up display tabs...');
+    reportProgress_('Setting up display tabs...');
     setupPosterOutsideTab_();
     setupPosterInsideTab_();
 
     // Task Group 4: Finalization
-    Logger.log('[Setup] Finalizing setup...');
+    reportProgress_('Finalizing setup...');
     updateInventoryLastUpdated_();
     
     Logger.log('[Setup] Setup complete!');
+    completeSetupProgress_(true);
+  } catch (err) {
+    logError_(err, 'setupPosterSystemWithProgress', 'Setup action', 'CRITICAL');
+    completeSetupProgress_(false, err.message);
+    throw err;
   } finally {
     lock.releaseLock();
   }
