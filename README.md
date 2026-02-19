@@ -119,8 +119,8 @@ clasp push
 - `Documentation.js` – Auto-generated documentation sheet with system health and form link
 - `EmployeeViewSync.js` – Sync employee-facing spreadsheet
 - `Announcements.js` – Email queue, batched notifications with templates
-- `ManualRequestEntry.js` – Dialog for manual request entry (migration)
-- `ManualPosterEntry.js` – Dialog for adding new posters
+- `ManualRequest.js` – Dialog for manual request entry (admin corrections)
+- `ManualPoster.js` – Dialog for adding new posters
 - `PosterDisplay.js` – Display management for Poster Outside/Inside tabs
 - `UISpinner.js` – Non-blocking spinner UI for long-running operations (NEW in v2.0)
 

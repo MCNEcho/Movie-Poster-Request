@@ -155,6 +155,7 @@
   <script>
     let isComplete = false;
     let pollCount = 0;
+    let setupStarted = false;
     const MAX_POLLS = 600; // 5 minutes at 500ms intervals
     
     function closeDialog() {
@@ -206,11 +207,22 @@
       document.getElementById('errorArea').classList.remove('hidden');
       document.getElementById('errorMessage').textContent = message;
     }
+
+    function startSetup() {
+      if (setupStarted) return;
+      setupStarted = true;
+      google.script.run
+        .withFailureHandler(function(err) {
+          isComplete = true;
+          clearInterval(pollInterval);
+          showError('Setup error: ' + err.message);
+        })
+        .setupPosterSystemWithProgress();
+    }
     
-    // Poll every 500ms
+    // Start setup and poll every 500ms
+    startSetup();
     const pollInterval = setInterval(updateStatus, 500);
-    
-    // Initial update
     updateStatus();
   </script>
 </body>

@@ -166,7 +166,7 @@ The **Poster System** menu is your control center. Here's what every button does
 ## Advanced Menu
 
 ### ➕ Manually Add Request
-**What it does:** Opens a dialog to add a request manually (for data migration).
+**What it does:** Opens a dialog to add a request manually (for admin corrections).
 
 **When to use it:**
 - You have historical requests from before the system existed

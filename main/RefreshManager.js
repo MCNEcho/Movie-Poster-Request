@@ -375,39 +375,54 @@ function markSystemNeedingRefresh_() {
   }
 }
 
+function refreshIfNeeded_() {
+  const props = getProps_();
+  const needsRefresh = props.getProperty(CONFIG.PROPS.NEEDS_REFRESH);
+
+  if (needsRefresh === 'true') {
+    Logger.log('[refreshIfNeeded_] Executing deferred refresh...');
+    props.deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
+    executeRefreshAll_();
+    Logger.log('[refreshIfNeeded_] Deferred refresh complete');
+    return true;
+  }
+
+  Logger.log('[refreshIfNeeded_] No refresh needed');
+  return false;
+}
+
 /**
  * Executes deferred refresh if system is marked as needing it
  * Called by time-based trigger (every 1-5 minutes)
  * Performance: Non-blocking for form submissions and admin operations
  */
 function executeDeferredRefresh() {
-  const lock = LockService.getScriptLock();
-  
-  // Try to get lock but don't wait - if another process is running, skip this cycle
-  if (!lock.tryLock(1000)) {
-    Logger.log('[executeDeferredRefresh] Locked by another process, skipping this cycle');
+  if (typeof refreshIfNeeded_ !== 'function') {
+    Logger.log('[DeferredRefresh] refreshIfNeeded_ missing — skipping.');
     return;
   }
-  
+
+  if (PropertiesService.getScriptProperties().getProperty('SETUP_RUNNING')) {
+    Logger.log('[DeferredRefresh] Setup in progress — skipping.');
+    return;
+  }
+
+  const lock = LockService.getScriptLock();
+
+  if (!lock.tryLock(1000)) {
+    Logger.log('[DeferredRefresh] Locked by another process, skipping.');
+    return;
+  }
+
   try {
-    const props = getProps_();
-    const needsRefresh = props.getProperty(CONFIG.PROPS.NEEDS_REFRESH);
-    
-    if (needsRefresh === 'true') {
-      Logger.log('[executeDeferredRefresh] Executing deferred refresh...');
-      
-      // Clear flag BEFORE refresh to prevent duplicate execution
-      props.deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
-      
-      // Execute full refresh
-      executeRefreshAll_();
-      
-      Logger.log('[executeDeferredRefresh] Deferred refresh complete');
+    const didRefresh = refreshIfNeeded_();
+    if (didRefresh) {
+      Logger.log('[DeferredRefresh] Refresh executed successfully');
     } else {
-      Logger.log('[executeDeferredRefresh] No refresh needed, skipping');
+      Logger.log('[DeferredRefresh] No refresh needed');
     }
   } catch (err) {
-    logError_(err, 'executeDeferredRefresh', 'Executing deferred system refresh');
+    logError_(err, 'executeDeferredRefresh', 'Deferred refresh trigger');
   } finally {
     lock.releaseLock();
   }
