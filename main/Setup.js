@@ -8,7 +8,7 @@ function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
   
   ui.createMenu('Poster System')
-    .addItem('🔧 Run Setup / Repair', 'launchSetupWithSpinner_')
+    .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
     .addItem('🔄 Refresh All', 'refreshAll_')
     .addSeparator()
     .addItem('➕ Manually Add Request', 'showManualRequestDialog')
@@ -58,6 +58,17 @@ function executeRefreshAll_() {
   } catch (err) {
     throw err;
   }
+}
+
+/**
+ * Public Setup Entry Point (Backward Compatible)
+ * Wrapper around launchSetupWithSpinner_ for compatibility with:
+ * - Existing deployments
+ * - Menu item references
+ * - Trigger configurations
+ */
+function setupPosterSystem() {
+  launchSetupWithSpinner_();
 }
 
 /**
