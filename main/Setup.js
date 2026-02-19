@@ -74,24 +74,26 @@ function buildSystemMenu_(ui) {
 }
 
 // ============================================================================
-// Menu Handler Wrappers - Ensure all referenced functions exist
+// Handler Aliases - User-friendly names for menu items
+// Note: All handlers are defined in their respective modules:
+// - showManualPosterDialog (ManualPoster.js)
+// - showRefreshManagerDialog (RefreshManager.js)
+// - showEmployeeViewManagerDialog -> setupEmployeeViewSpreadsheet (EmployeeViewSync.js)
+// - showManualRequestDialog (ManualRequest.js)
+// - rebuildBoards (Boards.js)
+// - syncPostersToForm (FormSync.js)
+// - buildDocumentationTab (Documentation.js)
+// - previewPendingAnnouncement (Announcements.js)
+// - sendAnnouncementNow (Announcements.js)
+// - showDisplayManagerDialog (PosterDisplay.js)
+// - setupPosterSystem (Setup.js - calls launchSetupWithSpinner_)
+// - createTriggersNow_ (Setup.js)
+// - manualBackupTrigger (BackupManager.js)
 // ============================================================================
 
 /**
- * showRefreshManagerDialog - Opens the refresh manager dialog
- * Location: RefreshManager.js
- */
-function showRefreshManagerDialog() {
-  if (typeof showRefreshManagerDialog !== 'function') {
-    SpreadsheetApp.getUi().alert('ERROR: showRefreshManagerDialog not found. Check RefreshManager.js');
-    return;
-  }
-  // Handler defined in RefreshManager.js
-}
-
-/**
- * showEmployeeViewManagerDialog - Opens the employee view setup dialog
- * Falls back to setupEmployeeViewSpreadsheet if not found
+ * showEmployeeViewManagerDialog - Alias for setupEmployeeViewSpreadsheet
+ * Provides user-friendly naming while delegating to the actual implementation
  * Location: EmployeeViewSync.js
  */
 function showEmployeeViewManagerDialog() {
@@ -101,30 +103,6 @@ function showEmployeeViewManagerDialog() {
     logError_(err, 'showEmployeeViewManagerDialog', 'Opening employee view manager', 'MEDIUM');
     SpreadsheetApp.getUi().alert('Error opening Employee View Manager: ' + err.message);
   }
-}
-
-/**
- * showManualRequestDialog - Opens the manual request entry dialog
- * Location: ManualRequest.js
- */
-function showManualRequestDialog() {
-  if (typeof showManualRequestDialog !== 'function') {
-    SpreadsheetApp.getUi().alert('ERROR: showManualRequestDialog not found. Check ManualRequest.js');
-    return;
-  }
-  // Handler defined in ManualRequest.js
-}
-
-/**
- * showDisplayManagerDialog - Opens the display manager dialog
- * Location: PosterDisplay.js
- */
-function showDisplayManagerDialog() {
-  if (typeof showDisplayManagerDialog !== 'function') {
-    SpreadsheetApp.getUi().alert('ERROR: showDisplayManagerDialog not found. Check PosterDisplay.js');
-    return;
-  }
-  // Handler defined in PosterDisplay.js
 }
 
 // ============================================================================
