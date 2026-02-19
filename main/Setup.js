@@ -84,22 +84,16 @@ function launchSetupWithSpinner_() {
   ui.showModelessDialog(html, 'Setting Up Poster System...');
 }
 
-/**
- * Report current setup progress step
- * Called by SetupSpinner.html to display live status
- */
-function reportProgress_(message) {
-  const cache = CacheService.getScriptCache();
-  cache.put('SETUP_PROGRESS', JSON.stringify({ message, complete: false }), 600);
-  Logger.log(`[Setup Progress] ${message}`);
+function setSetupProgress_(message) {
+  PropertiesService.getScriptProperties().setProperty('SETUP_PROGRESS', message);
 }
 
-function logProgress_(message) {
-  reportProgress_(message);
+function getSetupProgress() {
+  return PropertiesService.getScriptProperties().getProperty('SETUP_PROGRESS');
 }
 
 function runSetupStep_(label, stepFn) {
-  logProgress_(label);
+  setSetupProgress_(label);
   try {
     stepFn();
   } catch (err) {
@@ -108,40 +102,10 @@ function runSetupStep_(label, stepFn) {
   }
 }
 
-/**
- * Get current setup progress status
- * Returns { message, complete, error }
- */
-function getSetupProgress_() {
-  const cache = CacheService.getScriptCache();
-  const stored = cache.get('SETUP_PROGRESS');
-  
-  if (!stored) {
-    return { message: 'Initializing...', complete: false };
-  }
-  
-  try {
-    return JSON.parse(stored);
-  } catch (e) {
-    return { message: 'Processing...', complete: false };
-  }
-}
-
-/**
- * Mark setup as complete (success or error)
- */
-function completeSetupProgress_(isSuccess, errorMessage) {
-  const cache = CacheService.getScriptCache();
-  if (isSuccess) {
-    cache.put('SETUP_PROGRESS', JSON.stringify({ message: 'Setup complete!', complete: true }), 600);
-  } else {
-    cache.put('SETUP_PROGRESS', JSON.stringify({ message: '', error: errorMessage, complete: true }), 600);
-  }
-}
-
 function setupPosterSystemWithProgress() {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('SETUP_RUNNING', 'true');
+  setSetupProgress_('Initializing core infrastructure...');
   const lock = LockService.getScriptLock();
   let lockAcquired = false;
   try {
@@ -175,10 +139,10 @@ function setupPosterSystemWithProgress() {
     });
     
     Logger.log('[Setup] Setup complete!');
-    completeSetupProgress_(true);
+    setSetupProgress_('COMPLETE');
   } catch (err) {
     logError_(err, 'setupPosterSystemWithProgress', 'Setup action', 'CRITICAL');
-    completeSetupProgress_(false, err.message);
+    setSetupProgress_(`Error: ${err.message}`);
     throw err;
   } finally {
     if (lockAcquired) {
