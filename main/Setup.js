@@ -4,61 +4,183 @@ function onOpen() {
   buildAdminMenu_();
 }
 
+// ============================================================================
+// Admin Menu Structure
+// Branch: scaffold/enforce-admin-menu-and-spinner-lock
+// Purpose: Maintain consistent menu structure across deployments
+//
+// Expected Structure:
+// Poster Request System
+//  ├── Add New Poster
+//  └── Advanced
+//      ├── Refresh Manager
+//      ├── Employee View Manager
+//      ├── Manually Add Request
+//      ├── Reports (Rebuild Boards, Sync Form, Refresh Docs)
+//      ├── Announcements (Preview, Send)
+//      ├── Display Management (Manage Display Sheets)
+//      └── System (Setup/Repair, Create Triggers, Backup)
+//
+// To validate menu integrity, call validateMenuStructure_() after modifications
+// ============================================================================
 function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
   
-  ui.createMenu('Poster System')
-    .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
-    .addItem('🔄 Refresh All', 'refreshAll_')
-    .addSeparator()
-    .addItem('➕ Manually Add Request', 'showManualRequestDialog')
+  // Main Menu: Poster Request System
+  const mainMenu = ui.createMenu('Poster Request System')
     .addItem('➕ Add New Poster', 'showManualPosterDialog')
     .addSeparator()
-    .addSubMenu(ui.createMenu('📊 Reports')
-      .addItem('Rebuild Boards', 'rebuildBoards')
-      .addItem('Sync Form Options', 'syncPostersToForm')
-      .addItem('Refresh Documentation', 'buildDocumentationTab'))
-    .addSubMenu(ui.createMenu('🖨️ Print & Layout')
-      .addItem('Update Print Out', 'refreshPrintOut'))
-    .addSubMenu(ui.createMenu('🖼️ Display Management')
-      .addItem('Setup Poster Outside', 'setupPosterOutsideTab_')
-      .addItem('Setup Poster Inside', 'setupPosterInsideTab_')
-      .addItem('Refresh Display Dropdowns', 'refreshDisplayDropdowns_'))
-    .addSubMenu(ui.createMenu('📧 Announcements')
-      .addItem('Preview Pending', 'previewPendingAnnouncement')
-      .addItem('Send Now', 'sendAnnouncementNow'))
-    .addSubMenu(ui.createMenu('⚙️ Advanced')
-      .addItem('Run Backup Now', 'manualBackupTrigger')
-      .addItem('Setup Employee View', 'setupEmployeeViewSpreadsheet')
-      .addItem('Sync Employee View', 'syncEmployeeViewSpreadsheet_')
-      .addItem('Show Employee View Link', 'openEmployeeViewSpreadsheet'))
+    .addSubMenu(buildAdvancedMenu_(ui))
     .addToUi();
+  
+  // Validate menu structure integrity (logs warnings if structure deviates)
+  validateMenuStructure_();
 }
 
 /**
- * Refresh All: Executes the 2 main refresh operations
- * Rebuilds boards and syncs form options
+ * Build Advanced submenu with all system tools
  */
-function refreshAll_() {
+function buildAdvancedMenu_(ui) {
+  return ui.createMenu('⚙️ Advanced')
+    .addItem('🔄 Refresh Manager', 'showRefreshManagerDialog')
+    .addItem('👥 Employee View Manager', 'showEmployeeViewManagerDialog')
+    .addItem('➕ Manually Add Request', 'showManualRequestDialog')
+    .addSeparator()
+    .addSubMenu(buildReportsMenu_(ui))
+    .addSubMenu(buildAnnouncementsMenu_(ui))
+    .addSubMenu(buildDisplayMenu_(ui))
+    .addSeparator()
+    .addSubMenu(buildSystemMenu_(ui));
+}
+
+/**
+ * Build Reports submenu
+ */
+function buildReportsMenu_(ui) {
+  return ui.createMenu('📊 Reports')
+    .addItem('Rebuild Boards', 'rebuildBoards')
+    .addItem('Sync Form Options', 'syncPostersToForm')
+    .addItem('Refresh Documentation', 'buildDocumentationTab');
+}
+
+/**
+ * Build Announcements submenu
+ */
+function buildAnnouncementsMenu_(ui) {
+  return ui.createMenu('📧 Announcements')
+    .addItem('Preview Pending', 'previewPendingAnnouncement')
+    .addItem('Send Now', 'sendAnnouncementNow');
+}
+
+/**
+ * Build Display Management submenu
+ */
+function buildDisplayMenu_(ui) {
+  return ui.createMenu('🖼️ Display Management')
+    .addItem('Manage Display Sheets', 'showDisplayManagerDialog');
+}
+
+/**
+ * Build System submenu (locked behind Advanced)
+ */
+function buildSystemMenu_(ui) {
+  return ui.createMenu('🔐 System')
+    .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
+    .addItem('🧷 Create Triggers', 'createTriggersNow_')
+    .addItem('Run Backup Now', 'manualBackupTrigger');
+}
+
+/**
+ * Validate Menu Structure Integrity
+ * Checks that all menu handler functions exist and logs warnings if any are missing
+ * This provides a safety net against breaking changes while allowing flexibility
+ */
+function validateMenuStructure_() {
+  const expectedHandlers = {
+    // Top-level handlers
+    'showManualPosterDialog': 'ManualPoster.js',
+    
+    // Advanced submenu handlers
+    'showRefreshManagerDialog': 'RefreshManager.js',
+    'showEmployeeViewManagerDialog': 'Setup.js (alias)',
+    'showManualRequestDialog': 'ManualRequest.js',
+    
+    // Reports submenu
+    'rebuildBoards': 'Boards.js',
+    'syncPostersToForm': 'FormSync.js',
+    'buildDocumentationTab': 'Documentation.js',
+    
+    // Announcements submenu
+    'previewPendingAnnouncement': 'Announcements.js',
+    'sendAnnouncementNow': 'Announcements.js',
+    
+    // Display Management submenu
+    'showDisplayManagerDialog': 'PosterDisplay.js',
+    
+    // System submenu
+    'setupPosterSystem': 'Setup.js',
+    'createTriggersNow_': 'Setup.js',
+    'manualBackupTrigger': 'BackupManager.js'
+  };
+  
+  const missing = [];
+  for (const [handler, location] of Object.entries(expectedHandlers)) {
+    try {
+      // Check if function exists in global scope
+      if (typeof this[handler] !== 'function') {
+        missing.push(`${handler} (expected in ${location})`);
+      }
+    } catch (e) {
+      missing.push(`${handler} (expected in ${location}) - Error: ${e.message}`);
+    }
+  }
+  
+  if (missing.length > 0) {
+    Logger.log('[Menu Validation WARNING] Missing handlers detected:');
+    missing.forEach(m => Logger.log(`  - ${m}`));
+    Logger.log('[Menu Validation] This may cause menu items to fail when clicked.');
+  } else {
+    Logger.log('[Menu Validation] ✓ All menu handlers validated successfully');
+  }
+  
+  return missing.length === 0;
+}
+
+// ============================================================================
+// Handler Aliases - User-friendly names for menu items
+// Note: All handlers are defined in their respective modules:
+// - showManualPosterDialog (ManualPoster.js)
+// - showRefreshManagerDialog (RefreshManager.js)
+// - showEmployeeViewManagerDialog -> setupEmployeeViewSpreadsheet (EmployeeViewSync.js)
+// - showManualRequestDialog (ManualRequest.js)
+// - rebuildBoards (Boards.js)
+// - syncPostersToForm (FormSync.js)
+// - buildDocumentationTab (Documentation.js)
+// - previewPendingAnnouncement (Announcements.js)
+// - sendAnnouncementNow (Announcements.js)
+// - showDisplayManagerDialog (PosterDisplay.js)
+// - setupPosterSystem (Setup.js - calls launchSetupWithSpinner_)
+// - createTriggersNow_ (Setup.js)
+// - manualBackupTrigger (BackupManager.js)
+// ============================================================================
+
+/**
+ * showEmployeeViewManagerDialog - Alias for setupEmployeeViewSpreadsheet
+ * Provides user-friendly naming while delegating to the actual implementation
+ * Location: EmployeeViewSync.js
+ */
+function showEmployeeViewManagerDialog() {
   try {
-    Logger.log('[refreshAll] Running refresh via menu action...');
-    executeRefreshAll_();
-    SpreadsheetApp.getUi().alert('All systems refreshed!');
+    setupEmployeeViewSpreadsheet();
   } catch (err) {
-    logError_(err, 'refreshAll_', 'Refresh all operations', 'CRITICAL');
-    SpreadsheetApp.getUi().alert('Refresh failed: ' + err.message);
+    logError_(err, 'showEmployeeViewManagerDialog', 'Opening employee view manager', 'MEDIUM');
+    SpreadsheetApp.getUi().alert('Error opening Employee View Manager: ' + err.message);
   }
 }
 
-function executeRefreshAll_() {
-  try {
-    rebuildBoards();
-    syncPostersToForm();
-    Logger.log('[refreshAll] All systems refreshed successfully');
-  } catch (err) {
-    throw err;
-  }
-}
+// ============================================================================
+// Core Setup Functions (Spinner-Based)
+// ============================================================================
 
 /**
  * Public Setup Entry Point (Backward Compatible)
@@ -69,6 +191,20 @@ function executeRefreshAll_() {
  */
 function setupPosterSystem() {
   launchSetupWithSpinner_();
+}
+
+/**
+ * Create Triggers - Allow admin to manually create/verify triggers
+ */
+function createTriggersNow_() {
+  try {
+    Logger.log('[createTriggersNow_] Creating triggers...');
+    ensureTriggers_();
+    SpreadsheetApp.getUi().alert('Triggers created/verified successfully!');
+  } catch (err) {
+    logError_(err, 'createTriggersNow_', 'Creating triggers', 'CRITICAL');
+    SpreadsheetApp.getUi().alert('Error creating triggers: ' + err.message);
+  }
 }
 
 /**
@@ -84,16 +220,22 @@ function launchSetupWithSpinner_() {
   ui.showModelessDialog(html, 'Setting Up Poster System...');
 }
 
-function setSetupProgress_(message) {
-  PropertiesService.getScriptProperties().setProperty('SETUP_PROGRESS', message);
+/**
+ * Report current setup progress step
+ * Called by SetupSpinner.html to display live status
+ */
+function reportProgress_(message) {
+  const cache = CacheService.getScriptCache();
+  cache.put('SETUP_PROGRESS', JSON.stringify({ message, complete: false }), 600);
+  Logger.log(`[Setup Progress] ${message}`);
 }
 
-function getSetupProgress() {
-  return PropertiesService.getScriptProperties().getProperty('SETUP_PROGRESS');
+function logProgress_(message) {
+  reportProgress_(message);
 }
 
 function runSetupStep_(label, stepFn) {
-  setSetupProgress_(label);
+  logProgress_(label);
   try {
     stepFn();
   } catch (err) {
@@ -102,10 +244,72 @@ function runSetupStep_(label, stepFn) {
   }
 }
 
+/**
+ * Get current setup progress status
+ * Returns { message, complete, error }
+ */
+function getSetupProgress_() {
+  const cache = CacheService.getScriptCache();
+  const stored = cache.get('SETUP_PROGRESS');
+  
+  if (!stored) {
+    return { message: 'Initializing...', complete: false };
+  }
+  
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return { message: 'Processing...', complete: false };
+  }
+}
+
+/**
+ * Public wrapper for getSetupProgress_()
+ * Called by SetupSpinner.html to poll setup progress
+ * Returns: { message: string, complete: boolean, error?: string }
+ */
+function getSetupProgress() {
+  return getSetupProgress_();
+}
+
+/**
+ * Public wrapper for setSetupProgress_() - DEPRECATED
+ * Kept for backward compatibility with any legacy HTML/clients that may call it
+ * 
+ * Modern code should use:
+ * - reportProgress_(message) for progress updates
+ * - completeSetupProgress_(success, errorMsg) for completion
+ * 
+ * @param {string} message - Progress message to display
+ * @param {boolean} complete - Whether setup is complete
+ * @param {string} error - Optional error message
+ * @deprecated Use reportProgress_() or completeSetupProgress_() instead
+ */
+function setSetupProgress(message, complete, error) {
+  const cache = CacheService.getScriptCache();
+  const progress = { message: message || '', complete: complete || false };
+  if (error) {
+    progress.error = error;
+  }
+  cache.put('SETUP_PROGRESS', JSON.stringify(progress), 600);
+  Logger.log(`[setSetupProgress - DEPRECATED] ${message}`);
+}
+
+/**
+ * Mark setup as complete (success or error)
+ */
+function completeSetupProgress_(isSuccess, errorMessage) {
+  const cache = CacheService.getScriptCache();
+  if (isSuccess) {
+    cache.put('SETUP_PROGRESS', JSON.stringify({ message: 'Setup complete!', complete: true }), 600);
+  } else {
+    cache.put('SETUP_PROGRESS', JSON.stringify({ message: '', error: errorMessage, complete: true }), 600);
+  }
+}
+
 function setupPosterSystemWithProgress() {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('SETUP_RUNNING', 'true');
-  setSetupProgress_('Initializing core infrastructure...');
   const lock = LockService.getScriptLock();
   let lockAcquired = false;
   try {
@@ -139,10 +343,10 @@ function setupPosterSystemWithProgress() {
     });
     
     Logger.log('[Setup] Setup complete!');
-    setSetupProgress_('COMPLETE');
+    completeSetupProgress_(true);
   } catch (err) {
     logError_(err, 'setupPosterSystemWithProgress', 'Setup action', 'CRITICAL');
-    setSetupProgress_(`Error: ${err.message}`);
+    completeSetupProgress_(false, err.message);
     throw err;
   } finally {
     if (lockAcquired) {
@@ -383,4 +587,3 @@ function formatInventorySheet_() {
     setCheckboxColumn_(sh, 1, 3, dataEnd);
   }
 }
-
