@@ -76,11 +76,12 @@ function setupPosterSystem() {
  * Opens a modeless dialog to show real-time setup progress
  */
 function launchSetupWithSpinner_() {
-  const spinnerHtml = HtmlService.createHtmlOutputFromFile('SetupSpinner');
   const ui = SpreadsheetApp.getUi();
-  ui.showModelessDialog(spinnerHtml, 'Setup')
+  const html = HtmlService
+    .createHtmlOutputFromFile('SetupSpinner')
     .setWidth(400)
-    .setHeight(280);
+    .setHeight(250);
+  ui.showModelessDialog(html, 'Setting Up Poster System...');
   
   // Start setup in background
   setupPosterSystemWithProgress();
