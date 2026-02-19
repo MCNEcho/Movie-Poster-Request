@@ -2,12 +2,6 @@
 
 function onOpen() {
   buildAdminMenu_();
-  // Initialize health banner on open without blocking
-  try {
-    renderHealthBanner_();
-  } catch (err) {
-    Logger.log(`[WARN] Health banner render on open failed: ${err.message}`);
-  }
 }
 
 function buildAdminMenu_() {
@@ -23,8 +17,7 @@ function buildAdminMenu_() {
     .addSubMenu(ui.createMenu('📊 Reports')
       .addItem('Rebuild Boards', 'rebuildBoards')
       .addItem('Sync Form Options', 'syncPostersToForm')
-      .addItem('Refresh Documentation', 'buildDocumentationTab')
-      .addItem('Refresh Health Banner', 'refreshHealthBanner'))
+      .addItem('Refresh Documentation', 'buildDocumentationTab'))
     .addSubMenu(ui.createMenu('🖨️ Print & Layout')
       .addItem('Update Print Out', 'refreshPrintOut'))
     .addSubMenu(ui.createMenu('🖼️ Display Management')
@@ -43,31 +36,24 @@ function buildAdminMenu_() {
 }
 
 /**
- * Refresh All: Executes the 3 main refresh operations
- * Rebuilds boards, syncs form options, and refreshes health banner
- * Uses non-blocking spinner UI for better UX
+ * Refresh All: Executes the 2 main refresh operations
+ * Rebuilds boards and syncs form options
  */
 function refreshAll_() {
-  showLoadingSpinner_('Refreshing all systems...');
-  
-  google.script.run
-    .withSuccessHandler(() => {
-      hideLoadingSpinner_();
-      showSpinnerSuccess_('All systems refreshed!');
-    })
-    .withFailureHandler((err) => {
-      hideLoadingSpinner_();
-      showSpinnerError_(err.message);
-      logError_(err, 'refreshAll_', 'Refresh all operations');
-    })
-    .executeRefreshAll_();
+  try {
+    Logger.log('[refreshAll] Running refresh via menu action...');
+    executeRefreshAll_();
+    SpreadsheetApp.getUi().alert('All systems refreshed!');
+  } catch (err) {
+    logError_(err, 'refreshAll_', 'Refresh all operations', 'CRITICAL');
+    SpreadsheetApp.getUi().alert('Refresh failed: ' + err.message);
+  }
 }
 
 function executeRefreshAll_() {
   try {
     rebuildBoards();
     syncPostersToForm();
-    refreshHealthBanner();
     Logger.log('[refreshAll] All systems refreshed successfully');
   } catch (err) {
     throw err;
@@ -75,18 +61,14 @@ function executeRefreshAll_() {
 }
 
 function setupPosterSystem() {
-  showLoadingSpinner_('Setting up poster system...');
-  
-  google.script.run
-    .withSuccessHandler(() => {
-      hideLoadingSpinner_();
-      showSpinnerSuccess_('Setup complete!');
-    })
-    .withFailureHandler((err) => {
-      hideLoadingSpinner_();
-      showSpinnerError_(err.message);
-    })
-    .executeSetupPosterSystem_();
+  try {
+    Logger.log('[Setup] Running setup via menu action...');
+    executeSetupPosterSystem_();
+    SpreadsheetApp.getUi().alert('Setup complete!');
+  } catch (err) {
+    logError_(err, 'setupPosterSystem', 'Setup action', 'CRITICAL');
+    SpreadsheetApp.getUi().alert('Setup failed: ' + err.message);
+  }
 }
 
 function executeSetupPosterSystem_() {
@@ -127,10 +109,9 @@ function executeSetupPosterSystem_() {
     setupPosterOutsideTab_();
     setupPosterInsideTab_();
 
-    // Task Group 4: Monitoring (last)
+    // Task Group 4: Finalization
     Logger.log('[Setup] Finalizing setup...');
     updateInventoryLastUpdated_();
-    initializeHealthBanner_();
     
     Logger.log('[Setup] Setup complete!');
   } finally {

@@ -101,11 +101,6 @@ clasp push
 - **Bulk Simulator** (`20_BulkSimulator.js`)
   - Stress test up to 100 randomized submissions (warn ≥50 live)
   - Dry-run option; logs execution stats (time, sheet reads, cache hits, lock waits) to Analytics
-- **System Health Monitoring** (`16_AdminHealthBanner.js`)
-  - Tracks trigger installation and status
-  - Cache health metrics (valid vs total)
-  - Last error and announcement queue size
-  - Displayed in Documentation tab for quick reference
 
 ### Key Modules (selected)
 - `Config.js` – Central configuration, column mappings, and property keys
@@ -130,7 +125,7 @@ clasp push
 - `UISpinner.js` – Non-blocking spinner UI for long-running operations (NEW in v2.0)
 
 ### Admin Menu (high level)
-- **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation, Refresh Health Banner
+- **Reports:** Rebuild Boards, Sync Form Options, Refresh Documentation
 - **Print & Layout:** Update Print Out (manual refresh, now with spinner UI)
 - **Announcements:** Preview Pending, Send Now
 - **Advanced:** Manually Add Request, Add New Poster, Run Backup Now, Setup Employee View, Sync Employee View, Show Employee View Link
@@ -173,7 +168,6 @@ clasp push
 - Announcements batch correctly for multiple new posters
 - Analytics logs events; errors recorded in Error Log
 - Nightly backups succeed; retention applies
-- Health banner shows accurate cache hit rate and execution times
 
 ### Troubleshooting
 - Use Admin Menu → "Run Setup / Repair" for one-click fixes

@@ -137,7 +137,7 @@ function showLoadingSpinner_(message) {
     `);
     
     const ui = SpreadsheetApp.getUi();
-    ui.modeless(spinnerHtml)
+    ui.showModelessDialog(spinnerHtml, 'Processing')
       .setWidth(280)
       .setHeight(250);
       
