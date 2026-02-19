@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #ffffff;
+      padding: 20px;
+    }
+    
+    .spinner-container {
+      text-align: center;
+      max-width: 400px;
+    }
+    
+    .spinner {
+      border: 4px solid #f0f0f0;
+      border-top: 4px solid #1a73e8;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .title {
+      font-size: 18px;
+      color: #202124;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    
+    .status {
+      font-size: 14px;
+      color: #5f6368;
+      min-height: 40px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      margin-bottom: 15px;
+    }
+    
+    .progress-bar {
+      width: 200px;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      margin: 0 auto 20px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1a73e8, #34a853);
+      width: 30%;
+      animation: expand 1s ease-in-out infinite;
+    }
+    
+    @keyframes expand {
+      0% { width: 30%; }
+      50% { width: 90%; }
+      100% { width: 30%; }
+    }
+    
+    .error {
+      color: #d33b27;
+      font-weight: 500;
+    }
+    
+    .success {
+      color: #0d7a3c;
+      font-weight: 500;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .success-icon {
+      font-size: 48px;
+      color: #0d7a3c;
+      margin-bottom: 10px;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+      color: #d33b27;
+      margin-bottom: 10px;
+    }
+    
+    button {
+      margin-top: 15px;
+      padding: 8px 16px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    button:hover {
+      background: #1765cc;
+    }
+    
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="spinner-container">
+    <div id="spinnerArea">
+      <div class="spinner" id="spinner"></div>
+      <div class="title">Setting Up Poster System</div>
+      <div class="status" id="status">Initializing...</div>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+    </div>
+    
+    <div id="successArea" class="hidden">
+      <div class="success-icon">✓</div>
+      <div class="title success">Setup Complete!</div>
+      <div class="status success">Your poster system is ready to use.</div>
+      <button onclick="closeDialog()">Close</button>
+    </div>
+    
+    <div id="errorArea" class="hidden">
+      <div class="error-icon">⚠</div>
+      <div class="title error">Setup Failed</div>
+      <div class="status error" id="errorMessage"></div>
+      <button onclick="closeDialog()">Close</button>
+    </div>
+  </div>
+  
+  <script>
+    let isComplete = false;
+    let pollCount = 0;
+    const MAX_POLLS = 600; // 5 minutes at 500ms intervals
+    
+    function closeDialog() {
+      google.script.host.close();
+    }
+    
+    function updateStatus() {
+      if (isComplete) {
+        clearInterval(pollInterval);
+        return;
+      }
+      
+      pollCount++;
+      if (pollCount > MAX_POLLS) {
+        showError('Setup took too long. Please check the logs.');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.message) {
+            document.getElementById('status').textContent = result.message;
+          }
+          
+          if (result && result.complete) {
+            isComplete = true;
+            clearInterval(pollInterval);
+            document.getElementById('spinnerArea').classList.add('hidden');
+            document.getElementById('successArea').classList.remove('hidden');
+          }
+          
+          if (result && result.error) {
+            isComplete = true;
+            clearInterval(pollInterval);
+            showError(result.error);
+          }
+        })
+        .withFailureHandler(function(err) {
+          isComplete = true;
+          clearInterval(pollInterval);
+          showError('Communication error: ' + err);
+        })
+        .getSetupProgress_();
+    }
+    
+    function showError(message) {
+      document.getElementById('spinnerArea').classList.add('hidden');
+      document.getElementById('successArea').classList.add('hidden');
+      document.getElementById('errorArea').classList.remove('hidden');
+      document.getElementById('errorMessage').textContent = message;
+    }
+    
+    // Poll every 500ms
+    const pollInterval = setInterval(updateStatus, 500);
+    
+    // Initial update
+    updateStatus();
+  </script>
+</body>
+</html>
