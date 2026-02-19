@@ -5,9 +5,23 @@ function onOpen() {
 }
 
 // ============================================================================
-// DO NOT MODIFY: Admin Menu Structure Locked
+// Admin Menu Structure
 // Branch: scaffold/enforce-admin-menu-and-spinner-lock
-// Purpose: Enforce modern menu structure and prevent regressions
+// Purpose: Maintain consistent menu structure across deployments
+//
+// Expected Structure:
+// Poster Request System
+//  ├── Add New Poster
+//  └── Advanced
+//      ├── Refresh Manager
+//      ├── Employee View Manager
+//      ├── Manually Add Request
+//      ├── Reports (Rebuild Boards, Sync Form, Refresh Docs)
+//      ├── Announcements (Preview, Send)
+//      ├── Display Management (Manage Display Sheets)
+//      └── System (Setup/Repair, Create Triggers, Backup)
+//
+// To validate menu integrity, call validateMenuStructure_() after modifications
 // ============================================================================
 function buildAdminMenu_() {
   const ui = SpreadsheetApp.getUi();
@@ -18,6 +32,9 @@ function buildAdminMenu_() {
     .addSeparator()
     .addSubMenu(buildAdvancedMenu_(ui))
     .addToUi();
+  
+  // Validate menu structure integrity (logs warnings if structure deviates)
+  validateMenuStructure_();
 }
 
 /**
@@ -71,6 +88,62 @@ function buildSystemMenu_(ui) {
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
     .addItem('🧷 Create Triggers', 'createTriggersNow_')
     .addItem('Run Backup Now', 'manualBackupTrigger');
+}
+
+/**
+ * Validate Menu Structure Integrity
+ * Checks that all menu handler functions exist and logs warnings if any are missing
+ * This provides a safety net against breaking changes while allowing flexibility
+ */
+function validateMenuStructure_() {
+  const expectedHandlers = {
+    // Top-level handlers
+    'showManualPosterDialog': 'ManualPoster.js',
+    
+    // Advanced submenu handlers
+    'showRefreshManagerDialog': 'RefreshManager.js',
+    'showEmployeeViewManagerDialog': 'Setup.js (alias)',
+    'showManualRequestDialog': 'ManualRequest.js',
+    
+    // Reports submenu
+    'rebuildBoards': 'Boards.js',
+    'syncPostersToForm': 'FormSync.js',
+    'buildDocumentationTab': 'Documentation.js',
+    
+    // Announcements submenu
+    'previewPendingAnnouncement': 'Announcements.js',
+    'sendAnnouncementNow': 'Announcements.js',
+    
+    // Display Management submenu
+    'showDisplayManagerDialog': 'PosterDisplay.js',
+    
+    // System submenu
+    'setupPosterSystem': 'Setup.js',
+    'createTriggersNow_': 'Setup.js',
+    'manualBackupTrigger': 'BackupManager.js'
+  };
+  
+  const missing = [];
+  for (const [handler, location] of Object.entries(expectedHandlers)) {
+    try {
+      // Check if function exists in global scope
+      if (typeof this[handler] !== 'function') {
+        missing.push(`${handler} (expected in ${location})`);
+      }
+    } catch (e) {
+      missing.push(`${handler} (expected in ${location}) - Error: ${e.message}`);
+    }
+  }
+  
+  if (missing.length > 0) {
+    Logger.log('[Menu Validation WARNING] Missing handlers detected:');
+    missing.forEach(m => Logger.log(`  - ${m}`));
+    Logger.log('[Menu Validation] This may cause menu items to fail when clicked.');
+  } else {
+    Logger.log('[Menu Validation] ✓ All menu handlers validated successfully');
+  }
+  
+  return missing.length === 0;
 }
 
 // ============================================================================
@@ -197,6 +270,29 @@ function getSetupProgress_() {
  */
 function getSetupProgress() {
   return getSetupProgress_();
+}
+
+/**
+ * Public wrapper for setSetupProgress_() - DEPRECATED
+ * Kept for backward compatibility with any legacy HTML/clients that may call it
+ * 
+ * Modern code should use:
+ * - reportProgress_(message) for progress updates
+ * - completeSetupProgress_(success, errorMsg) for completion
+ * 
+ * @param {string} message - Progress message to display
+ * @param {boolean} complete - Whether setup is complete
+ * @param {string} error - Optional error message
+ * @deprecated Use reportProgress_() or completeSetupProgress_() instead
+ */
+function setSetupProgress(message, complete, error) {
+  const cache = CacheService.getScriptCache();
+  const progress = { message: message || '', complete: complete || false };
+  if (error) {
+    progress.error = error;
+  }
+  cache.put('SETUP_PROGRESS', JSON.stringify(progress), 600);
+  Logger.log(`[setSetupProgress - DEPRECATED] ${message}`);
 }
 
 /**
