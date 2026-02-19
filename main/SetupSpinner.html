@@ -176,17 +176,30 @@
       }, 500);
     }
 
-    function updateProgress(message) {
-      if (!message) return;
+    function updateProgress(progress) {
+      if (!progress) return;
+
+      // Handle object response from getSetupProgress()
+      const message = progress.message || 'Processing...';
+      const isComplete = progress.complete || false;
+      const error = progress.error;
 
       document.getElementById('status').innerText = message;
 
-      if (message === 'COMPLETE') {
+      if (error) {
+        // Setup failed with error
         clearInterval(progressInterval);
         progressInterval = null;
+        showError(error);
+      } else if (isComplete) {
+        // Setup completed successfully
+        clearInterval(progressInterval);
+        progressInterval = null;
+        document.getElementById('spinnerArea').classList.add('hidden');
+        document.getElementById('successArea').classList.remove('hidden');
         setTimeout(() => {
           google.script.host.close();
-        }, 800);
+        }, 1500);
       }
     }
 

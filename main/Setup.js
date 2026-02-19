@@ -191,6 +191,15 @@ function getSetupProgress_() {
 }
 
 /**
+ * Public wrapper for getSetupProgress_()
+ * Called by SetupSpinner.html to poll setup progress
+ * Returns: { message: string, complete: boolean, error?: string }
+ */
+function getSetupProgress() {
+  return getSetupProgress_();
+}
+
+/**
  * Mark setup as complete (success or error)
  */
 function completeSetupProgress_(isSuccess, errorMessage) {
