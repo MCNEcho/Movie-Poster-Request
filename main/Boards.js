@@ -48,13 +48,6 @@ function rebuildBoards() {
     Logger.log(`[WARN] Employee View sync failed (access denied): ${err.message}`);
     // Continue without crashing - employee view will show stale data but refresh completes
   }
-  
-  // Refresh health banner after board rebuild
-  try {
-    renderHealthBanner_();
-  } catch (err) {
-    Logger.log(`[WARN] Health banner refresh after board rebuild failed: ${err.message}`);
-  }
 }
 
 function resetBoardArea_(sheet, colsToClear) {

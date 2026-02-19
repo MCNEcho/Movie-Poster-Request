@@ -101,11 +101,6 @@ clasp push
 - **Bulk Simulator** (`20_BulkSimulator.js`)
   - Stress test up to 100 randomized submissions (warn ≥50 live)
   - Dry-run option; logs execution stats (time, sheet reads, cache hits, lock waits) to Analytics
-- **System Health Monitoring** (`16_AdminHealthBanner.js`)
-  - Tracks trigger installation and status
-  - Cache health metrics (valid vs total)
-  - Last error and announcement queue size
-  - Displayed in Documentation tab for quick reference
 
 ### Key Modules (selected)
 - `Config.js` – Central configuration, column mappings, and property keys

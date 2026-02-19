@@ -144,7 +144,6 @@ if (!canRequest.allowed) {
 LABEL_TO_ID        // Poster title → Poster ID
 ID_TO_CURRENT_LABEL // Poster ID → current title (handles name changes)
 ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
-HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 ```
 
 ---
