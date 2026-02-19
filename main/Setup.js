@@ -99,11 +99,11 @@ function logProgress_(message) {
 }
 
 function runSetupStep_(label, stepFn) {
-  logProgress_(`[Setup Progress] ${label}`);
+  logProgress_(label);
   try {
     stepFn();
   } catch (err) {
-    Logger.log(`[ERROR] ${label}: ${err.message}`);
+    Logger.log(`[ERROR] ${label}: ${err.message}\nStack: ${err.stack || 'N/A'}`);
     throw err;
   }
 }
