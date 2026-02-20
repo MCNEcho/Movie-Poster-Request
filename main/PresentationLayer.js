@@ -427,10 +427,6 @@ function buildDocumentationTab() {
       getDedupRuleDescription_()
     ]);
 
-    row = writeDocSection_(docSh, row, 'SYSTEM HEALTH', [
-      getSystemHealthSection_()
-    ]);
-
     row = writeDocSection_(docSh, row, 'FORM SUBMISSION', [
       'To request posters:',
       '1. Fill out your name (First Last)',
@@ -500,11 +496,6 @@ function getDedupRuleDescription_() {
     `• Requests marked REMOVED are not counted towards active limits`,
     `• Cooldown period (if configured): ${CONFIG.REREQUEST_COOLDOWN_DAYS ?? 0} days before re-requesting after removal`
   ].join('\n'));
-}
-
-function getSystemHealthSection_() {
-  const integrityReport = generateDataIntegrityReport_();
-  return integrityReport || 'No recent integrity checks';
 }
 
 function writeDocFormLink_() {
