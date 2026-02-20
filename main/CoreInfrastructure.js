@@ -172,8 +172,7 @@ const COLS = {
 
   MOVIE_POSTERS: {
     ACTIVE: 1,
-    POSTER_ID: 2,
-    TITLE: 3,
+    POSTER_ID: 2,n    TITLE: 3,
     RELEASE: 4,
     INV_COUNT: 5,
     RECEIVED: 6,
@@ -649,12 +648,53 @@ function isMasterAccount_() {
   return currentUser && currentUser === ownerEmail;
 }
 
+// ===== PROPERTY UTILITIES =====
+
+/**
+ * Read a raw string property from ScriptProperties.
+ * @param {string} key - Property key
+ * @param {string} fallback - Default value if property doesn't exist
+ * @return {string} Property value or fallback
+ */
+function readProp_(key, fallback = '') {
+  const val = getProps_().getProperty(key);
+  return val !== null ? val : fallback;
+}
+
+/**
+ * Write a raw string property to ScriptProperties.
+ * @param {string} key - Property key
+ * @param {string} value - Value to store
+ */
+function writeProp_(key, value) {
+  getProps_().setProperty(key, String(value || ''));
+}
+
+/**
+ * Delete a property from ScriptProperties.
+ * @param {string} key - Property key
+ */
+function deleteProp_(key) {
+  getProps_().deleteProperty(key);
+}
+
+/**
+ * Read a JSON property from ScriptProperties (parses JSON).
+ * @param {string} key - Property key
+ * @param {*} fallback - Default value if property doesn't exist or parsing fails
+ * @return {*} Parsed JSON value or fallback
+ */
 function readJsonProp_(key, fallback) {
   const raw = getProps_().getProperty(key);
   if (!raw) return fallback;
   try { return JSON.parse(raw); } catch (e) { return fallback; }
 }
 
+/**
+ * Write a JSON property to ScriptProperties (stringifies object).
+ * @param {string} key - Property key
+ * @param {*} obj - Object to stringify and store
+ */
 function writeJsonProp_(key, obj) {
   getProps_().setProperty(key, JSON.stringify(obj || {}));
 }
