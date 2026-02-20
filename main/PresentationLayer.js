@@ -427,10 +427,6 @@ function buildDocumentationTab() {
       getDedupRuleDescription_()
     ]);
 
-    row = writeDocSection_(docSh, row, 'SYSTEM HEALTH', [
-      getSystemHealthSection_()
-    ]);
-
     row = writeDocSection_(docSh, row, 'FORM SUBMISSION', [
       'To request posters:',
       '1. Fill out your name (First Last)',
@@ -502,12 +498,8 @@ function getDedupRuleDescription_() {
   ].join('\n'));
 }
 
-function getSystemHealthSection_() {
-  const integrityReport = generateDataIntegrityReport_();
-  return integrityReport || 'No recent integrity checks';
-}
-
 function writeDocFormLink_() {
   const url = getCachedFormUrl_();
   return url ? `Form: ${url}` : '(Form not configured)';
 }
+```
