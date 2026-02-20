@@ -73,9 +73,9 @@ function testDedupConfig() {
 
 /**
  * ============================================================================
- * ONE-TIME CLEANUP FUNCTION (Archive - no longer maintained)
+ * ONE-TIME MIGRATION / CLEANUP FUNCTION (Archive - no longer maintained)
  * ============================================================================
- * This function was used to clean legacy data.
+ * This function was used to migrate legacy data.
  * It is NO LONGER CALLED automatically and is kept for reference only.
  * 
  * If you need to run legacy cleanup:

@@ -1,5 +1,5 @@
 /** ManualRequest.js **/
-/** Manual request entry for admin corrections and backfills **/
+/** Manual request entry for data migration from legacy systems **/
 
 function showManualRequestDialog() {
   const html = HtmlService.createHtmlOutput(`
@@ -14,7 +14,7 @@ function showManualRequestDialog() {
       .error { background-color: #f8d7da; color: #721c24; }
     </style>
     
-    <h2>Manually Add Request</h2>
+    <h2>Manually Add Request (Migration)</h2>
     
     <label for="email">Employee Email:</label>
     <input type="email" id="email" placeholder="employee@example.com">
@@ -134,7 +134,7 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
   lock.waitLock(30000);
 
   try {
-    Logger.log(`[addManualRequest] Adding manual request for ${empEmail}`);
+    SpreadsheetApp.getActive().toast('⏳ Adding manual request...', 'Manual Request', 3);
 
     // Validate inputs
     if (!empEmail || !empName || !posterId) {
@@ -207,18 +207,21 @@ function addManualRequest(empEmail, empName, posterId, customTimestamp) {
 
     invalidateCachesAfterWrite_({ empEmail });
     
-    // Performance Optimization: Use deferred refresh for admin operations
-    // Allows manual request add to complete in ~200-300ms instead of ~2-3s
-    markSystemNeedingRefresh_();
+    // Rebuild boards to reflect new entry
+    SpreadsheetApp.getActive().toast('🔄 Updating boards and form...', 'Manual Request', 3);
+    rebuildBoards();
+    syncPostersToForm();
     
     Logger.log(`[addManualRequest] Successfully added request: ${empEmail} - ${label}`);
+    
+    // Visual feedback after dialog closes
     SpreadsheetApp.getActive().toast(
-      `✅ Request added!\n${empName} → ${label}\n🔄 Boards will refresh in 1-5 minutes`,
+      `✅ Request added!\n${empName} → ${label}`,
       'Request Added',
       5
     );
     
-    return { success: true, message: 'Request added successfully (refresh pending)' };
+    return { success: true, message: 'Request added successfully' };
     
   } catch (err) {
     Logger.log(`[addManualRequest] Error: ${err.message}`);

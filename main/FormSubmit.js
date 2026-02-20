@@ -62,13 +62,10 @@ function handleFormSubmit(e) {
       notes: result.notes.join(' | '),
     });
 
-    Logger.log(`[handleFormSubmit] About to mark system for deferred refresh. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
-    
-    // Performance Optimization: Use deferred refresh instead of blocking rebuild
-    // This allows form submission to complete in ~400ms instead of ~2-3s
-    markSystemNeedingRefresh_();
-    
-    Logger.log(`[handleFormSubmit] Deferred refresh marked, form submission complete`);
+    Logger.log(`[handleFormSubmit] About to rebuild boards. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
+    rebuildBoards();
+    Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
+    syncPostersToForm();
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {

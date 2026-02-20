@@ -104,7 +104,7 @@ function setupPosterOutsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    Logger.log('[setupPosterOutsideTab_] Poster Outside display initialized');
+    ss.toast('✅ Poster Outside display initialized!', 'Setup Complete', 3);
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterOutsideTab_', 'Setting up Poster Outside tab');
@@ -189,7 +189,7 @@ function setupPosterInsideTab_() {
     protection2.setDescription('Header - Do not edit');
     protection2.setWarningOnly(true);
     
-    Logger.log('[setupPosterInsideTab_] Poster Inside display initialized');
+    ss.toast('✅ Poster Inside display initialized!', 'Setup Complete', 3);
     return sheet;
   } catch (err) {
     logError_(err, 'setupPosterInsideTab_', 'Setting up Poster Inside tab');
@@ -205,13 +205,11 @@ function setupPosterInsideTab_() {
  * @param {number} row - The row number
  * @param {number} startCol - Starting column (1-indexed)
  * @param {number} numCols - Number of columns to add dropdowns
- * @param {Array<string>} [cachedTitles] - Optional pre-fetched titles (performance optimization)
  */
-function setupMovieTitleDropdowns_(sheet, row, startCol, numCols, cachedTitles) {
+function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
   try {
-    // Performance Optimization: Use cached titles if provided (for batch dropdown updates)
-    // Otherwise fetch from inventory
-    const titles = cachedTitles || getMovieTitlesFromInventory_();
+    // Get movie titles from Inventory tab
+    const titles = getMovieTitlesFromInventory_();
     
     if (titles.length === 0) {
       titles.push('(No movies in inventory)');
@@ -317,7 +315,6 @@ function updatePosterInsideTimestamp_() {
 /**
  * Refresh all display tab dropdowns when Inventory changes
  * This function updates dropdowns on both Poster Outside and Poster Inside tabs
- * Performance Optimized: Fetches inventory once and reuses for all dropdowns
  */
 function refreshDisplayDropdowns_() {
   const lock = LockService.getScriptLock();
@@ -326,29 +323,27 @@ function refreshDisplayDropdowns_() {
   try {
     const ss = SpreadsheetApp.getActive();
     
-    // Performance Optimization: Fetch titles once for all dropdown updates
-    const titles = getMovieTitlesFromInventory_();
-    
     // Refresh Poster Outside
     const outsideSheet = ss.getSheetByName('Poster Outside');
     if (outsideSheet) {
-      setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8, titles);  // Yoke's Side
-      setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8, titles);  // Dairy Queen Side
+      setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
+      setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
       updatePosterOutsideTimestamp_();
     }
     
     // Refresh Poster Inside
     const insideSheet = ss.getSheetByName('Poster Inside');
     if (insideSheet) {
-      setupMovieTitleDropdowns_(insideSheet, 3, 1, 4, titles);  // Video Games Wall Top
-      setupMovieTitleDropdowns_(insideSheet, 4, 1, 4, titles);  // Video Games Wall Bottom
-      setupMovieTitleDropdowns_(insideSheet, 7, 1, 3, titles);  // Box Wall
+      setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
+      setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
+      setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
       updatePosterInsideTimestamp_();
     }
     
-    Logger.log('[refreshDisplayDropdowns_] Display dropdowns refreshed');
+    ss.toast('✅ Display dropdowns refreshed!', 'Refresh Complete', 3);
   } catch (err) {
     logError_(err, 'refreshDisplayDropdowns_', 'Refreshing display dropdowns');
+    SpreadsheetApp.getActive().toast('❌ Error refreshing displays', 'Error', 5);
   } finally {
     lock.releaseLock();
   }

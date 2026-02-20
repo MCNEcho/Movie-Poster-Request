@@ -108,24 +108,13 @@ function backupSheet_(sheetName, folderId, timestamp) {
   const folder = DriveApp.getFolderById(folderId);
   const fileName = `${sheetName}_${timestamp}`;
   
-  // Performance Optimization: Use actual data boundaries (lastRow/lastCol) vs getDataRange()
-  // This avoids reading thousands of empty rows beyond actual data
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-  
-  if (lastRow === 0 || lastCol === 0) {
-    Logger.log(`[BACKUP] Skipping empty sheet: ${sheetName}`);
-    return { name: fileName, id: null, url: null };
-  }
-  
-  const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-  
   if (CONFIG.BACKUP.FORMAT === 'SHEET') {
     // Create Google Sheet copy
     const newSpreadsheet = SpreadsheetApp.create(fileName);
     const newSheet = newSpreadsheet.getActiveSheet();
     
     // Copy data
+    const data = sheet.getDataRange().getValues();
     if (data.length > 0 && data[0] && data[0].length > 0) {
       newSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
     }
@@ -144,6 +133,7 @@ function backupSheet_(sheetName, folderId, timestamp) {
     
   } else {
     // Create CSV export (default)
+    const data = sheet.getDataRange().getValues();
     const csv = convertToCsv_(data);
     const blob = Utilities.newBlob(csv, 'text/csv', fileName + '.csv');
     const file = folder.createFile(blob);

@@ -262,40 +262,49 @@ function executeRefreshAll_() {
     
     // 1. Rebuild boards
     Logger.log('[executeRefreshAll_] Rebuilding boards...');
+    ss.toast('⏳ Step 1/5: Rebuilding boards...', 'Refreshing All', -1);
     rebuildBoards();
-    Logger.log('[executeRefreshAll_] Boards rebuilt');
+    ss.toast('✓ Boards rebuilt', 'Progress', 2);
     
     // 2. Sync form options
     Logger.log('[executeRefreshAll_] Syncing form options...');
+    ss.toast('⏳ Step 2/5: Syncing form options...', 'Refreshing All', -1);
     try {
       syncPostersToForm();
-      Logger.log('[executeRefreshAll_] Form synced');
+      ss.toast('✓ Form synced', 'Progress', 2);
     } catch (err) {
       Logger.log(`[WARN] Form sync failed (access denied): ${err.message}`);
+      ss.toast('⚠ Form sync skipped (access denied)', 'Progress', 3);
     }
     
     // 3. Refresh Print Out
     Logger.log('[executeRefreshAll_] Updating Print Out...');
+    ss.toast('⏳ Step 3/5: Updating Print Out...', 'Refreshing All', -1);
     try {
       buildPrintOutLayout_();
-      Logger.log('[executeRefreshAll_] Print Out updated');
+      ss.toast('✓ Print Out updated', 'Progress', 2);
     } catch (err) {
       Logger.log(`[WARN] Print Out update failed: ${err.message}`);
+      ss.toast('⚠ Print Out update skipped', 'Progress', 3);
     }
     
     // 4. Refresh Poster Outside dropdowns
     Logger.log('[executeRefreshAll_] Updating Poster Outside...');
+    ss.toast('⏳ Step 4/5: Updating Poster Outside...', 'Refreshing All', -1);
     refreshPosterOutsideDropdowns_();
-    Logger.log('[executeRefreshAll_] Poster Outside updated');
+    ss.toast('✓ Poster Outside updated', 'Progress', 2);
     
     // 5. Refresh Poster Inside dropdowns
     Logger.log('[executeRefreshAll_] Updating Poster Inside...');
+    ss.toast('⏳ Step 5/5: Updating Poster Inside...', 'Refreshing All', -1);
     refreshPosterInsideDropdowns_();
     
     Logger.log('[executeRefreshAll_] All refresh operations complete');
+    ss.toast('✅ All displays refreshed successfully!', 'Refresh Complete', 5);
     
   } catch (err) {
-    Logger.log(`[executeRefreshAll_] Error: ${err.message}`);
+    const ss = SpreadsheetApp.getActive();
+    ss.toast('❌ Error during refresh: ' + err.message, 'Error', 5);
     logError_(err, 'executeRefreshAll_', 'Running all refresh operations');
     throw err;
   } finally {
@@ -312,20 +321,21 @@ function refreshPosterOutsideDropdowns_() {
   
   if (!outsideSheet) {
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside sheet not found');
+    ss.toast('❌ Poster Outside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    Logger.log('[refreshPosterOutsideDropdowns_] Updating Poster Outside dropdowns...');
+    ss.toast('⏳ Updating Poster Outside dropdowns...', 'Updating', -1);
     
-    // Performance Optimization: Cache inventory read for all dropdowns
-    const titles = getMovieTitlesFromInventory_();
-    setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8, titles);  // Yoke's Side
-    setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8, titles);  // Dairy Queen Side
+    setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
+    setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
     updatePosterOutsideTimestamp_();
     
+    ss.toast('✅ Poster Outside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside dropdowns updated');
   } catch (err) {
+    ss.toast('❌ Error updating Poster Outside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterOutsideDropdowns_] Error: ' + err.message);
     throw err;
   }
@@ -340,90 +350,23 @@ function refreshPosterInsideDropdowns_() {
   
   if (!insideSheet) {
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside sheet not found');
+    ss.toast('❌ Poster Inside sheet not found', 'Error', 5);
     return;
   }
   
   try {
-    Logger.log('[refreshPosterInsideDropdowns_] Updating Poster Inside dropdowns...');
+    ss.toast('⏳ Updating Poster Inside dropdowns...', 'Updating', -1);
     
-    // Performance Optimization: Cache inventory read for all dropdowns
-    const titles = getMovieTitlesFromInventory_();
-    setupMovieTitleDropdowns_(insideSheet, 3, 1, 4, titles);  // Video Games Wall Top
-    setupMovieTitleDropdowns_(insideSheet, 4, 1, 4, titles);  // Video Games Wall Bottom
-    setupMovieTitleDropdowns_(insideSheet, 7, 1, 3, titles);  // Box Wall
+    setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
+    setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
+    setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
     updatePosterInsideTimestamp_();
     
+    ss.toast('✅ Poster Inside dropdowns updated successfully!', 'Complete', 3);
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside dropdowns updated');
   } catch (err) {
+    ss.toast('❌ Error updating Poster Inside: ' + err.message, 'Error', 5);
     Logger.log('[refreshPosterInsideDropdowns_] Error: ' + err.message);
     throw err;
-  }
-}
-/**
- * DEFERRED REFRESH ARCHITECTURE (Performance Optimization)
- * Marks the system as needing a refresh without blocking current operation
- * Actual refresh executes via time-based trigger (every 1-5 minutes)
- */
-function markSystemNeedingRefresh_() {
-  try {
-    const props = getProps_();
-    props.setProperty(CONFIG.PROPS.NEEDS_REFRESH, 'true');
-    Logger.log('[markSystemNeedingRefresh_] System marked for deferred refresh');
-  } catch (err) {
-    Logger.log(`[WARN] Failed to mark system for refresh: ${err.message}`);
-    // Don't throw - deferred refresh failure should not block operations
-  }
-}
-
-function refreshIfNeeded_() {
-  const props = getProps_();
-  const needsRefresh = props.getProperty(CONFIG.PROPS.NEEDS_REFRESH);
-
-  if (needsRefresh === 'true') {
-    Logger.log('[refreshIfNeeded_] Executing deferred refresh...');
-    props.deleteProperty(CONFIG.PROPS.NEEDS_REFRESH);
-    executeRefreshAll_();
-    Logger.log('[refreshIfNeeded_] Deferred refresh complete');
-    return true;
-  }
-
-  Logger.log('[refreshIfNeeded_] No refresh needed');
-  return false;
-}
-
-/**
- * Executes deferred refresh if system is marked as needing it
- * Called by time-based trigger (every 1-5 minutes)
- * Performance: Non-blocking for form submissions and admin operations
- */
-function executeDeferredRefresh() {
-  if (typeof refreshIfNeeded_ !== 'function') {
-    Logger.log('[DeferredRefresh] refreshIfNeeded_ missing — skipping.');
-    return;
-  }
-
-  if (PropertiesService.getScriptProperties().getProperty('SETUP_RUNNING')) {
-    Logger.log('[DeferredRefresh] Setup in progress — skipping.');
-    return;
-  }
-
-  const lock = LockService.getScriptLock();
-
-  if (!lock.tryLock(1000)) {
-    Logger.log('[DeferredRefresh] Locked by another process, skipping.');
-    return;
-  }
-
-  try {
-    const didRefresh = refreshIfNeeded_();
-    if (didRefresh) {
-      Logger.log('[DeferredRefresh] Refresh executed successfully');
-    } else {
-      Logger.log('[DeferredRefresh] No refresh needed');
-    }
-  } catch (err) {
-    logError_(err, 'executeDeferredRefresh', 'Deferred refresh trigger');
-  } finally {
-    lock.releaseLock();
   }
 }

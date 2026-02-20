@@ -1,49 +1,8 @@
 /** Boards.js **/
 
-/**
- * Initialize Admin Notes column (Column C) on Main and Employees sheets
- * This column is PROTECTED from rebuild operations and persists across all updates
- * Admin Notes are never cleared, reset, or overwritten during:
- * - rebuildBoards() calls
- * - Form submissions
- * - Deferred refreshes
- * - setupPosterSystem() runs
- */
-function initializeAdminNotesColumn_() {
-  const mainSheet = getSheet_(CONFIG.SHEETS.MAIN);
-  const empSheet = getSheet_(CONFIG.SHEETS.EMPLOYEES);
-  
-  // Initialize Main sheet column C header
-  const mainC1 = mainSheet.getRange(1, 3);
-  if (!mainC1.getValue() || mainC1.getValue().trim() === '') {
-    mainC1.setValue('Admin Notes');
-    mainC1.setFontWeight('bold');
-    mainC1.setBackground('#fff2cc');
-    mainC1.setHorizontalAlignment('left');
-  }
-  
-  // Initialize Employees sheet column C header
-  const empC1 = empSheet.getRange(1, 3);
-  if (!empC1.getValue() || empC1.getValue().trim() === '') {
-    empC1.setValue('Admin Notes');
-    empC1.setFontWeight('bold');
-    empC1.setBackground('#fff2cc');
-    empC1.setHorizontalAlignment('left');
-  }
-  
-  Logger.log('[initializeAdminNotesColumn_] Admin Notes column initialized');
-}
-
 function rebuildBoards() {
-  if (PropertiesService.getScriptProperties().getProperty('SETUP_RUNNING')) {
-    Logger.log('[rebuildBoards] Setup in progress — skipping.');
-    return;
-  }
   buildMainBoard_();
   buildEmployeesBoard_();
-  
-  // Ensure Admin Notes column is always present (persists across rebuilds)
-  initializeAdminNotesColumn_();
   
   // Sync employee view with graceful error handling
   try {
@@ -51,6 +10,13 @@ function rebuildBoards() {
   } catch (err) {
     Logger.log(`[WARN] Employee View sync failed (access denied): ${err.message}`);
     // Continue without crashing - employee view will show stale data but refresh completes
+  }
+  
+  // Refresh health banner after board rebuild
+  try {
+    renderHealthBanner_();
+  } catch (err) {
+    Logger.log(`[WARN] Health banner refresh after board rebuild failed: ${err.message}`);
   }
 }
 

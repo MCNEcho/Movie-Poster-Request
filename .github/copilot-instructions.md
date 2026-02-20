@@ -38,7 +38,6 @@ Core modules (no longer numbered, organized alphabetically):
 - **ManualRequest.js** - Historical request entry dialog
 - **ManualPoster.js** - Manual poster entry dialog
 - **RefreshManager.js** - Refresh coordination and deferred refresh execution
-- **UISpinner.js** - Non-blocking CSS spinner UI for long operations (NEW in v2.0)
 
 ### Critical Data Flow
 ```
@@ -212,7 +211,6 @@ For understanding the system:
 2. **README.md** - Full architecture overview
 3. **Ledger.js** + **FormSubmit.js** - Core request logic
 4. **Boards.js** - How requests become visualizations and admin notes persistence
-5. **UISpinner.js** - Non-blocking spinner UI implementation
 
 ---
 
