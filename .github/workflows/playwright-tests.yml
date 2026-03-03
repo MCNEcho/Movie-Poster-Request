@@ -1,0 +1,47 @@
+name: Run Playwright Tests
+
+on:
+  push:
+    branches: [main, beta]
+  pull_request:
+    branches: [main, beta]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'tests/package.json'
+
+      - name: Install dependencies
+        working-directory: ./tests
+        run: npm install
+
+      - name: Install Playwright browsers
+        working-directory: ./tests
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        working-directory: ./tests
+        env:
+          # Set these secrets in GitHub repo settings: Settings > Secrets and Variables > Actions
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TEST_FORM_URL: ${{ secrets.TEST_FORM_URL }}
+          TEST_SPREADSHEET_ID: ${{ secrets.TEST_SPREADSHEET_ID }}
+        run: npm test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 7

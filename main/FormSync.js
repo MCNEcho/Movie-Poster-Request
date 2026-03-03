@@ -1,0 +1,62 @@
+/** FormSync.js **/
+
+function syncPostersToForm() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    // Keep form structure aligned with setup (collect email, subscribe checkbox, etc.)
+    ensureFormStructure_();
+
+    ensurePosterIdsInInventory_();  // Inventory is canonical source
+    updateInventoryLastUpdated_();
+
+    const form = getOrCreateForm_();
+    const posters = getPostersWithLabels_();  // Reads from Inventory
+
+    // Build label-to-ID and ID-to-label maps
+    const labelToId = readJsonProp_(CONFIG.PROPS.LABEL_TO_ID, {});
+    const idToCurrent = {};
+    posters.forEach(p => {
+      idToCurrent[p.posterId] = p.label;
+      if (!labelToId[p.label]) labelToId[p.label] = p.posterId;
+    });
+    writeJsonProp_(CONFIG.PROPS.LABEL_TO_ID, labelToId);
+    writeJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, idToCurrent);
+
+    // Invalidate caches affected by poster label/availability changes
+    invalidatePostersWithLabels_();
+    invalidatePosterAvailability_();
+
+    // Build Add choices (active posters, sorted by release)
+    const addChoices = posters
+      .filter(p => p.active)
+      .sort((a,b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
+      .map(p => p.label);
+
+    // Build Remove choices (posters with ACTIVE requests)
+    const activePosterIds = getPosterIdsWithAnyActiveRequests_();
+    const removeChoices = posters
+      .filter(p => activePosterIds[p.posterId])
+      .sort((a,b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
+      .map(p => p.label);
+
+    // Update all 7 Add Poster dropdowns
+    for (let i = 1; i <= 7; i++) {
+      const posterTitle = `Request Poster (Add) ${i}`;
+      setDropdownChoicesByTitle_(form, posterTitle, addChoices, false);
+    }
+
+    // Update all 7 Remove Poster dropdowns
+    for (let i = 1; i <= 7; i++) {
+      const removeTitle = `Remove Poster ${i}`;
+      setDropdownChoicesByTitle_(form, removeTitle, removeChoices, false);
+    }
+
+    // Boards and form were updated; clear board caches for freshness
+    invalidateBoardMain_();
+    invalidateBoardEmployees_();
+
+  } finally {
+    lock.releaseLock();
+  }
+}
