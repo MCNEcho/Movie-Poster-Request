@@ -13,7 +13,6 @@ A Google Apps Script system for employee poster requests with strict per-employe
 - Cache layer for read optimization
 - Comprehensive admin panel with one-click repair
 - Employee view sync to separate spreadsheet
-- Health monitoring dashboard
 
 ## Quick Setup
 
@@ -96,12 +95,6 @@ clasp push
   - 7-day retention policy; older backups automatically deleted
   - Manual trigger available via Admin Menu
   - Backup logs and history tracked for audit
-- **Health Monitoring** 
-  - Tracks all trigger installation and status
-  - Cache performance metrics (hit rate, validity)
-  - Last error and announcement queue status
-  - Execution time tracking
-  - Displayed in Documentation tab for quick reference
 
 ### Key Modules
 - `Config.js` – Central configuration, column mappings, sheet references, property keys
@@ -160,20 +153,14 @@ clasp push
   - YELLOW: Admin audit logs (Request Order, Requests)
   - RED: Error/Debug (Error Log, Data Integrity)
   - GREEN: Analytics/Reporting
-- **Documentation Tab** – System health dashboard, configuration reference, troubleshooting guides, form link
+- **Documentation Tab** – Configuration reference, troubleshooting guides, and form link
 - **Clean Interface** – Frozen headers removed; Requests/Request Order sheets hidden by default
 - **Print Out Auto-Format** – Print layout with QR codes for easy sharing and form access
 
-### Documentation & Health Monitoring
+### Documentation
 - **Documentation Sheet** – Auto-generated with:
   - Complete system guide (employee and manager sections)
   - Current configuration settings and limits
-  - System Health dashboard displaying:
-    - Trigger installation and status
-    - Cache performance (hit rate, validity)
-    - Last error details and error count
-    - Announcement queue size
-    - Execution time metrics
   - Direct edit link to the Google Form
   - Troubleshooting guide
   - Requests ledger column reference
@@ -192,7 +179,6 @@ clasp push
 - [ ] Analytics logs all events and performance metrics
 - [ ] Errors are captured and logged to Error Log sheet
 - [ ] Nightly backups run without errors and retain 7 days of backups
-- [ ] Health banner displays accurate cache hit rate and execution times
 
 ### Troubleshooting
 - **One-click repair:** Admin Menu → **Run Setup / Repair** – Recreates all sheets, triggers, and form
