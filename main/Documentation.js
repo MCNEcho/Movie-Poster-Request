@@ -101,67 +101,6 @@ function getDedupRuleDescription_() {
 }
 
 /**
- * Generate system health section for documentation
- */
-function getSystemHealthSection_() {
-  try {
-    const health = collectHealthData_();
-    
-    if (!health || !health.triggers) {
-      return [
-        'System Health: Data loading...',
-        'Click "Refresh Documentation" to refresh this section.'
-      ];
-    }
-    
-    const lines = [];
-    
-    // Triggers
-    lines.push(`Triggers Installed: ${health.triggers.triggersInstalled || '?'} (${health.triggers.status || 'UNKNOWN'})`);
-    if (health.triggers.details) {
-      lines.push(`  • Form Submissions: ${health.triggers.details.formSubmit.installed ? '✅' : '❌'}`);
-      lines.push(`  • Sheet Edits: ${health.triggers.details.sheetEdit.installed ? '✅' : '❌'}`);
-      lines.push(`  • Announcements: ${health.triggers.details.announcementQueue.installed ? '✅' : '❌'}`);
-    }
-    
-    // Cache
-    if (health.cache) {
-      lines.push(`Cache Health: ${health.cache.validCaches || '?'}/${health.cache.totalCaches || '?'} valid (${health.cache.status || 'UNKNOWN'})`);
-    }
-    
-    // Errors
-    if (health.lastError) {
-      if (health.lastError.status === 'HEALTHY') {
-        lines.push(`Last Error: None (✅ System clean)`);
-      } else if (health.lastError.error && health.lastError.error.includes('Missing sheet')) {
-        lines.push(`Last Error: Error Log sheet not yet created (will be created on first error)`);
-      } else {
-        lines.push(`Last Error: ${health.lastError.errorType || 'Unknown'} - ${health.lastError.message || 'No details'}`);
-        if (health.lastError.ageInHours) {
-          lines.push(`  Logged: ${health.lastError.ageInHours} hours ago`);
-        }
-        lines.push(`  Status: ${health.lastError.resolved ? 'Resolved' : 'UNRESOLVED'}`);
-      }
-    }
-    
-    // Queue
-    if (health.queue) {
-      lines.push(`Announcement Queue: ${health.queue.queueSize || '0'} item${(health.queue.queueSize || 0) !== 1 ? 's' : ''} pending`);
-    }
-    
-    lines.push('');
-    lines.push('Click "Refresh Documentation" from admin menu to update this section.');
-    
-    return lines;
-  } catch (err) {
-    return [
-      `System Health: ${err.message}`,
-      '(Health data will refresh after first operations)'
-    ];
-  }
-}
-
-/**
  * Write form edit link section
  */
 function writeDocFormLink_(sh, r) {
