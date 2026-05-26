@@ -1,0 +1,158 @@
+/** Utils.js **/
+
+function now_() { return new Date(); }
+
+function fmtDate_(d, pattern) {
+  return Utilities.formatDate(d, CONFIG.TIMEZONE, pattern);
+}
+
+function normalizeTitle_(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+function getProps_() {
+  return PropertiesService.getScriptProperties();
+}
+
+function isMasterAccount_() {
+  const configuredAdmin = String(CONFIG.ADMIN_EMAIL || '').toLowerCase().trim();
+  const ss = SpreadsheetApp.getActive();
+  const ownerEmail = String(ss.getOwner().getEmail() || '').toLowerCase().trim();
+  const currentUser = String(Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail() || '').toLowerCase().trim();
+
+  if (configuredAdmin) return currentUser && currentUser === configuredAdmin;
+  return currentUser && currentUser === ownerEmail;
+}
+
+function readJsonProp_(key, fallback) {
+  const raw = getProps_().getProperty(key);
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch (e) { return fallback; }
+}
+
+function writeJsonProp_(key, obj) {
+  getProps_().setProperty(key, JSON.stringify(obj || {}));
+}
+
+function ensureSheetWithHeaders_(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+
+  if (headers && headers.length) {
+    const existing = sh.getRange(1,1,1,headers.length).getValues()[0];
+    const needs = existing.join('') !== headers.join('');
+    if (needs) {
+      sh.getRange(1,1,1,headers.length).setValues([headers]);
+      // Frozen headers removed for better UX
+    }
+  }
+  return sh;
+}
+
+function getSheet_(name) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(name);
+  if (!sh) throw new Error(`Missing sheet: ${name}`);
+  return sh;
+}
+
+function setCheckboxColumn_(sheet, col, startRow, numRows) {
+  const rule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+  sheet.getRange(startRow, col, numRows - startRow + 1, 1).setDataValidation(rule);
+}
+
+function getNonEmptyData_(sheet, minCols) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const lastCol = Math.max(minCols || 1, sheet.getLastColumn());
+  const vals = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  return vals.filter(r => r.some(v => v !== '' && v !== null));
+}
+
+function safeArray_(v) {
+  if (v === null || v === undefined || v === '') return [];
+  if (Array.isArray(v)) return v;
+  return String(v).split(/\s*,\s*/).filter(Boolean);
+}
+
+function uuidPosterId_() {
+  const hex = Utilities.getUuid().replace(/-/g,'').slice(0,8).toUpperCase();
+  return `P-${hex}`;
+}
+
+/**
+ * Enforce employee name format:
+ * Accepts: "Gavin N" or "Gavin N."
+ * Rejects: "Miles pratt", "Gavin", "Gavin NN", etc.
+ */
+function normalizeEmployeeName_(input) {
+  const raw = String(input || '').trim();
+
+  // First name + last initial (optional trailing period)
+  const m = raw.match(/^([A-Za-z][A-Za-z'-]{1,})\s+([A-Za-z])\.?$/);
+  if (!m) {
+    return { ok: false, canonical: '', reason: 'Name must be: FirstName + LastInitial (ex: "Gavin N")' };
+  }
+
+  const first = m[1];
+  const initial = m[2].toUpperCase();
+  const firstNice = first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+
+  return { ok: true, canonical: `${firstNice} ${initial}`, reason: '' };
+}
+
+/**
+ * Fetches all posters from Inventory sheet with computed display labels.
+ * Handles duplicate titles by adding (Release Date) suffix.
+ * Returns array of { posterId, title, release, active, label, invCount }
+ */
+function getPostersWithLabels_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const data = getNonEmptyData_(inv, 11, 3);  // headers on row 2, data from row 3
+  
+  const posters = data.map(r => ({
+    posterId: String(r[COLS.INVENTORY.POSTER_ID - 1] || '').trim(),
+    title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),
+    release: r[COLS.INVENTORY.RELEASE - 1],
+    active: r[COLS.INVENTORY.ACTIVE - 1] === true,
+    invCount: r[COLS.INVENTORY.POSTERS - 1],
+  })).filter(p => p.posterId && p.title && p.release);
+
+  // Count duplicates by title
+  const titleCounts = {};
+  posters.forEach(p => {
+    const k = normalizeTitle_(p.title);
+    titleCounts[k] = (titleCounts[k] || 0) + 1;
+  });
+
+  // Add computed labels
+  posters.forEach(p => {
+    const dup = titleCounts[normalizeTitle_(p.title)] > 1;
+    const rd = (p.release instanceof Date) ? fmtDate_(p.release, 'yyyy-MM-dd') : String(p.release);
+    p.label = dup ? `${p.title} (${rd})` : p.title;
+  });
+
+  return posters;
+}
+
+/**
+ * Gets all ACTIVE requests from Requests sheet.
+ * Returns array of request rows with full data.
+ */
+function getActiveRequests_() {
+  const sh = getSheet_(CONFIG.SHEETS.REQUESTS);
+  const data = getNonEmptyData_(sh, 10);
+  return data.filter(r => String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE);
+}
+
+/**
+ * Sort Inventory sheet by release date (ascending).
+ * Called after any inventory modifications to maintain consistent ordering.
+ */
+function sortInventoryByReleaseDate_() {
+  const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
+  const lastRow = inv.getLastRow();
+  // Rows 1-2 are reserved (banner + headers). Sort only data rows starting at row 3.
+  if (lastRow < 3) return;
+  const range = inv.getRange(3, 1, lastRow - 2, inv.getLastColumn());
+  range.sort(COLS.INVENTORY.RELEASE); // Sort by release date ascending
+}
