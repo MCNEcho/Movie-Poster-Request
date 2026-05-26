@@ -66,6 +66,9 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
     );
     Logger.log(`[inventoryCleanup] Deleted by user: ${userEmail}`);
 
+    // Remove stale announcement queue/snapshot entries for deleted posters
+    pruneAnnouncementQueueEntries_(removedIds);
+
     const statusTs = now_();
     const result = closeActiveRequestsByPosterIds_(
       removedIds,
