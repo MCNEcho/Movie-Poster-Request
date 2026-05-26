@@ -293,7 +293,7 @@ function processAnnouncementQueue(forceSend) {
 
   try {
     const props = getProps_();
-    const currentBlock = Math.floor(Math.floor(Date.now() / 60000) / 15);
+    const currentBlock = Math.floor(Date.now() / (60000 * 15));
     const blockKey = String(currentBlock);
 
     if (!forceSend) {
