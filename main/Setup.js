@@ -97,6 +97,7 @@ function setupPosterSystem() {
     ensurePosterIdsInInventory_();  // Inventory is now primary source
     initializeInventorySnapshot_();  // Seed inventory snapshot for deletion detection
     initializeRequestsSnapshot_();   // Seed requests snapshot for deletion detection
+    initializeStockSnapshot_();      // Seed stock snapshot for restock announcement detection
     initializeFormUrlCache_();  // Cache Form URL (set once, persist forever)
     initializeEmployeeViewUrlCache_();  // Cache Employee View URL (set once, persist forever)
     
@@ -171,7 +172,7 @@ function ensureTriggers_() {
   if (!has('processAnnouncementQueue')) {
     ScriptApp.newTrigger('processAnnouncementQueue')
       .timeBased()
-      .everyMinutes(15)
+      .everyMinutes(5)
       .create();
   }
 

@@ -97,6 +97,8 @@ const CONFIG = {
 
     ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
+    STOCK_SNAPSHOT: 'ANNOUNCE_STOCK_SNAPSHOT_JSON',
+    ANNOUNCE_LAST_BLOCK: 'ANNOUNCE_LAST_BLOCK',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },
@@ -141,6 +143,17 @@ Request here:
       body: `We've added {{COUNT}} new posters to the request form!
 
 {{POSTER_LIST}}
+
+Total Active Posters: {{ACTIVE_COUNT}}
+
+Request here:
+{{FORM_LINK}}`
+    },
+    ANNOUNCEMENT_UPDATE: {
+      subject: 'Poster Request Updates - {{COUNT}} Item(s)',
+      body: `Poster request updates:
+
+{{ANNOUNCEMENT_SECTIONS}}
 
 Total Active Posters: {{ACTIVE_COUNT}}
 
