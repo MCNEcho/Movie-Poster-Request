@@ -2,6 +2,7 @@
 
 function handleFormSubmit(e) {
   const lock = LockService.getScriptLock();
+  let shouldSyncEmployeeView = false;
   lock.waitLock(30000);
 
   try {
@@ -67,10 +68,25 @@ function handleFormSubmit(e) {
     rebuildBoards();
     Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
     syncPostersToForm();
+    shouldSyncEmployeeView = true;
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {
     lock.releaseLock();
+  }
+
+  // Run Employee View sync outside the submission lock to avoid lock timeouts.
+  if (shouldSyncEmployeeView) {
+    try {
+      const syncResult = syncEmployeeViewSpreadsheet_();
+      if (syncResult && syncResult.success === false) {
+        Logger.log(`[handleFormSubmit] Employee View sync skipped: ${syncResult.message}`);
+      } else {
+        Logger.log('[handleFormSubmit] Employee View synced successfully');
+      }
+    } catch (syncErr) {
+      Logger.log(`[handleFormSubmit] Employee View sync failed: ${syncErr.message}`);
+    }
   }
 }
 

@@ -192,7 +192,7 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     Logger.log(`[addManualPoster] Updating Print Out, Form, and Display dropdowns...`);
     try {
       SpreadsheetApp.getActive().toast('🔄 Updating Print Out, Form, and Displays...', 'Manual Poster', 3);
-      refreshPrintOut();
+      refreshPrintOut(true); // skipQr=true: poster list changed but QR URLs are unchanged
       syncPostersToForm();
       refreshPosterOutsideDropdowns_();
       refreshPosterInsideDropdowns_();
@@ -211,6 +211,17 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     
     Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title}`);
     
+    // Queue announcement for the newly added poster (must be inside lock).
+    // We call the lock-free impl directly since we already hold the script lock.
+    if (!!active && title && releaseDate) {
+      try {
+        reconcileAnnouncementsFromInventory_Impl_();
+        Logger.log('[addManualPoster] Announcement queue updated for new poster.');
+      } catch (annErr) {
+        Logger.log(`[addManualPoster] Warning: announcement queue update failed: ${annErr.message}`);
+      }
+    }
+
     // Log to Analytics for audit trail
     try {
       const analytics = ss.getSheetByName(CONFIG.SHEETS.ANALYTICS);
