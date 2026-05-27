@@ -11,7 +11,7 @@ function updateInventoryLastUpdated_() {
     .setValue(`Last Updated: ${fmtDate_(now_(), 'yyyy-MM-dd hh:mm:ss a')}`);
 }
 
-function refreshPrintOut() {
+function refreshPrintOut(skipQr) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
 
@@ -19,7 +19,7 @@ function refreshPrintOut() {
     const ss = SpreadsheetApp.getActive();
     ss.toast('⏳ Updating Print Out layout...', 'Updating', -1);
     
-    buildPrintOutLayout_();
+    buildPrintOutLayout_(skipQr);
 
     ss.toast('✅ Print Out updated successfully!', 'Update Complete', 3);
   } catch (err) {
@@ -39,7 +39,7 @@ function refreshPrintOut() {
  * - Employee View QR code: starts 10 rows below last movie
  * Returns the last movie row number.
  */
-function buildPrintOutLayout_() {
+function buildPrintOutLayout_(skipQr) {
   const ss = SpreadsheetApp.getActive();
   const sh = getSheet_(CONFIG.SHEETS.PRINT_OUT);
 
@@ -52,11 +52,9 @@ function buildPrintOutLayout_() {
   sh.getRange(1, 1, sh.getMaxRows(), 2).breakApart();
   sh.getRange(1, 1, sh.getMaxRows(), 2).clear({ contentsOnly: false });
 
-  // Clear column C (QR area) before re-inserting QR headers and codes
+  // Keep column C clean for labels, but do NOT remove floating QR images.
+  // QR images are treated as persistent assets and only regenerated if missing.
   sh.getRange(1, 3, sh.getMaxRows(), 1).clear({ contentsOnly: true, formatOnly: true });
-
-  // Remove old floating images
-  removeAllFloatingImages_(sh);
 
   // --- Row 1-2: URLs (always at top) ---
   const formUrl = getCachedFormUrl_();  // Use cached URL from setup
@@ -156,11 +154,21 @@ function buildPrintOutLayout_() {
   tableRange.setBorder(true, true, true, true, true, true);
 
   // --- Insert QR codes ---
-  // Form QR: in column C starting from row 5
-  insertFloatingQrQuickchart_(sh, formUrl, 3, 5, 220);
+  // Generate QRs only if missing. If one is missing, rebuild both to avoid drift.
+  const existingQrImages = sh.getImages();
+  if (existingQrImages.length < 2) {
+    if (existingQrImages.length > 0) {
+      removeAllFloatingImages_(sh);
+    }
 
-  // Employee QR: 1 row below the label
-  insertFloatingQrQuickchart_(sh, empUrl, 3, empQrLabelRow + 1, 220);
+    // Form QR: in column C starting from row 5
+    insertFloatingQrQuickchart_(sh, formUrl, 3, 5, 220);
+
+    // Employee QR: 1 row below the label
+    insertFloatingQrQuickchart_(sh, empUrl, 3, empQrLabelRow + 1, 220);
+  } else {
+    Logger.log('[buildPrintOutLayout_] Reusing existing QR images (no regeneration needed).');
+  }
 
   // Return both last movie row and the last row used by QR area
   return { lastMovieRow: actualLastDataRow, empQrEndRow: empQrLabelRow + 1 };

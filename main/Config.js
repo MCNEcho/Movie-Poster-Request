@@ -1,6 +1,12 @@
 /** Config.js **/
 
 const CONFIG = {
+  VERSION: {
+    LABEL: 'v2026.05.26.1',
+    UPDATED_AT: '2026-05-26',
+    NOTES: 'Announcements + Employee View + PrintOut QR persistence updates',
+  },
+
   TIMEZONE: 'America/Los_Angeles',
 
   // Leave blank to auto-create form + store its ID in Script Properties.
@@ -8,7 +14,7 @@ const CONFIG = {
   FORM_ID: '',
 
   FORM_META: {
-    TITLE: 'Poster Request Form - Pasco',
+    TITLE: 'Poster Request Form',
     DESCRIPTION:
       'You can only have your name on 7 posters at a time. If you already have all 7 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
   },
@@ -97,6 +103,9 @@ const CONFIG = {
 
     ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
     ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
+    STOCK_SNAPSHOT: 'ANNOUNCE_STOCK_SNAPSHOT_JSON',
+    ANNOUNCE_LAST_BLOCK: 'ANNOUNCE_LAST_BLOCK',
+    ANNOUNCE_INITIALIZED: 'ANNOUNCE_INITIALIZED',
     CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },

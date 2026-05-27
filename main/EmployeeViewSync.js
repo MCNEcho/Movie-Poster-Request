@@ -18,8 +18,9 @@ function syncEmployeeViewSpreadsheet_() {
       empSS = getOrCreateEmployeeViewSpreadsheet_();
     } catch (accessErr) {
       // Permission denied - non-master account cannot access Employee View
-      Logger.log(`[syncEmployeeViewSpreadsheet_] WARN: Cannot access Employee View (permission denied). Only the master account can sync. Employee View will show stale data until master account syncs.`);
-      return; // Exit gracefully - don't crash, just skip the sync
+      const msg = 'Cannot access Employee View (permission denied). Only the master account can sync. Employee View will show stale data until master account syncs.';
+      Logger.log(`[syncEmployeeViewSpreadsheet_] WARN: ${msg}`);
+      return { success: false, message: msg }; // Exit gracefully with explicit status
     }
 
     // Add a temporary sheet to allow deleting all others
@@ -37,10 +38,11 @@ function syncEmployeeViewSpreadsheet_() {
 
     // Copy Main sheet
     const mainSheet = adminSS.getSheetByName(CONFIG.SHEETS.MAIN);
+    let mainSheetCopy = null;
     if (mainSheet) {
       Logger.log(`[syncEmployeeViewSpreadsheet_] Copying Main sheet`);
       try {
-        mainSheet.copyTo(empSS).setName(CONFIG.SHEETS.MAIN);
+        mainSheetCopy = mainSheet.copyTo(empSS).setName(CONFIG.SHEETS.MAIN);
       } catch (err) {
         Logger.log(`[syncEmployeeViewSpreadsheet_] Error copying Main sheet: ${err.message}`);
       }
@@ -67,30 +69,61 @@ function syncEmployeeViewSpreadsheet_() {
       empSS.deleteSheet(tempSheet);
     }
 
+    // Normalize copied tabs so no rows/cols remain hidden and no stale filters
+    // can suppress top entries (e.g., first employee header row).
+    if (mainSheetCopy) normalizeCopiedSheet_(mainSheetCopy);
+    if (empSheetCopy) normalizeCopiedSheet_(empSheetCopy);
+
     Logger.log(`[syncEmployeeViewSpreadsheet_] Sync complete`);
 
-    // Only update Print Out tab B2 if URL is currently empty (first-time setup)
-    // This preserves the link across multiple syncs by different users
+    // IMPORTANT: this sync recreates Main/Employees sheets in the employee spreadsheet,
+    // which can change sheet gid values. Always refresh the Employees-tab URL and cache
+    // so QR/Print links never become stale.
+    const empEmployeesSheet = empSS.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
+    const empUrl = empEmployeesSheet
+      ? `${empSS.getUrl()}#gid=${empEmployeesSheet.getSheetId()}`
+      : empSS.getUrl();
+
+    // Keep Script Property cache in sync for downstream consumers (PrintOut/QR).
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('CACHED_EMPLOYEE_VIEW_URL', empUrl);
+
+    // Keep Print Out Employee View URL in sync on every successful sync.
     const printSheet = adminSS.getSheetByName(CONFIG.SHEETS.PRINT_OUT);
     if (printSheet) {
-      const currentUrl = printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).getValue();
-      if (!currentUrl || currentUrl.trim() === '') {
-        const empUrl = getEmployeeViewEmployeesUrl_();
-        if (empUrl) {
-          printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).setValue(empUrl);
-          Logger.log(`[syncEmployeeViewSpreadsheet_] Set Print Out tab B2 Employee View URL (first time): ${empUrl}`);
-        }
-      } else {
-        Logger.log(`[syncEmployeeViewSpreadsheet_] Print Out URL already set, preserving link: ${currentUrl}`);
-      }
+      printSheet.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).setValue(empUrl);
     }
+    Logger.log(`[syncEmployeeViewSpreadsheet_] Updated Employee View URL/cache: ${empUrl}`);
+    return {
+      success: true,
+      message: 'Employee View synced successfully.',
+      url: empUrl,
+    };
 
   } catch (err) {
     Logger.log(`[syncEmployeeViewSpreadsheet_] ERROR: ${err.message}`);
     // Don't rethrow - allow graceful degradation for permission errors
     // Employee View will just show stale data until master account syncs
+    return { success: false, message: `Sync failed: ${err.message}` };
   } finally {
     lock.releaseLock();
+  }
+}
+
+/**
+ * Makes copied sheet fully visible and removes filters that can hide rows.
+ */
+function normalizeCopiedSheet_(sheet) {
+  try {
+    const maxRows = sheet.getMaxRows();
+    const maxCols = sheet.getMaxColumns();
+    if (maxRows > 0) sheet.showRows(1, maxRows);
+    if (maxCols > 0) sheet.showColumns(1, maxCols);
+
+    const filter = sheet.getFilter();
+    if (filter) filter.remove();
+  } catch (err) {
+    Logger.log(`[normalizeCopiedSheet_] Warning on ${sheet.getSheetName()}: ${err.message}`);
   }
 }
 
@@ -248,8 +281,13 @@ function showEmployeeViewManagerDialog() {
           function syncEmployeeView() {
             showStatus('Syncing Employee View...', false);
             google.script.run
-              .withSuccessHandler(function() {
-                showStatus('✅ Employee View synced successfully!', true);
+              .withSuccessHandler(function(result) {
+                if (result && result.success) {
+                  showStatus('✅ ' + (result.message || 'Employee View synced successfully!'), true);
+                } else {
+                  const msg = (result && result.message) ? result.message : 'Sync skipped.';
+                  showStatus('⚠️ ' + msg, false);
+                }
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
@@ -314,7 +352,7 @@ function getEmployeeViewUrl() {
  * PUBLIC wrapper - Sync employee view from dialog
  */
 function syncEmployeeView() {
-  syncEmployeeViewSpreadsheet_();
+  return syncEmployeeViewSpreadsheet_();
 }
 
 // Keep private versions for backward compatibility
