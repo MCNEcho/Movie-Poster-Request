@@ -7,6 +7,12 @@ function handleSheetChange(e) {
     
     // Detect Inventory sheet row deletions
     detectAndProcessInventoryRemovals_('onChange', changeType);
+
+    // Programmatic edits (manual dialog, pastes, scripts) can bypass onEdit.
+    // Reconcile announcements from current Inventory state on OTHER changes.
+    if (changeType === 'OTHER') {
+      reconcileAnnouncementsFromInventory_();
+    }
     
     // Detect Requests sheet row deletions
     detectAndProcessRequestsDeletions_(changeType);
@@ -76,6 +82,9 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
     Logger.log(
       `[inventoryCleanup] Closed ${result.closedCount} request(s) across ${Object.keys(result.empCounts).length} employee(s)`
     );
+
+    // Prevent stale queued announcements and stock baselines for removed posters.
+    removeAnnouncementStateForPosterIds_(removedIds);
 
     // Log to Analytics sheet for audit trail
     try {

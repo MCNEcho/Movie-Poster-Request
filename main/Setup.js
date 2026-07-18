@@ -1,6 +1,7 @@
 /** Setup.js **/
 
 function onOpen() {
+  Logger.log(`[onOpen] Poster Request System version: ${CONFIG.VERSION.LABEL} (${CONFIG.VERSION.UPDATED_AT}) - ${CONFIG.VERSION.NOTES}`);
   buildAdminMenu_();
 }
 
@@ -34,7 +35,9 @@ function buildAdminMenu_() {
   // Announcements submenu
   advancedMenu.addSubMenu(ui.createMenu('📧 Announcements')
     .addItem('Preview Pending', 'previewPendingAnnouncement')
-    .addItem('Send Now', 'sendAnnouncementNow'));
+    .addItem('Send Now', 'sendAnnouncementNow')
+    .addSeparator()
+    .addItem('Mark All Current as Announced (Reset Baseline)', 'markAllPostersAsAnnounced'));
   
   // Display Management submenu
   advancedMenu.addSubMenu(ui.createMenu('🖼️ Display Management')
@@ -171,7 +174,7 @@ function ensureTriggers_() {
   if (!has('processAnnouncementQueue')) {
     ScriptApp.newTrigger('processAnnouncementQueue')
       .timeBased()
-      .everyMinutes(15)
+      .everyMinutes(5)
       .create();
   }
 

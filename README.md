@@ -1,5 +1,7 @@
 # Movie Poster Request System
 
+Current project version is tracked in [VERSION.md](VERSION.md).
+
 A Google Apps Script system for employee poster requests with strict per-employee slot limits (default 7), duplicate prevention, request ledger auditability, batched announcement emails, nightly backups, and TTL-based caching for quota optimization.
 
 **Key Features:**

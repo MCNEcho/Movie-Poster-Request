@@ -31,7 +31,7 @@ function resetAllTriggers() {
 
   ScriptApp.newTrigger('processAnnouncementQueue')
     .timeBased()
-    .everyMinutes(15)
+    .everyMinutes(5)
     .create();
 
   Logger.log("Triggers reset. FORM LIVE URL: " + form.getPublishedUrl());

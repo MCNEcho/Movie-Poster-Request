@@ -37,7 +37,7 @@ function buildDocumentationTab() {
 
   r++;
   r = writeDocSection_(sh, r, '❓ Need Help?', [
-    'If you are having issues with anything, contact Gavin.',
+    'If you are having issues with anything, contact your system administrator.',
   ]);
 
   sh.getRange(1, 1, r, 1).setFontFamily('Arial').setFontSize(11);

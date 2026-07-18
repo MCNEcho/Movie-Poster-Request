@@ -81,8 +81,8 @@ function uuidPosterId_() {
 
 /**
  * Enforce employee name format:
- * Accepts: "Gavin N" or "Gavin N."
- * Rejects: "Miles pratt", "Gavin", "Gavin NN", etc.
+ * Accepts: "Alex R" or "Alex R."
+ * Rejects: "alex rivera", "Alex", "Alex RR", etc.
  */
 function normalizeEmployeeName_(input) {
   const raw = String(input || '').trim();
@@ -90,7 +90,7 @@ function normalizeEmployeeName_(input) {
   // First name + last initial (optional trailing period)
   const m = raw.match(/^([A-Za-z][A-Za-z'-]{1,})\s+([A-Za-z])\.?$/);
   if (!m) {
-    return { ok: false, canonical: '', reason: 'Name must be: FirstName + LastInitial (ex: "Gavin N")' };
+    return { ok: false, canonical: '', reason: 'Name must be: FirstName + LastInitial (ex: "Alex R")' };
   }
 
   const first = m[1];
