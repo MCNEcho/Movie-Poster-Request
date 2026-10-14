@@ -3,14 +3,14 @@
 ## Project Overview
 Google Apps Script system for employee poster requests with strict slot limits, deduplication, auditability, backups, and automation across Sheets/Forms.
 
-**Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, MailApp/GmailApp, DriveApp, UrlFetchApp (QuickChart)
+**Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, GmailApp (critical admin error alerts), DriveApp, UrlFetchApp (QuickChart)
 
 ---
 
 ## Architecture Essentials
 
 ### Feature Highlights (from notes)
-- **Notes Feature:** Form includes optional notes field for each of 7 poster slots; notes stored in REQUESTS column 12, displayed in Main/Employees boards column C; ManualRequest supports notes with auto-population for customers ("Customer: [phone]").
+- **Notes Feature:** Form includes optional notes field for each configured poster slot; notes stored in REQUESTS column 12, displayed in Main/Employees boards column C; ManualRequest supports notes with auto-population for customers ("Customer: [phone]").
 - Nightly backups 2am to Drive folder (CSV or Sheet), 7-day retention, manual trigger available; log to Analytics/Error Log.
 - Theater display management: "Poster Outside" and "Poster Inside" tabs with dynamic dropdowns for tracking display locations.
 - UI/UX: admin menu grouped (Reports/Display Management/System) plus refresh tools; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
@@ -54,10 +54,10 @@ Rebuild boards (display notes in col C) → Sync form options
 ### Key Architectural Decisions
 1. **Ledger-Based Design:** All requests stored in Requests sheet (audit trail), boards computed from it
 2. **Status-Based Filtering:** Requests marked ACTIVE/REMOVED (never deleted), enables historical queries
-3. **Inventory is Primary:** INVENTORY sheet is the canonical source for poster data (MOVIE_POSTERS sheet deprecated but kept for backward compatibility)
+3. **Inventory is Primary:** INVENTORY sheet is the canonical source for poster data.
 4. **Inventory ≠ Constraint:** Inventory sheet is informational only; never blocks requests
 5. **Per-Employee Slot Limit:** MAX_ACTIVE (10) limits each employee, NOT per-poster quantities
-6. **Dedup by Email+Poster:** Each employee can request each poster once (historical block)
+6. **Dedup by Email+Poster:** Active duplicates are blocked; historical re-requests follow the configured allow/cooldown settings.
 7. **Lock-Based Concurrency:** Use the script lock only around critical ledger/snapshot writes; release it before form, board, display, or print refreshes. Never acquire the same lock from a nested helper.
 
 ### Operational Defaults
@@ -69,9 +69,9 @@ Rebuild boards (display notes in col C) → Sync form options
 ## Essential Patterns & Conventions
 
 ### Configuration Pattern
-All settings in `00_Config.js` under `CONFIG` object:
+All settings in `Config.js` under `CONFIG` object:
 ```javascript
-// Access: CONFIG.MAX_ACTIVE (7), CONFIG.SHEETS.REQUESTS, CONFIG.PROPS.LABEL_TO_ID
+// Access: CONFIG.MAX_ACTIVE (10), CONFIG.FORM_SLOTS (10), CONFIG.SHEETS.REQUESTS
 // Edit here, not in code - enables non-technical admin changes
 ```
 
@@ -87,13 +87,9 @@ const contactType = r[COLS.REQUESTS.CONTACT_TYPE - 1]; // Column 11: EMPLOYEE or
 
 ### Sheet Operation Pattern
 ```javascript
-const lock = LockService.getScriptLock();
-lock.waitLock(30000);
-try {
-  // Sheet operations here
-} finally {
-  lock.releaseLock();
-}
+// Use the global script lock only around critical ledger/snapshot writes.
+// Release it before Form, board, display, Print Out, or Employee View refreshes.
+// Never reacquire the same script lock through a nested helper.
 ```
 
 ### Caching Pattern (Task 2)
@@ -163,7 +159,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics and event tracking
-- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster at top, Advanced submenu containing: Refresh Manager, Employee View Manager, Manually Add Request; Reports (Rebuild Boards/Sync Form Options/Refresh Documentation); Display Management; System (Run Setup/Repair, trigger cleanup, form access check, legacy announcement-data cleanup)
+- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster at top, Advanced submenu containing: Refresh Manager, Employee View Manager, Manually Add Request; Reports (queued board rebuild/form sync, Refresh Documentation); Display Management; System (Run Setup/Repair, owner-only trigger reconciliation, form access check, one-time legacy announcement cleanup)
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu
@@ -185,7 +181,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 
 ⚠️ **Form responses are snapshots:** TITLE_SNAP and RELEASE_SNAP preserve poster state at request time (handles renames/deactivations).
 
-⚠️ **Lock timeout is 30 seconds:** All sheet operations must complete in 30s. Cache misses + slow queries risk timeouts.
+⚠️ **Refreshes are queued:** Route post-write view updates through `queueManualPosterRefresh_()`; do not run expensive refreshes while holding the ledger lock.
 
 ⚠️ **Notes are optional:** Notes field (REQUESTS col 12) is optional for form submissions but auto-populated for customer entries in ManualRequest ("Customer: [phone]"). Boards display notes in column C.
 
@@ -196,9 +192,9 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] Multiple employees can request same poster (both ACTIVE)
 - [ ] Single employee cannot request same poster twice (if ALLOW_REREQUEST_AFTER_REMOVAL=false)
 - [ ] Inventory counts never block requests (test with 1 poster, 10 requests)
-- [ ] MAX_ACTIVE enforced per employee (test 8th request denied with "limit (7-slot)")
+- [ ] MAX_ACTIVE enforced per employee (test the 11th request denied at the default 10-slot limit)
 - [ ] Boards rebuild automatically after form submit
-- [ ] Form options update after MOVIE_POSTERS sheet change
+- [ ] Form options update after Inventory changes
 - [ ] Analytics logs all events (check Analytics sheet)
 - [ ] Error paths logged to ERROR_LOG sheet
 - [ ] Backups run nightly without errors
@@ -223,7 +219,7 @@ For understanding the system:
 ## When Adding Code
 - Always use `CONFIG.*` for settings, never hardcode
 - Always use `COLS.*` for sheet column references
-- Wrap sheet ops in locks: `lock.waitLock(30000); try { ... } finally { lock.releaseLock(); }`
+- Use short lock-protected sections only for critical ledger/snapshot mutations; never hold the global lock during view refreshes.
 - Log important steps: `Logger.log('[functionName] message');`
 - Use `logError_()` for exceptions, not `console.error()`
 - Cache expensive queries with `setCache_()` / `getCache_()`

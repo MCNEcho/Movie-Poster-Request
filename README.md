@@ -2,15 +2,14 @@
 
 Current project version is tracked in [VERSION.md](VERSION.md).
 
-A Google Apps Script system for employee poster requests with strict per-employee slot limits (default 7), duplicate prevention, request ledger auditability, batched announcement emails, nightly backups, and TTL-based caching for quota optimization.
+A Google Apps Script system for employee poster requests with strict per-employee slot limits, duplicate prevention, request ledger auditability, queued view refreshes, nightly backups, and TTL-based caching for quota optimization.
 
 **Key Features:**
-- 7-slot per-employee limit with dynamic slot enforcement
+- 10-slot per-employee limit with a matching configurable Form slot count
 - Deduplication by email + poster to prevent multiple requests from same employee
 - Optional notes on each poster request (stored and displayed on boards)
 - Theater display management ("Poster Outside" and "Poster Inside" tabs)
 - Ledger-based audit trail: all requests tracked, never deleted
-- Announcement batching with configurable templates
 - Nightly backups to Google Drive with retention policies
 - Cache layer for read optimization
 - Comprehensive admin panel with one-click repair
@@ -20,7 +19,7 @@ A Google Apps Script system for employee poster requests with strict per-employe
 
 ### Prerequisites
 - Node.js (LTS) and npm installed
-- Google account with access to Google Apps Script, Sheets, Forms, Drive, and Mail
+- Google account with access to Google Apps Script, Sheets, Forms, Drive, and Gmail (for critical admin error alerts)
 - `clasp` installed globally:
 
 ```bash
@@ -43,11 +42,12 @@ The script will guide you through:
 ### Configure
 1. Open `main/Config.js` and set your environment:
    - Spreadsheet and sheet names/IDs
-   - `CONFIG.MAX_ACTIVE` slot limit (default 7)
+  - `CONFIG.MAX_ACTIVE` per-employee slot limit (default 10)
+  - `CONFIG.FORM_SLOTS` number of add/remove dropdowns (default 10)
    - `CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL` (allow re-requesting same poster after removal)
    - `CONFIG.REREQUEST_COOLDOWN_DAYS` (cooldown period if re-requests are allowed)
-   - ScriptProperties keys for poster label/ID maps and queues
-   - Announcement batching, backup retention, cache TTL settings
+  - ScriptProperties keys for poster labels/IDs and queued refresh state
+  - Backup retention and cache TTL settings
 2. Push code to your Apps Script project:
 
 ```bash
@@ -65,10 +65,10 @@ clasp push
 
 ### Core Principles
 - **Ledger-based audit:** All requests stored in the Requests sheet (never deleted). Status is `ACTIVE` or `REMOVED`.
-- **Per-employee limit:** A single employee can have up to `MAX_ACTIVE` active posters (default 7).
-- **Dedup by Email+Poster:** The same employee cannot request the same poster twice. Historical duplicates are blocked (cooldown and re-request flags are respected).
+- **Per-employee limit:** A single employee can have up to `MAX_ACTIVE` active posters (default 10).
+- **Dedup by Email+Poster:** An employee cannot hold the same poster twice. Re-requesting after removal follows `ALLOW_REREQUEST_AFTER_REMOVAL` and its cooldown setting.
 - **Inventory is informational:** Inventory never blocks requests. Form submissions are accepted regardless of stock counts.
-- **Concurrency:** All sheet operations use a 30-second script lock to avoid race conditions.
+- **Concurrency:** Use the global script lock only for short critical ledger/snapshot writes. Boards, Form, Print Out, display, and Employee View refreshes are coalesced through one background worker.
 - **Caching:** Expensive queries use a TTL cache. Caches are invalidated on related writes to avoid stale views.
 
 ### Request Flow
@@ -77,21 +77,15 @@ clasp push
 3. Validate employee name and email
 4. Check for removals (unchecked posters) and process them
 5. Check for additions (newly checked posters) and validate:
-   - No slot limit exceeded (max 7 per employee)
+  - No slot limit exceeded (max 10 per employee)
    - No duplicate request (same employee + poster never twice)
 6. Write all requests to Requests ledger with status (ACTIVE/REMOVED) and notes
 7. Rebuild Main and Employees boards from ledger data
 8. Update form options from Inventory sheet
-9. Queue and batch announcements for newly activated posters
+9. Queue dependent view refreshes so request processing does not wait on sheet/form refreshes
 10. Invalidate caches to ensure fresh data
 
 ### Operational Automations
-- **Announcements** (`Announcements.js`)
-  - Batches multiple new posters into a single email (default batch size: 5)
-  - Sends every 15 minutes via trigger
-  - Configurable throttle and retry logic (1s throttle, 3 retries with backoff)
-  - Template variables: `{{TITLE}}`, `{{RELEASE}}`, `{{STOCK}}`, `{{ACTIVE_COUNT}}`, `{{FORM_LINK}}`, `{{COUNT}}`, `{{POSTER_LIST}}`
-  - Preview and dry-run available before sending
 - **Backups** (`BackupManager.js`)
   - Nightly at 2am to a dedicated Drive folder (CSV or Sheet format)
   - 7-day retention policy; older backups automatically deleted
@@ -115,7 +109,6 @@ clasp push
 - `PrintOut.js` – Print layout generation, QR code support, inventory syncing
 - `Documentation.js` – Auto-generated system documentation sheet
 - `EmployeeViewSync.js` – Sync to separate employee-facing spreadsheet
-- `Announcements.js` – Email queue processing and batched notifications
 - `RefreshManager.js` – Consolidated refresh operations and UI
 - `ManualRequest.js` – Historical request migration dialog with notes support
 - `ManualPoster.js` – Admin dialog for manually adding new posters to Inventory
@@ -126,14 +119,11 @@ clasp push
 ### Admin Menu Structure
 - **➕ Add New Poster** – Dialog to manually add new posters to Inventory sheet
 - **Reports** (submenu)
-  - Rebuild Boards – Force rebuild of Main and Employees boards
-  - Sync Form Options – Refresh form options from Inventory
+  - Rebuild Boards – Queue a serialized rebuild of Main and Employees boards
+  - Sync Form Options – Queue a form-options refresh from Inventory
   - Refresh Documentation – Update system documentation sheet
 - **Print & Layout** (submenu)
   - Update Print Out – Sync and refresh print layout sheet
-- **Announcements** (submenu)
-  - Preview Pending – See pending announcements before sending
-  - Send Now – Manually trigger announcement batch send
 - **Display Management** (submenu)
   - Manage Theater Displays – Configure "Poster Outside" and "Poster Inside" display tracking
 - **Advanced** (submenu)
@@ -143,7 +133,7 @@ clasp push
 - **System** (submenu) 
   - Run Setup / Repair – One-click initialization and repair
   - Run Data Integrity Check – Detect and fix orphaned/duplicate requests
-- **Refresh All** – Refresh all boards, documentation, and form options
+- **Refresh All** – Queue serialized board, form, Print Out, display, and Employee View updates
 
 ### UI/UX Features
 - **Optional Notes on Requests** – Each poster request can include optional notes (e.g., "Matinee only") that are stored and displayed in boards
@@ -151,7 +141,7 @@ clasp push
 - **Tab Color Coding** – Purposeful colors for navigation:
   - BLUE: Primary user-facing (Inventory, Main Board, Employees Board)
   - CYAN: Display/Print (Poster Outside/Inside, Print Out)
-  - ORANGE: Configuration/Reference (Subscribers, Documentation)
+  - ORANGE: Configuration/Reference (Documentation)
   - YELLOW: Admin audit logs (Request Order, Requests)
   - RED: Error/Debug (Error Log, Data Integrity)
   - GREEN: Analytics/Reporting
@@ -173,11 +163,10 @@ clasp push
 - [ ] Multiple employees can request the same poster (both appear ACTIVE in boards)
 - [ ] A single employee cannot request the same poster twice (historical block enforced)
 - [ ] Inventory counts never block requests (test with 1 poster, 10 requests)
-- [ ] `MAX_ACTIVE` enforced per employee (8th request denied with "limit exceeded")
+- [ ] `MAX_ACTIVE` enforced per employee (11th request denied with "limit exceeded")
 - [ ] Optional notes are saved and displayed in boards
 - [ ] Boards rebuild automatically after form submission
 - [ ] Form options update after Inventory sheet changes
-- [ ] Announcements batch correctly (multiple new posters → single email)
 - [ ] Analytics logs all events and performance metrics
 - [ ] Errors are captured and logged to Error Log sheet
 - [ ] Nightly backups run without errors and retain 7 days of backups
