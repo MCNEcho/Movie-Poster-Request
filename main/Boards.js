@@ -1,6 +1,11 @@
 /** Boards.js **/
 
 function rebuildBoards() {
+  queueManualPosterRefresh_({ boards: true });
+  return { queued: true };
+}
+
+function rebuildBoards_() {
   buildMainBoard_();
   buildEmployeesBoard_();
 }
@@ -108,24 +113,39 @@ function buildEmployeesBoard_() {
   const rows = getActiveRequests_();
   const idToLabel = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
 
-  // Group by EMPLOYEE NAME (display name), but internally tracked by email
-  const byName = {};
-  rows.forEach(r => {
+  const byContact = {};
+  const contactsByName = {};
+  rows.forEach((r, index) => {
     const name = String(r[COLS.REQUESTS.EMP_NAME - 1] || '').trim();
-    if (!name) return;
-    (byName[name] = byName[name] || []).push(r);
+    const contact = String(r[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim();
+    const contactType = String(r[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').trim().toUpperCase();
+    const key = `${contactType}:${contact.toLowerCase() || `row-${index}`}`;
+    if (!byContact[key]) byContact[key] = { name, contact, contactType, requests: [] };
+    byContact[key].requests.push(r);
+    if (contactType !== 'CUSTOMER' && name) {
+      const nameKey = normalizeTitle_(name);
+      if (!contactsByName[nameKey]) contactsByName[nameKey] = new Set();
+      contactsByName[nameKey].add(contact.toLowerCase());
+    }
   });
 
-  const names = Object.keys(byName).sort((a,b) => a.localeCompare(b));
+  const groups = Object.values(byContact).sort((a, b) => {
+    const nameSort = a.name.localeCompare(b.name);
+    return nameSort || a.contact.localeCompare(b.contact) || a.contactType.localeCompare(b.contactType);
+  });
 
   let out = [];
-  names.forEach(name => {
-    const list = (byName[name] || []).slice().sort(
+  groups.forEach(group => {
+    const list = group.requests.slice().sort(
       (r1, r2) => new Date(r1[COLS.REQUESTS.REQ_TS - 1]) - new Date(r2[COLS.REQUESTS.REQ_TS - 1])
     );
 
-    const usedSlots = list.length;
-    out.push([`${name} (${usedSlots}/${CONFIG.MAX_ACTIVE})`, '', '']);
+    const collision = group.contactType !== 'CUSTOMER' &&
+      group.name && contactsByName[normalizeTitle_(group.name)]?.size > 1;
+    const header = group.contactType === 'CUSTOMER'
+      ? `${group.name || 'Customer'} — Customer (${group.contact || 'no phone'})`
+      : `${group.name || 'Employee'}${collision ? ' ⚠ name collision' : ''} — ${group.contact || 'no email'} (${list.length}/${CONFIG.MAX_ACTIVE})`;
+    out.push([header, '', '']);
 
     list.forEach(r => {
       const pid = String(r[COLS.REQUESTS.POSTER_ID - 1]);

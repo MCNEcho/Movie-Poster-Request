@@ -8,6 +8,10 @@
 // Analytics sheet column count (used for data reading)
 const ANALYTICS_COLUMNS = 12;
 
+function isFormSubmitEvent_(value) {
+  return value === 'FORM_SUBMIT' || value === 'FORM_SUBMISSION';
+}
+
 /**
  * Ensure Analytics sheet exists with proper headers
  */
@@ -55,7 +59,7 @@ function logSubmissionEvent_(submission) {
     
     analytics.appendRow([
       fmtDate_(now_(), CONFIG.DATE_FORMAT),
-      'FORM_SUBMISSION',
+      'FORM_SUBMIT',
       submission.empEmail || '',
       submission.empName || '',
       Array.isArray(submission.addLabels) ? submission.addLabels.join(', ') : '',
@@ -143,13 +147,13 @@ function updateAnalyticsSummary_() {
     summarySheet.appendRow(['Metric', 'Period', 'Value', 'Last Updated']);
 
     // Calculate metrics
-    const totalSubmissions = data.filter(r => r[1] === 'FORM_SUBMISSION').length;
+    const totalSubmissions = data.filter(r => r[1] === 'FORM_SUBMIT').length;
     const totalBoardRebuilds = data.filter(r => r[1] === 'BOARD_REBUILD').length;
     const totalFormSyncs = data.filter(r => r[1] === 'FORM_SYNC').length;
     const totalBulkSims = data.filter(r => r[1] === 'BULK_SIMULATION').length;
 
     // Average execution times
-    const submissions = data.filter(r => r[1] === 'FORM_SUBMISSION');
+    const submissions = data.filter(r => r[1] === 'FORM_SUBMIT');
     const avgSubmissionTime = submissions.length > 0
       ? submissions.reduce((sum, r) => sum + (Number(r[7]) || 0), 0) / submissions.length
       : 0;
@@ -177,7 +181,7 @@ function updateAnalyticsSummary_() {
 
     // Unique employees
     const uniqueEmployees = new Set(
-      data.filter(r => r[1] === 'FORM_SUBMISSION' && r[2])
+      data.filter(r => r[1] === 'FORM_SUBMIT' && r[2])
         .map(r => String(r[2]).toLowerCase())
     ).size;
 
@@ -245,7 +249,7 @@ function detectAnomalies_() {
 
     // Check for employees with unusual activity
     const employeeActivity = {};
-    data.filter(r => r[1] === 'FORM_SUBMISSION').forEach(row => {
+    data.filter(r => isFormSubmitEvent_(r[1])).forEach(row => {
       const email = String(row[2] || '').toLowerCase();
       if (email) {
         employeeActivity[email] = (employeeActivity[email] || 0) + 1;
@@ -265,7 +269,7 @@ function detectAnomalies_() {
     });
 
     // Check for rapid submissions (same employee, multiple submissions within 5 minutes)
-    const submissions = data.filter(r => r[1] === 'FORM_SUBMISSION');
+    const submissions = data.filter(r => isFormSubmitEvent_(r[1]));
     for (let i = 0; i < submissions.length - 1; i++) {
       const curr = submissions[i];
       const next = submissions[i + 1];
@@ -304,11 +308,11 @@ function generateAnalyticsReport_() {
   const analytics = getSheet_(CONFIG.SHEETS.ANALYTICS);
   const data = getNonEmptyData_(analytics, 11);
 
-  const totalSubmissions = data.filter(r => r[1] === 'FORM_SUBMISSION').length;
+  const totalSubmissions = data.filter(r => isFormSubmitEvent_(r[1])).length;
   const mostRequested = getMostRequestedPosters_(5);
   const anomalies = detectAnomalies_();
 
-  let report = `
+  return `
 POSTER SYSTEM - ANALYTICS REPORT
 Generated: ${new Date()}
 ======================================
@@ -325,8 +329,6 @@ ${anomalies.map(a => `  - ${a.type} (${a.severity}) - ${a.email || ''}`).join('\
 
 For detailed metrics, see the Analytics Summary sheet.
   `.trim();
-
-  return report;
 }
 
 /**

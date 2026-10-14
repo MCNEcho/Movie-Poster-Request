@@ -11,6 +11,19 @@ function readRequestRows_() {
   return sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
 }
 
+function updateRequestsDeletionSnapshotRow_(sheetRow, row) {
+  const snapshot = readJsonProp_(CONFIG.PROPS.REQUESTS_SNAPSHOT, {});
+  snapshot[String(sheetRow)] = {
+    empName: String(row[COLS.REQUESTS.EMP_NAME - 1] || '').trim(),
+    contact: String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim(),
+    posterLabel: String(row[COLS.REQUESTS.LABEL_AT_REQ - 1] || '').trim(),
+    contactType: String(row[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').toUpperCase(),
+    status: String(row[COLS.REQUESTS.STATUS - 1] || '').trim(),
+  };
+  writeJsonProp_(CONFIG.PROPS.REQUESTS_SNAPSHOT, snapshot);
+  getProps_().setProperty(CONFIG.PROPS.REQUESTS_ROW_COUNT, String(Math.max(0, getRequestsSheet_().getLastRow() - 1)));
+}
+
 /**
  * Ensure all rows in Inventory have unique Poster IDs.
  * This is the canonical source of truth for poster management.
@@ -29,15 +42,6 @@ function ensurePosterIdsInInventory_() {
     if (!v) { ids[i][0] = uuidPosterId_(); changed = true; }
   }
   if (changed) idsRange.setValues(ids);
-}
-
-function hasEverRequestedByEmail_(empEmail, posterId) {
-  const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 9);
-  return data.some(r =>
-    String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
-    String(r[COLS.REQUESTS.POSTER_ID - 1]) === String(posterId)
-  );
 }
 
 /**
@@ -118,10 +122,13 @@ function getPosterIdsWithAnyActiveRequests_() {
 
 function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts, requestRows) {
   const sh = getRequestsSheet_();
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return false;
-
-  const rows = requestRows || sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+  let rows = requestRows;
+  if (!rows) {
+    const lastRow = sh.getLastRow();
+    if (lastRow < 2) return false;
+    rows = sh.getRange(2, 1, lastRow - 1, Math.max(sh.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
+  }
+  if (rows.length === 0) return false;
   const email = String(empEmail).toLowerCase().trim();
 
   const rowIndex = findActiveRequestIndex_(rows, email, posterId);
@@ -191,6 +198,7 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs, note = '', req
 
   sh.appendRow(row);
   if (requestRows) requestRows.push(row);
+  updateRequestsDeletionSnapshotRow_(sh.getLastRow(), row);
 }
 
 /**

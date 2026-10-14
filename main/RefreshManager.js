@@ -142,7 +142,7 @@ function showRefreshManagerDialog() {
             showStatus('🔄 Running all refresh operations...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ All displays refreshed successfully!', true);
+                showStatus('✅ Full refresh queued. It will run in the background.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
@@ -154,60 +154,60 @@ function showRefreshManagerDialog() {
             showStatus('Rebuilding boards...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Boards rebuilt successfully!', true);
+                showStatus('✅ Board refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .rebuildBoards();
+              .queueBoardsRefresh_();
           }
           
           function refreshFormOptions() {
             showStatus('Syncing form options...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Form options synced successfully!', true);
+                showStatus('✅ Form options refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .syncPostersToForm();
+              .queueFormRefresh_();
           }
           
           function refreshPrintOut() {
             showStatus('Updating Print Out...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Print Out updated successfully!', true);
+                showStatus('✅ Print Out refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .refreshPrintOut();
+              .requestPrintOutRefresh_();
           }
           
           function refreshPosterOutside() {
             showStatus('Updating Poster Outside dropdowns...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Poster Outside dropdowns updated!', true);
+                showStatus('✅ Poster Outside refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .refreshPosterOutside();
+              .requestPosterOutsideRefresh_();
           }
           
           function refreshPosterInside() {
             showStatus('Updating Poster Inside dropdowns...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Poster Inside dropdowns updated!', true);
+                showStatus('✅ Poster Inside refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .refreshPosterInside();
+              .requestPosterInsideRefresh_();
           }
           
           function showStatus(message, isSuccess) {
@@ -231,7 +231,7 @@ function showRefreshManagerDialog() {
  * Called from Refresh Manager dialog
  */
 function refreshAllDisplays() {
-  executeRefreshAll_();
+  queueManualPosterRefresh_(true);
 }
 
 /**
@@ -239,7 +239,7 @@ function refreshAllDisplays() {
  * Called from Refresh Manager dialog
  */
 function refreshPosterOutside() {
-  refreshPosterOutsideDropdowns_();
+  requestPosterOutsideRefresh_();
 }
 
 /**
@@ -247,68 +247,27 @@ function refreshPosterOutside() {
  * Called from Refresh Manager dialog
  */
 function refreshPosterInside() {
-  refreshPosterInsideDropdowns_();
+  requestPosterInsideRefresh_();
+}
+
+function requestPrintOutRefresh_() {
+  queueManualPosterRefresh_({ printOut: true });
+}
+
+function requestPosterOutsideRefresh_() {
+  queueManualPosterRefresh_({ posterOutside: true });
+}
+
+function requestPosterInsideRefresh_() {
+  queueManualPosterRefresh_({ posterInside: true });
 }
 
 /**
  * Executes all refresh operations in sequence (master refresh function)
  */
 function executeRefreshAll_() {
-  try {
-    const ss = SpreadsheetApp.getActive();
-    
-    // Capture user for audit trail
-    const userEmail = String(Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail() || 'unknown').toLowerCase().trim();
-    Logger.log(`[executeRefreshAll_] Refresh All initiated by user: ${userEmail}`);
-    
-    // 1. Rebuild boards
-    Logger.log('[executeRefreshAll_] Rebuilding boards...');
-    ss.toast('⏳ Step 1/5: Rebuilding boards...', 'Refreshing All', -1);
-    rebuildBoards();
-    ss.toast('✓ Boards rebuilt', 'Progress', 2);
-    
-    // 2. Sync form options
-    Logger.log('[executeRefreshAll_] Syncing form options...');
-    ss.toast('⏳ Step 2/5: Syncing form options...', 'Refreshing All', -1);
-    try {
-      syncPostersToForm();
-      ss.toast('✓ Form synced', 'Progress', 2);
-    } catch (err) {
-      Logger.log(`[WARN] Form sync failed (access denied): ${err.message}`);
-      ss.toast('⚠ Form sync skipped (access denied)', 'Progress', 3);
-    }
-    
-    // 3. Refresh Print Out
-    Logger.log('[executeRefreshAll_] Updating Print Out...');
-    ss.toast('⏳ Step 3/5: Updating Print Out...', 'Refreshing All', -1);
-    try {
-      buildPrintOutLayout_();
-      ss.toast('✓ Print Out updated', 'Progress', 2);
-    } catch (err) {
-      Logger.log(`[WARN] Print Out update failed: ${err.message}`);
-      ss.toast('⚠ Print Out update skipped', 'Progress', 3);
-    }
-    
-    // 4. Refresh Poster Outside dropdowns
-    Logger.log('[executeRefreshAll_] Updating Poster Outside...');
-    ss.toast('⏳ Step 4/5: Updating Poster Outside...', 'Refreshing All', -1);
-    refreshPosterOutsideDropdowns_();
-    ss.toast('✓ Poster Outside updated', 'Progress', 2);
-    
-    // 5. Refresh Poster Inside dropdowns
-    Logger.log('[executeRefreshAll_] Updating Poster Inside...');
-    ss.toast('⏳ Step 5/5: Updating Poster Inside...', 'Refreshing All', -1);
-    refreshPosterInsideDropdowns_();
-    
-    Logger.log('[executeRefreshAll_] All refresh operations complete');
-    ss.toast('✅ All displays refreshed successfully!', 'Refresh Complete', 5);
-    
-  } catch (err) {
-    const ss = SpreadsheetApp.getActive();
-    ss.toast('❌ Error during refresh: ' + err.message, 'Error', 5);
-    logError_(err, 'executeRefreshAll_', 'Running all refresh operations');
-    throw err;
-  }
+  queueManualPosterRefresh_(true);
+  return { queued: true };
 }
 
 /**
@@ -316,7 +275,7 @@ function executeRefreshAll_() {
  */
 function refreshPosterOutsideDropdowns_() {
   const ss = SpreadsheetApp.getActive();
-  const outsideSheet = ss.getSheetByName('Poster Outside');
+  const outsideSheet = ss.getSheetByName(CONFIG.SHEETS.POSTER_OUTSIDE);
   
   if (!outsideSheet) {
     Logger.log('[refreshPosterOutsideDropdowns_] Poster Outside sheet not found');
@@ -345,7 +304,7 @@ function refreshPosterOutsideDropdowns_() {
  */
 function refreshPosterInsideDropdowns_() {
   const ss = SpreadsheetApp.getActive();
-  const insideSheet = ss.getSheetByName('Poster Inside');
+  const insideSheet = ss.getSheetByName(CONFIG.SHEETS.POSTER_INSIDE);
   
   if (!insideSheet) {
     Logger.log('[refreshPosterInsideDropdowns_] Poster Inside sheet not found');

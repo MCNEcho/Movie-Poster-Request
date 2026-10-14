@@ -1,10 +1,10 @@
 # Project Version
 
 - Project: Movie Poster Request System
-- Version: 0.1.0
-- Last Updated: 2026-05-26
+- Version: 0.1.1
+- Last Updated: 2026-10-14
 - Branch: test-branch
-- Commit: 2d8996a
+- Commit: See Git history for this branch.
 
 ## Update Rule
 

@@ -28,8 +28,8 @@ function buildAdminMenu_() {
   
   // Reports submenu
   advancedMenu.addSubMenu(ui.createMenu('📊 Reports')
-    .addItem('Rebuild Boards', 'rebuildBoards')
-    .addItem('Sync Form Options', 'syncPostersToForm')
+    .addItem('Rebuild Boards', 'queueBoardsRefresh_')
+    .addItem('Sync Form Options', 'queueFormRefresh_')
     .addItem('Refresh Documentation', 'buildDocumentationTab'));
   
   // Display Management submenu
@@ -54,22 +54,24 @@ function buildAdminMenu_() {
  */
 function refreshAll_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  try {
-    ss.toast('⏳ Rebuilding boards...', 'Refresh All', 3);
-    rebuildBoards();
-    
-    ss.toast('⏳ Syncing form options...', 'Refresh All', 3);
-    syncPostersToForm();
-    
-    ss.toast('✅ All systems refreshed!', 'Refresh All Complete', 5);
-  } catch (err) {
-    ss.toast(`❌ Error during refresh: ${err.message}`, 'Refresh All Failed', 8);
-    logError_(err, 'refreshAll_', 'Refresh all operations');
-  }
+  queueManualPosterRefresh_(true);
+  ss.toast('✅ Full refresh queued.', 'Refresh Manager', 5);
+}
+
+function queueBoardsRefresh_() {
+  queueManualPosterRefresh_({ boards: true });
+  SpreadsheetApp.getActive().toast('Boards refresh queued.', 'Refresh Manager', 4);
+}
+
+function queueFormRefresh_() {
+  queueManualPosterRefresh_({ form: true });
+  SpreadsheetApp.getActive().toast('Form options refresh queued.', 'Refresh Manager', 4);
 }
 
 function setupPosterSystem() {
+  if (!isMasterAccount_()) {
+    throw new Error('Run Setup / Repair as the spreadsheet owner/master admin account.');
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // Task Group 1: Core Infrastructure (must run first)
@@ -95,7 +97,7 @@ function setupPosterSystem() {
 
   // Form sync requires owner permissions - skip if access denied
   try {
-    syncPostersToForm();
+    syncPostersToForm_();
   } catch (formErr) {
     Logger.log(`[WARN] Form sync skipped (access denied): ${formErr.message}`);
     ss.toast('⚠ Form sync skipped (requires owner permissions)', 'Setup Progress', 3);
@@ -114,9 +116,10 @@ function setupPosterSystem() {
 
   // Task Group 4: Visual Displays (with employee view URL now available)
   ss.toast('⏳ Step 4/5: Generating views...', 'Setup Progress', -1);
-  rebuildBoards();
+  rebuildBoards_();
   buildDocumentationTab();
   buildPrintOutLayout_();
+  queueManualPosterRefresh_({ employeeView: true });
 
   // Task Group 5: Finalization
   ss.toast('⏳ Step 5/5: Finalizing setup...', 'Setup Progress', -1);
@@ -128,6 +131,10 @@ function setupPosterSystem() {
 }
 
 function ensureTriggers_() {
+  if (!isMasterAccount_()) {
+    throw new Error('Only the spreadsheet owner/master admin should install or reconcile project triggers.');
+  }
+
   const uniqueHandlers = new Set([
     'handleFormSubmit',
     'handleSheetEdit',

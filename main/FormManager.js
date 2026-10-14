@@ -8,6 +8,11 @@ function getEffectiveFormId_() {
   return String(p || '').trim();
 }
 
+function getFormDescription_() {
+  const slots = Number(CONFIG.FORM_SLOTS) || CONFIG.MAX_ACTIVE;
+  return `You can have up to ${slots} posters on your request at a time. If you are at the limit and want a different poster, remove one from your selection before choosing another.`;
+}
+
 function getOrCreateForm_() {
   const existingId = getEffectiveFormId_();
   if (existingId) {
@@ -30,7 +35,7 @@ function getOrCreateForm_() {
 
   // Create new form
   const form = FormApp.create(CONFIG.FORM_META.TITLE);
-  form.setDescription(CONFIG.FORM_META.DESCRIPTION);
+  form.setDescription(getFormDescription_());
 
   getProps_().setProperty(CONFIG.PROPS.FORM_ID, form.getId());
 
@@ -120,19 +125,32 @@ function setDropdownChoicesByTitle_(form, itemTitle, choices, required = false) 
     return;
   }
 
-  const uniqueChoices = Array.from(new Set(choices.map(c => String(c || '').trim()).filter(Boolean)));
+  const uniqueChoices = normalizeFormChoices_(choices);
   if (uniqueChoices.length === 0) {
     dropdown.setChoices([dropdown.createChoice('— None available —')]);
     dropdown.setRequired(false);
     return;
   }
-  const choiceObjs = uniqueChoices.map(c => dropdown.createChoice(c));
-  // Always add an empty option for optional dropdowns
-  if (!required) {
-    choiceObjs.unshift(dropdown.createChoice(''));
-  }
-  dropdown.setChoices(choiceObjs);
+  const values = required ? uniqueChoices : ['', ...uniqueChoices];
+  dropdown.setChoiceValues(values);
   dropdown.setRequired(!!required);
+}
+
+function normalizeFormChoices_(choices) {
+  const seen = new Set();
+  const unique = [];
+  (choices || []).forEach(choice => {
+    const display = String(choice === null || choice === undefined ? '' : choice).replace(/\s+/g, ' ').trim();
+    if (!display) return;
+    const key = display.toLocaleLowerCase();
+    if (seen.has(key)) {
+      Logger.log(`[FormSync] Ignoring duplicate form choice: "${display}"`);
+      return;
+    }
+    seen.add(key);
+    unique.push(display);
+  });
+  return unique;
 }
 
 /**
@@ -155,7 +173,7 @@ function ensureFormStructure_() {
   const form = getOrCreateForm_();
 
   form.setTitle(CONFIG.FORM_META.TITLE);
-  form.setDescription(CONFIG.FORM_META.DESCRIPTION);
+  form.setDescription(getFormDescription_());
   
   // Collect verified email addresses from Google accounts
   form.setCollectEmail(true);
@@ -167,6 +185,11 @@ function ensureFormStructure_() {
   if (!nameItem) nameItem = form.addTextItem().setTitle(nameTitle);
   const nameTextItem = (typeof nameItem.asTextItem === 'function') ? nameItem.asTextItem() : nameItem;
   nameTextItem.setRequired(true);
+  const namePattern = "^[A-Za-z][A-Za-z'-]{1,}\\s+[A-Za-z]\\.?$";
+  nameTextItem.setValidation(FormApp.createTextValidation()
+    .requireTextMatchesPattern(namePattern)
+    .setHelpText('Enter first name and last initial, for example Alex R.')
+    .build());
 
   // Remove any deprecated questions and ensure no email field exists
   form.getItems().forEach(item => {
@@ -181,8 +204,8 @@ function ensureFormStructure_() {
     }
   });
 
-  // Create 7 Add Poster dropdowns with optional notes
-  for (let i = 1; i <= 7; i++) {
+  // Create configured Add Poster dropdowns with optional notes.
+  for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
     const posterTitle = `Request Poster (Add) ${i}`;
     const noteTitle = `Request Poster Note ${i}`;
     
@@ -193,8 +216,8 @@ function ensureFormStructure_() {
     setShortAnswerByTitle_(form, noteTitle, false);
   }
 
-  // Create 7 Remove Poster dropdowns
-  for (let i = 1; i <= 7; i++) {
+  // Create configured Remove Poster dropdowns.
+  for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
     const removeTitle = `Remove Poster ${i}`;
     setDropdownChoicesByTitle_(form, removeTitle, ['— placeholder —'], false);
   }

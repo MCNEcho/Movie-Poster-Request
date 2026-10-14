@@ -12,23 +12,8 @@ function updateInventoryLastUpdated_() {
 }
 
 function refreshPrintOut(skipQr) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
-  try {
-    const ss = SpreadsheetApp.getActive();
-    ss.toast('⏳ Updating Print Out layout...', 'Updating', -1);
-    
-    buildPrintOutLayout_(skipQr);
-
-    ss.toast('✅ Print Out updated successfully!', 'Update Complete', 3);
-  } catch (err) {
-    const ss = SpreadsheetApp.getActive();
-    ss.toast('❌ Error updating Print Out: ' + err.message, 'Error', 5);
-    throw err;
-  } finally {
-    lock.releaseLock();
-  }
+  queueManualPosterRefresh_({ printOut: true });
+  return { queued: true };
 }
 
 /**
@@ -94,12 +79,12 @@ function buildPrintOutLayout_(skipQr) {
   sh.setColumnWidth(3, 260);
 
   // --- Get ALL posters from Inventory sheet (active or not) ---
-  // The ACTIVE flag controls form availability; Print Out shows ALL to display upcoming movies
+  // --- Get active posters from Inventory sheet ---
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const invData = getNonEmptyData_(inv, 11, 3);
   
-  const allPosters = invData
-    .slice(1)  // Skip header row (row 2 from Inventory) - data starts at row 3
+  const activePosters = invData
+    .filter(r => r[COLS.INVENTORY.ACTIVE - 1] === true)
     .map(r => ({
       release: r[COLS.INVENTORY.RELEASE - 1],
       title: String(r[COLS.INVENTORY.TITLE - 1] || '').trim(),
@@ -110,8 +95,8 @@ function buildPrintOutLayout_(skipQr) {
   // --- Insert poster rows starting at row 6 ---
   const startRow = 6;
   let lastPopulatedRow = startRow;
-  if (allPosters.length > 0) {
-    const rows = allPosters.map(p => [p.release, p.title]);
+  if (activePosters.length > 0) {
+    const rows = activePosters.map(p => [p.release, p.title]);
     sh.getRange(startRow, 1, rows.length, 2).setValues(rows);
     sh.getRange(startRow, 1, rows.length, 1).setNumberFormat('m/d/yyyy');
     lastPopulatedRow = startRow + rows.length - 1;

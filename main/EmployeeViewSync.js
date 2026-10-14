@@ -6,9 +6,6 @@
  * Gracefully handles permission errors for non-master accounts.
  */
 function syncEmployeeViewSpreadsheet_() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
   try {
     Logger.log(`[syncEmployeeViewSpreadsheet_] Starting sync`);
     const adminSS = SpreadsheetApp.getActive();
@@ -105,8 +102,6 @@ function syncEmployeeViewSpreadsheet_() {
     // Don't rethrow - allow graceful degradation for permission errors
     // Employee View will just show stale data until master account syncs
     return { success: false, message: `Sync failed: ${err.message}` };
-  } finally {
-    lock.releaseLock();
   }
 }
 
@@ -134,11 +129,8 @@ function normalizeCopiedSheet_(sheet) {
 function setupEmployeeViewSpreadsheet() {
   const empSS = getOrCreateEmployeeViewSpreadsheet_();
 
-  // initial sync
-  syncEmployeeViewSpreadsheet_();
-
   SpreadsheetApp.getUi().alert(
-    'Employee View spreadsheet is ready.\n\n' +
+    'Employee View spreadsheet is ready; its initial sync will run after setup completes.\n\n' +
     'Share THIS file with employees as Viewer:\n' +
     empSS.getUrl()
   );
@@ -336,7 +328,7 @@ function showEmployeeViewManagerDialog() {
  */
 function setupEmployeeViewWithReturn() {
   const empSS = getOrCreateEmployeeViewSpreadsheet_();
-  syncEmployeeViewSpreadsheet_();
+  queueManualPosterRefresh_({ employeeView: true });
   return empSS.getUrl();
 }
 
@@ -352,7 +344,8 @@ function getEmployeeViewUrl() {
  * PUBLIC wrapper - Sync employee view from dialog
  */
 function syncEmployeeView() {
-  return syncEmployeeViewSpreadsheet_();
+  queueManualPosterRefresh_({ employeeView: true });
+  return { success: true, queued: true, message: 'Employee View refresh queued.' };
 }
 
 // Keep private versions for backward compatibility
@@ -372,11 +365,9 @@ function getEmployeeViewEmployeesUrl_() {
     
     const sh = empSS.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
     if (!sh) {
-      Logger.log('[getEmployeeViewEmployeesUrl_] EMPLOYEES sheet not found in employee view. Syncing now...');
-      syncEmployeeViewSpreadsheet_();
-      const shRetry = empSS.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
-      if (!shRetry) return ''; // Still missing, return empty
-      return empSS.getUrl() + '#gid=' + shRetry.getSheetId();
+      Logger.log('[getEmployeeViewEmployeesUrl_] EMPLOYEES sheet not found in employee view. Queueing a sync.');
+      queueManualPosterRefresh_({ employeeView: true });
+      return empSS.getUrl();
     }
     return empSS.getUrl() + '#gid=' + sh.getSheetId();
   } catch (err) {

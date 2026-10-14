@@ -19,10 +19,25 @@ function handleSheetEdit(e) {
 
   try {
     updateInventoryLastUpdated_();
-    const removalHandled = detectInventoryRemovalsFromEdit_(e);
+    const removalHandledBeforeIdRepair = detectInventoryRemovalsFromEdit_(e);
+    if (removalHandledBeforeIdRepair === null) {
+      queueManualPosterRefresh_({ inventoryCleanup: true });
+      return;
+    }
     ensurePosterIdsInInventory_();
     sortInventoryByReleaseDate_();
-    if (!removalHandled) processInventoryEdit_(e);
+
+    const identityCols = [COLS.INVENTORY.RELEASE, COLS.INVENTORY.TITLE, COLS.INVENTORY.POSTER_ID];
+    const identityChanged = identityCols.some(col => col >= startCol && col <= endCol);
+    const removalHandledAfterIdRepair = identityChanged
+      ? detectAndProcessInventoryRemovals_('onEditAfterIdRepair', 'CONTENT_EDIT')
+      : false;
+    if (removalHandledAfterIdRepair === null) {
+      queueManualPosterRefresh_({ inventoryCleanup: true });
+      return;
+    }
+
+    if (!removalHandledBeforeIdRepair && !removalHandledAfterIdRepair) processInventoryEdit_(e);
   } catch (err) {
     logError_(err, 'handleSheetEdit', 'Inventory edit processing');
   }
@@ -33,17 +48,7 @@ function processInventoryEdit_(e) {
   const sheet = e.range.getSheet();
   if (!sheet || sheet.getName() !== CONFIG.SHEETS.INVENTORY || e.range.getRow() < 3) return;
 
-  try {
-    syncPostersToForm();
-  } catch (err) {
-    logError_(err, 'processInventoryEdit_', 'Syncing form after inventory edit');
-  }
-
-  try {
-    rebuildBoards();
-  } catch (err) {
-    logError_(err, 'processInventoryEdit_', 'Rebuilding boards after inventory edit');
-  }
+  queueManualPosterRefresh_(true);
 }
 
 function handleSheetChange(e) {
@@ -76,7 +81,7 @@ function handleSheetChange(e) {
   }
 
   if (inventoryRemoved) queueManualPosterRefresh_(true);
-  else if (requestsRemoved) queueManualPosterRefresh_(false);
+  else if (requestsRemoved) queueManualPosterRefresh_({ boards: true, form: true, employeeView: true });
 }
 
 function detectInventoryRemovalsFromEdit_(e) {
@@ -112,7 +117,7 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(0)) {
     Logger.log(`[inventoryCleanup] Skipped ${source} removal scan because the script lock is busy.`);
-    return false;
+    return null;
   }
   let removed = false;
   try {
@@ -123,6 +128,12 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
 
   if (removed) queueManualPosterRefresh_(true);
   return removed;
+}
+
+function processQueuedInventoryRemovalScan_() {
+  const result = detectAndProcessInventoryRemovals_('queued', 'CONTENT_CLEAR');
+  if (result === null) queueManualPosterRefresh_({ inventoryCleanup: true });
+  return result;
 }
 
 function detectAndProcessInventoryRemovalsLocked_(source, changeType) {

@@ -207,6 +207,9 @@ function getActivePostersForManualEntry() {
 
 function addManualRequest(contact, empName, posterId, customTimestamp, contactType = 'EMPLOYEE', notes = '') {
   const startedAt = Date.now();
+  contact = String(contact || '').trim();
+  empName = String(empName || '').trim();
+  posterId = String(posterId || '').trim();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   let lockReleased = false;
@@ -250,13 +253,15 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
     
     // For employees: check dedup + slot limits using email as identifier
     // For customers: dedup check is skipped (customers can request multiple times)
+    let requestRows = null;
     if (contactTypeUpper === 'EMPLOYEE') {
-      const dedup = canRequestPoster_(contact, posterId);
+      requestRows = readRequestRows_();
+      const dedup = canRequestPoster_(contact, posterId, requestRows);
       if (!dedup.allowed) {
         return { success: false, message: `Cannot add request: ${dedup.reason}` };
       }
 
-      const activeSlots = countActiveSlotsByEmail_(contact);
+      const activeSlots = countActiveSlotsByEmail_(contact, requestRows);
       if (activeSlots >= CONFIG.MAX_ACTIVE) {
         return { success: false, message: `Cannot add request: limit (${CONFIG.MAX_ACTIVE}-slot)` };
       }
@@ -276,6 +281,9 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
       }
     } else {
       requestTs = now_();
+    }
+    if (requestTs.getTime() > now_().getTime()) {
+      return { success: false, message: 'Request timestamp cannot be in the future' };
     }
     
     // Capture user for audit trail
@@ -303,6 +311,7 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
     row[COLS.REQUESTS.NOTES - 1] = String(notes || '').trim();
 
     sh.appendRow(row);
+    updateRequestsDeletionSnapshotRow_(sh.getLastRow(), row);
 
     // Invalidate caches only for employees (contact is email)
     if (contactTypeUpper === 'EMPLOYEE') {
@@ -315,7 +324,7 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
 
     let refreshQueued = false;
     try {
-      queueManualPosterRefresh_(false);
+      queueManualPosterRefresh_({ boards: true, form: true, employeeView: true });
       refreshQueued = true;
     } catch (queueErr) {
       Logger.log(`[addManualRequest] Warning: background refresh could not be queued: ${queueErr.message}`);

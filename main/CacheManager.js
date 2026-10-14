@@ -144,7 +144,7 @@ function getPosterAvailability_Cached() {
   // Compute availability from Inventory
   cache = {};
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-  const data = getNonEmptyData_(inv, COLS.INVENTORY.NOTES || 12);
+  const data = getNonEmptyData_(inv, COLS.INVENTORY.NOTES || 12, 3);
 
   data.forEach((row, idx) => {
     const isActive = row[COLS.INVENTORY.ACTIVE - 1];

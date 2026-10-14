@@ -17,7 +17,7 @@ function setupPosterOutsideTab_() {
   
   try {
     const ss = SpreadsheetApp.getActive();
-    const sheetName = 'Poster Outside';
+    const sheetName = CONFIG.SHEETS.POSTER_OUTSIDE;
     
     // Create or get sheet
     let sheet = ss.getSheetByName(sheetName);
@@ -124,7 +124,7 @@ function setupPosterInsideTab_() {
   
   try {
     const ss = SpreadsheetApp.getActive();
-    const sheetName = 'Poster Inside';
+    const sheetName = CONFIG.SHEETS.POSTER_INSIDE;
     
     // Create or get sheet
     let sheet = ss.getSheetByName(sheetName);
@@ -209,7 +209,15 @@ function setupPosterInsideTab_() {
 function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
   try {
     // Get movie titles from Inventory tab
-    const titles = getMovieTitlesFromInventory_();
+    const posters = getPostersWithLabels_();
+    const titles = posters.map(p => p.label);
+    const previousLabelToId = readJsonProp_(CONFIG.PROPS.DISPLAY_LABEL_TO_ID, {});
+    const currentIdToLabel = {};
+    const currentLabelToId = {};
+    posters.forEach(p => {
+      currentIdToLabel[p.posterId] = p.label;
+      currentLabelToId[normalizeTitle_(p.label)] = p.posterId;
+    });
     
     if (titles.length === 0) {
       titles.push('(No movies in inventory)');
@@ -238,13 +246,11 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
     
     // Set default values for empty cells
     const values = range.getValues()[0];
-    const newValues = values.map((val, idx) => {
-      if (!val || val === '') {
-        return titles[0] || '';
-      }
-      return val;
-    });
+    const newValues = values.map(val => remapDisplaySelection_(
+      val, previousLabelToId, currentIdToLabel, currentLabelToId, titles[0] || ''
+    ));
     range.setValues([newValues]);
+    writeJsonProp_(CONFIG.PROPS.DISPLAY_LABEL_TO_ID, Object.assign({}, previousLabelToId, currentLabelToId));
     
     // Make poster title cells taller (150 units)
     sheet.setRowHeight(row, 150);
@@ -254,26 +260,28 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
   }
 }
 
+function remapDisplaySelection_(value, previousLabelToId, currentIdToLabel, currentLabelToId, emptyFallback) {
+  const label = String(value || '').trim();
+  if (!label) return emptyFallback || '';
+
+  const key = normalizeTitle_(label);
+  const currentPosterId = currentLabelToId[key];
+  if (currentPosterId) return currentIdToLabel[currentPosterId];
+
+  const priorPosterId = previousLabelToId[key];
+  if (priorPosterId && currentIdToLabel[priorPosterId]) return currentIdToLabel[priorPosterId];
+  return label;
+}
+
 /**
  * Get all movie titles from Inventory tab, sorted by release date (oldest to newest)
  * @returns {Array<string>} Array of unique movie titles
  */
 function getMovieTitlesFromInventory_() {
   try {
-    const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const data = getNonEmptyData_(inv, 8);  // Inventory has 8 columns
-    
-    // Get all titles, sorted by release date (ascending: oldest to newest)
-    const titles = data
-      .sort((a, b) => {
-        const dateA = new Date(a[COLS.INVENTORY.RELEASE - 1]);
-        const dateB = new Date(b[COLS.INVENTORY.RELEASE - 1]);
-        return dateA - dateB; // Oldest first
-      })
-      .map(r => String(r[COLS.INVENTORY.TITLE - 1] || '').trim())
-      .filter(Boolean);
-    
-    return [...new Set(titles)]; // Remove duplicates
+    return getPostersWithLabels_()
+      .sort((a, b) => new Date(a.release) - new Date(b.release))
+      .map(p => p.label);
   } catch (err) {
     Logger.log(`[getMovieTitlesFromInventory_] Error: ${err.message}`);
     return [];
@@ -285,7 +293,7 @@ function getMovieTitlesFromInventory_() {
  */
 function updatePosterOutsideTimestamp_() {
   try {
-    const sheet = SpreadsheetApp.getActive().getSheetByName('Poster Outside');
+    const sheet = SpreadsheetApp.getActive().getSheetByName(CONFIG.SHEETS.POSTER_OUTSIDE);
     if (!sheet) return;
     
     sheet.getRange('A1').setValue(
@@ -301,7 +309,7 @@ function updatePosterOutsideTimestamp_() {
  */
 function updatePosterInsideTimestamp_() {
   try {
-    const sheet = SpreadsheetApp.getActive().getSheetByName('Poster Inside');
+    const sheet = SpreadsheetApp.getActive().getSheetByName(CONFIG.SHEETS.POSTER_INSIDE);
     if (!sheet) return;
     
     sheet.getRange('A1').setValue(
@@ -317,36 +325,8 @@ function updatePosterInsideTimestamp_() {
  * This function updates dropdowns on both Poster Outside and Poster Inside tabs
  */
 function refreshDisplayDropdowns_() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  
-  try {
-    const ss = SpreadsheetApp.getActive();
-    
-    // Refresh Poster Outside
-    const outsideSheet = ss.getSheetByName('Poster Outside');
-    if (outsideSheet) {
-      setupMovieTitleDropdowns_(outsideSheet, 5, 1, 8);  // Yoke's Side
-      setupMovieTitleDropdowns_(outsideSheet, 9, 1, 8);  // Dairy Queen Side
-      updatePosterOutsideTimestamp_();
-    }
-    
-    // Refresh Poster Inside
-    const insideSheet = ss.getSheetByName('Poster Inside');
-    if (insideSheet) {
-      setupMovieTitleDropdowns_(insideSheet, 3, 1, 4);  // Video Games Wall Top
-      setupMovieTitleDropdowns_(insideSheet, 4, 1, 4);  // Video Games Wall Bottom
-      setupMovieTitleDropdowns_(insideSheet, 7, 1, 3);  // Box Wall
-      updatePosterInsideTimestamp_();
-    }
-    
-    ss.toast('✅ Display dropdowns refreshed!', 'Refresh Complete', 3);
-  } catch (err) {
-    logError_(err, 'refreshDisplayDropdowns_', 'Refreshing display dropdowns');
-    SpreadsheetApp.getActive().toast('❌ Error refreshing displays', 'Error', 5);
-  } finally {
-    lock.releaseLock();
-  }
+  queueManualPosterRefresh_({ posterOutside: true, posterInside: true });
+  return { queued: true };
 }
 
 /**
@@ -470,7 +450,7 @@ function showDisplayManagerDialog() {
             showStatus('Refreshing dropdowns...', false);
             google.script.run
               .withSuccessHandler(function() {
-                showStatus('✅ Display dropdowns refreshed!', true);
+                showStatus('✅ Display dropdown refresh queued.', true);
               })
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);

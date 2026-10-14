@@ -10,26 +10,8 @@ function debugFormAndLinks() {
 }
 
 function resetAllTriggers() {
-  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
-
-  const form = getOrCreateForm_();
-
-  ScriptApp.newTrigger('handleFormSubmit')
-    .forForm(form)
-    .onFormSubmit()
-    .create();
-
-  ScriptApp.newTrigger('handleSheetEdit')
-    .forSpreadsheet(SpreadsheetApp.getActive())
-    .onEdit()
-    .create();
-
-  ScriptApp.newTrigger('handleSheetChange')
-    .forSpreadsheet(SpreadsheetApp.getActive())
-    .onChange()
-    .create();
-
-  Logger.log("Triggers reset. FORM LIVE URL: " + form.getPublishedUrl());
+  ensureTriggers_();
+  Logger.log('Triggers reconciled by the configured master account.');
 }
 
 /**
@@ -92,9 +74,39 @@ function testLedgerAndFormHelpersInMemory_() {
     'sparse poster selections must retain their actual form slot when notes are paired');
   assert(paired[1].slot === 5 && paired[1].note === 'note for fifth',
     'later sparse slots must pair with their matching notes');
+  const firstNotes = mapFirstNotesByLabel_([
+    { slot: 1, label: 'Same Movie', note: '' },
+    { slot: 4, label: 'Same Movie', note: 'later duplicate note' },
+  ]);
+  assert(firstNotes['Same Movie'] === '', 'duplicate selections must keep the first slot note, even when blank');
 
-  assert(isWithinSlotLimit_(CONFIG.MAX_ACTIVE - 1), 'one open slot must allow one more request');
-  assert(!isWithinSlotLimit_(CONFIG.MAX_ACTIVE), 'the configured maximum must reject an additional request');
+  const fullSlots = Array.from({ length: CONFIG.MAX_ACTIVE }, (_, index) => [
+    new Date(index), 'slots@example.com', 'Slots T', `poster-${index}`, '', '', '', '', STATUS.ACTIVE,
+  ]);
+  assert(countActiveSlotsByEmail_('slots@example.com', fullSlots) === CONFIG.MAX_ACTIVE,
+    'slot counting must read the in-memory ledger accurately at the configured maximum');
+  assert(!isWithinSlotLimit_(countActiveSlotsByEmail_('slots@example.com', fullSlots)),
+    'the configured maximum must reject an additional request');
+  assert(isWithinSlotLimit_(countActiveSlotsByEmail_('slots@example.com', fullSlots.slice(1))),
+    'one freed slot must allow one more request');
+  const formChoices = normalizeFormChoices_([' Movie  One ', 'movie one', 'Movie Two']);
+  assert(formChoices.length === 2 && formChoices[0] === 'Movie One', 'form choices must dedupe ignoring case and repeated whitespace');
+
+  let requestedStartRow = 0;
+  const fakeSheet = {
+    getLastRow: () => 4,
+    getLastColumn: () => 2,
+    getRange: (row, column, rowCount, colCount) => {
+      requestedStartRow = row;
+      return { getValues: () => [['Poster A', 'P-1'], ['Poster B', 'P-2']] };
+    },
+  };
+  const inventoryRows = getNonEmptyData_(fakeSheet, 2, 3);
+  assert(requestedStartRow === 3 && inventoryRows.length === 2,
+    'inventory data reads must begin at row 3 instead of including the header');
+  assert(remapDisplaySelection_('Old Movie Title', { 'old movie title': 'P-1' },
+    { 'P-1': 'New Movie Title' }, { 'new movie title': 'P-1' }, '') === 'New Movie Title',
+    'display selections must follow stable poster IDs after title changes');
 
   Logger.log('PASS: in-memory ledger and form regression tests');
   return true;
@@ -225,6 +237,5 @@ function cleanupInvalidNamesAndOverCap_() {
     Logger.log('Cleanup found nothing to change.');
   }
 
-  rebuildBoards();
-  syncPostersToForm();
+  queueManualPosterRefresh_(false);
 }

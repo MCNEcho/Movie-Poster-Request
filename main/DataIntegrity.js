@@ -44,25 +44,31 @@ function runFullIntegrityCheck_() {
     results.totalIssuesFound += orphanedCheck.issuesFound;
     results.autoRepaired += orphanedCheck.autoRepaired;
 
-    // Check 2: Over-capacity assignments
+    // Check 2: Required fields on active ledger rows
+    const invalidActiveCheck = checkInvalidActiveRequests_();
+    results.checksPerformed.push(invalidActiveCheck);
+    results.totalIssuesFound += invalidActiveCheck.issuesFound;
+    results.requiresAdminAction += invalidActiveCheck.issuesFound;
+
+    // Check 3: Over-capacity assignments
     const overCapCheck = checkForOverCapacity_();
     results.checksPerformed.push(overCapCheck);
     results.totalIssuesFound += overCapCheck.issuesFound;
     results.autoRepaired += overCapCheck.autoRepaired;
 
-    // Check 3: Duplicate active requests
+    // Check 4: Duplicate active requests
     const duplicateCheck = checkForDuplicates_();
     results.checksPerformed.push(duplicateCheck);
     results.totalIssuesFound += duplicateCheck.issuesFound;
     results.autoRepaired += duplicateCheck.autoRepaired;
 
-    // Check 4: Inconsistent state
+    // Check 5: Inconsistent state
     const stateCheck = checkInconsistentState_();
     results.checksPerformed.push(stateCheck);
     results.totalIssuesFound += stateCheck.issuesFound;
     results.autoRepaired += stateCheck.autoRepaired;
 
-    // Check 5: Missing poster IDs
+    // Check 6: Missing poster IDs
     const idCheck = checkMissingPosterIds_();
     results.checksPerformed.push(idCheck);
     results.totalIssuesFound += idCheck.issuesFound;
@@ -84,8 +90,7 @@ function runFullIntegrityCheck_() {
 }
 
 /**
- * Check for orphaned requests (requests with deleted posters)
- * Auto-deletes entire rows for orphaned ACTIVE requests
+ * Find orphaned ACTIVE requests and close them without deleting audit rows.
  * @returns {object} Check results
  */
 function checkForOrphanedRequests_() {
@@ -100,45 +105,67 @@ function checkForOrphanedRequests_() {
   try {
     const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
     const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
-
-    const requestData = getNonEmptyData_(requestsSheet, 7);
-    const posterData = getNonEmptyData_(inventorySheet, 11, 3);
-
-    const validPosterIds = new Set(
-      posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim())
-    );
-
+    const lastRequestRow = requestsSheet.getLastRow();
+    const requestData = lastRequestRow < 2
+      ? []
+      : requestsSheet.getRange(2, 1, lastRequestRow - 1, Math.max(requestsSheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
+    const posterData = getNonEmptyData_(inventorySheet, COLS.INVENTORY.POSTER_ID, 3);
+    const validPosterIds = new Set(posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim()).filter(Boolean));
     const orphanedRows = [];
-    const orphanedDetails = [];
-    requestData.forEach((row, idx) => {
-      const posterId = String(row[CONFIG.COLS.REQUESTS.POSTER_ID - 1] || '').trim();
-      const status = String(row[CONFIG.COLS.REQUESTS.STATUS - 1] || '').trim();
-      const title = String(row[CONFIG.COLS.REQUESTS.TITLE_SNAP - 1] || '').trim();
-      const empEmail = String(row[CONFIG.COLS.REQUESTS.EMP_EMAIL - 1] || '').trim();
 
-      if (status === 'ACTIVE' && !validPosterIds.has(posterId)) {
-        orphanedRows.push(idx + 2); // +2 for header and 0-indexing
-        orphanedDetails.push(`${empEmail} - ${title} (${posterId})`);
+    requestData.forEach((row, idx) => {
+      const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+      const status = String(row[COLS.REQUESTS.STATUS - 1] || '').trim();
+      if (status === STATUS.ACTIVE && posterId && !validPosterIds.has(posterId)) {
+        orphanedRows.push(idx + 2);
         result.issuesFound++;
       }
     });
 
-    if (orphanedRows.length > 0) {
+    if (orphanedRows.length) {
       result.status = 'REPAIRED';
       result.autoRepaired = orphanedRows.length;
-      result.details.push(`Deleted ${orphanedRows.length} orphaned request(s)`);
-      result.details.push(...orphanedDetails);
-
-      // Auto-repair: Delete entire rows (from bottom to top to maintain row numbers)
-      // Reverse order is critical: deleting from top would shift row numbers down,
-      // causing subsequent deletions to target wrong rows
-      orphanedRows.reverse().forEach(rowNum => {
-        requestsSheet.deleteRow(rowNum);
+      result.details.push(`Marked ${orphanedRows.length} orphaned request(s) removed; ledger rows preserved.`);
+      orphanedRows.forEach(rowNum => {
+        requestsSheet.getRange(rowNum, COLS.REQUESTS.STATUS, 1, 2)
+          .setValues([['REMOVED_ORPHANED', now_()]]);
       });
-      
-      Logger.log(`[INTEGRITY] Deleted ${orphanedRows.length} orphaned requests`);
     }
+  } catch (err) {
+    result.status = 'ERROR';
+    result.details.push(`Error: ${err.message}`);
+  }
 
+  logIntegrityCheck_(result);
+  return result;
+}
+
+function checkInvalidActiveRequests_() {
+  const result = {
+    checkType: 'INVALID_ACTIVE_REQUESTS',
+    issuesFound: 0,
+    autoRepaired: 0,
+    details: [],
+    status: 'PASS',
+  };
+
+  try {
+    const requestsSheet = getRequestsSheet_();
+    const lastRow = requestsSheet.getLastRow();
+    const rows = lastRow < 2
+      ? []
+      : requestsSheet.getRange(2, 1, lastRow - 1, Math.max(requestsSheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
+    rows.forEach((row, index) => {
+      if (String(row[COLS.REQUESTS.STATUS - 1] || '').trim() !== STATUS.ACTIVE) return;
+      const email = String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim();
+      const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+      if (email && posterId) return;
+
+      result.issuesFound++;
+      const missing = [!email && 'email/contact', !posterId && 'poster ID'].filter(Boolean).join(' and ');
+      result.details.push(`Requests row ${index + 2} is ACTIVE with no ${missing}.`);
+    });
+    if (result.issuesFound) result.status = 'REQUIRES_ACTION';
   } catch (err) {
     result.status = 'ERROR';
     result.details.push(`Error: ${err.message}`);
@@ -149,7 +176,7 @@ function checkForOrphanedRequests_() {
 }
 
 /**
- * Check for over-capacity assignments (more than 5 active per employee)
+ * Check for over-capacity assignments (more than CONFIG.MAX_ACTIVE per employee)
  * @returns {object} Check results
  */
 function checkForOverCapacity_() {
@@ -319,14 +346,18 @@ function checkMissingPosterIds_() {
 
   try {
     const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const data = getNonEmptyData_(inventorySheet, 11, 3);
+    const lastRow = inventorySheet.getLastRow();
+    const data = lastRow < 3
+      ? []
+      : inventorySheet.getRange(3, 1, lastRow - 2, Math.max(inventorySheet.getLastColumn(), COLS.INVENTORY.POSTER_ID)).getValues();
 
     const missingRows = [];
 
     data.forEach((row, idx) => {
+      if (!row.some(value => value !== '' && value !== null)) return;
       const posterId = String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim();
       if (!posterId) {
-        missingRows.push(idx + 2);
+        missingRows.push(idx + 3);
         result.issuesFound++;
       }
     });

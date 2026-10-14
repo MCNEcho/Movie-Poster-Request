@@ -1,9 +1,9 @@
 /** FormSubmit.js **/
 
 function handleFormSubmit(e) {
+  const startedAt = Date.now();
   const lock = LockService.getScriptLock();
-  let shouldSyncEmployeeView = false;
-  let shouldRefreshViews = false;
+  let refreshTasks = null;
   lock.waitLock(30000);
 
   try {
@@ -16,15 +16,45 @@ function handleFormSubmit(e) {
     Logger.log(`[handleFormSubmit] Email: ${empEmail}, Name: ${nameRaw}, RemoveLabels: ${JSON.stringify(answers.removeLabels)}, AddLabels: ${JSON.stringify(answers.addLabels)}`);
 
     if (!empEmail) {
-      Logger.log(`[handleFormSubmit] No email found - exiting`);
+      const reason = 'No respondent email was provided by the Form.';
+      appendRequestOrderLog_({
+        formTs,
+        empEmail: '',
+        empName: nameRaw,
+        addRaw: '',
+        removeRaw: '',
+        slotsBefore: '',
+        slotsAfter: '',
+        addedAccepted: '',
+        removedApplied: '',
+        deniedAdds: 'Submission rejected',
+        notes: reason,
+      });
+      logError_(new Error(reason), 'handleFormSubmit', { name: nameRaw, rejected: true });
+      logSubmissionEvent_({ empName: nameRaw, status: 'REJECTED_MISSING_EMAIL', executionTime: Date.now() - startedAt, notes: reason });
       return;
     }
 
     // Validate name format (First Name + Last Initial)
     const nameCheck = normalizeEmployeeName_(nameRaw);
     if (!nameCheck.ok) {
-      Logger.log(`Invalid name format from ${empEmail}: ${nameRaw}. Reason: ${nameCheck.reason}`);
-      return; // Don't save requests with invalid names
+      const reason = `Invalid name format: ${nameCheck.reason}`;
+      appendRequestOrderLog_({
+        formTs,
+        empEmail,
+        empName: nameRaw,
+        addRaw: '',
+        removeRaw: '',
+        slotsBefore: '',
+        slotsAfter: '',
+        addedAccepted: '',
+        removedApplied: '',
+        deniedAdds: 'Submission rejected',
+        notes: reason,
+      });
+      logError_(new Error(reason), 'handleFormSubmit', { empEmail, name: nameRaw, rejected: true });
+      logSubmissionEvent_({ empEmail, empName: nameRaw, status: 'REJECTED_INVALID_NAME', executionTime: Date.now() - startedAt, notes: reason });
+      return;
     }
 
     const empName = nameCheck.canonical;
@@ -56,34 +86,27 @@ function handleFormSubmit(e) {
       notes: result.notes.join(' | '),
     });
 
-    shouldRefreshViews = true;
-    shouldSyncEmployeeView = true;
+    refreshTasks = { boards: true, form: true, employeeView: true };
+    logSubmissionEvent_({
+      empEmail,
+      empName,
+      addLabels,
+      removeLabels,
+      status: result.deniedAdds.length ? 'PARTIAL' : 'COMPLETE',
+      executionTime: Date.now() - startedAt,
+      notes: result.notes.join('; '),
+    });
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {
     lock.releaseLock();
   }
 
-  if (shouldRefreshViews) {
+  if (refreshTasks) {
     try {
-      rebuildBoards();
-      syncPostersToForm();
-    } catch (refreshErr) {
-      logError_(refreshErr, 'handleFormSubmit', 'Post-submission board/form refresh');
-    }
-  }
-
-  // Run Employee View sync outside the submission lock to avoid lock timeouts.
-  if (shouldSyncEmployeeView) {
-    try {
-      const syncResult = syncEmployeeViewSpreadsheet_();
-      if (syncResult && syncResult.success === false) {
-        Logger.log(`[handleFormSubmit] Employee View sync skipped: ${syncResult.message}`);
-      } else {
-        Logger.log('[handleFormSubmit] Employee View synced successfully');
-      }
-    } catch (syncErr) {
-      Logger.log(`[handleFormSubmit] Employee View sync failed: ${syncErr.message}`);
+      queueManualPosterRefresh_(refreshTasks);
+    } catch (queueErr) {
+      logError_(queueErr, 'handleFormSubmit', 'Queueing post-submission refresh');
     }
   }
 }
@@ -133,9 +156,7 @@ function readFormAnswers_(e) {
 
   const pairedSlots = pairPosterSlotsWithNotes_(addBySlot, addNotes);
   const addLabels = pairedSlots.map(entry => entry.label);
-  pairedSlots.forEach(entry => {
-    if (entry.note && !addNotes[entry.label]) addNotes[entry.label] = entry.note;
-  });
+  const notesByLabel = mapFirstNotesByLabel_(pairedSlots);
 
   // Deduplicate poster selections (same poster selected multiple times = process once)
   out.addLabels = deduplicatePosters_(addLabels);
@@ -144,8 +165,8 @@ function readFormAnswers_(e) {
   // For deduped posters, keep the note from the first occurrence
   const dedupedAddNotes = {};
   out.addLabels.forEach(label => {
-    if (addNotes[label]) {
-      dedupedAddNotes[label] = addNotes[label];
+    if (notesByLabel[label]) {
+      dedupedAddNotes[label] = notesByLabel[label];
     }
   });
   out.addNotes = dedupedAddNotes;
@@ -163,6 +184,16 @@ function pairPosterSlotsWithNotes_(addBySlot, notesBySlot) {
       label: addBySlot[slot],
       note: (notesBySlot || {})[`slot_${slot}`] || '',
     }));
+}
+
+function mapFirstNotesByLabel_(pairedSlots) {
+  const notesByLabel = {};
+  (pairedSlots || []).forEach(entry => {
+    if (!Object.prototype.hasOwnProperty.call(notesByLabel, entry.label)) {
+      notesByLabel[entry.label] = entry.note || '';
+    }
+  });
+  return notesByLabel;
 }
 
 /**

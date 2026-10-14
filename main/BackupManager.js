@@ -15,6 +15,26 @@ function performNightlyBackup() {
     return;
   }
 
+  const backupDay = fmtDate_(now_(), 'yyyy-MM-dd');
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    Logger.log('[BACKUP] Script lock is busy; scheduling a retry in one minute.');
+    if (isMasterAccount_()) {
+      ScriptApp.newTrigger('performNightlyBackup').timeBased().after(60 * 1000).create();
+    }
+    return;
+  }
+  try {
+    const props = getProps_();
+    if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
+      Logger.log(`[BACKUP] Skipping duplicate backup trigger; a backup is already reserved/completed for ${backupDay}.`);
+      return;
+    }
+    props.setProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE, backupDay);
+  } finally {
+    lock.releaseLock();
+  }
+
   const startTime = new Date().getTime();
   const timestamp = fmtDate_(now_(), 'yyyy-MM-dd_HHmmss');
   
@@ -70,6 +90,10 @@ function performNightlyBackup() {
     Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
     
   } catch (err) {
+    const props = getProps_();
+    if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
+      props.deleteProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE);
+    }
     const executionTime = new Date().getTime() - startTime;
     
     // Log error

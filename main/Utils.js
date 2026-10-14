@@ -7,7 +7,7 @@ function fmtDate_(d, pattern) {
 }
 
 function normalizeTitle_(s) {
-  return String(s || '').trim().toLowerCase();
+  return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function getProps_() {

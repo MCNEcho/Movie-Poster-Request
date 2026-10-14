@@ -2,9 +2,9 @@
 
 const CONFIG = {
   VERSION: {
-    LABEL: 'v2026.10.14.1',
+    LABEL: 'v2026.10.14.2',
     UPDATED_AT: '2026-10-14',
-    NOTES: 'Announcement removal, trigger cleanup, and lock contention fixes',
+    NOTES: 'Serialized refreshes, form validation, and ledger reliability fixes',
   },
 
   TIMEZONE: 'America/Los_Angeles',
@@ -15,9 +15,9 @@ const CONFIG = {
 
   FORM_META: {
     TITLE: 'Poster Request Form',
-    DESCRIPTION:
-      'You can only have your name on 7 posters at a time. If you already have all 7 slots maxed out and you want a different poster, remove one from your selection to choose a new one.',
   },
+
+  FORM_SLOTS: 10,
 
   FORM: {
     Q_EMPLOYEE_NAME: 'Name (First Name + Last Initial)',
@@ -29,7 +29,6 @@ const CONFIG = {
     MAIN: 'Main',
     EMPLOYEES: 'Employees',
     REQUEST_ORDER: 'Request Order',
-    MOVIE_POSTERS: 'Movie Posters',  // DEPRECATED: Use INVENTORY instead (kept for backward compatibility)
     INVENTORY: 'Inventory',          // PRIMARY: Canonical source for poster data
     PRINT_OUT: 'Print Out',
     POSTER_OUTSIDE: 'Poster Outside',
@@ -56,15 +55,6 @@ const CONFIG = {
   
   // Admin email for error notifications (Task 1 - Error Handling)
   ADMIN_EMAIL: '', // Leave blank to use spreadsheet owner
-
-  // Bulk Simulator configuration (Task 5 - Bulk Submission Simulator)
-  BULK_SIMULATOR: {
-    MAX_SIMULATIONS: 100,        // Hard cap on number of simulations per run
-    DEFAULT_SIMULATIONS: 10,     // Default number if not specified
-    WARNING_THRESHOLD: 50,       // Warn user if N >= this value
-    MAX_ADD_PER_SIM: 3,         // Max posters to add in a single simulation
-    MAX_REMOVE_PER_SIM: 3,      // Max posters to remove in a single simulation
-  },
 
   // Backup configuration (Task 8 - Nightly Data Backup)
   BACKUP: {
@@ -102,6 +92,8 @@ const CONFIG = {
     REQUESTS_ROW_COUNT: 'REQUESTS_DATA_ROW_COUNT',
     MANUAL_POSTER_REFRESH_QUEUED: 'MANUAL_POSTER_REFRESH_QUEUED',
     MANUAL_POSTER_REFRESH_RUNNING: 'MANUAL_POSTER_REFRESH_RUNNING',
+    DISPLAY_LABEL_TO_ID: 'DISPLAY_LABEL_TO_ID_JSON',
+    LAST_NIGHTLY_BACKUP_DATE: 'LAST_NIGHTLY_BACKUP_DATE',
 
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
   },
@@ -122,17 +114,6 @@ const COLS = {
     NOTES: 10,        // Notes moved to column J
     POSTER_ID: 11,    // Poster ID moved to column K
     // Column L reserved/unused; Poster Received Date removed
-  },
-
-  MOVIE_POSTERS: {
-    ACTIVE: 1,
-    POSTER_ID: 2,
-    TITLE: 3,
-    RELEASE: 4,
-    INV_COUNT: 5,
-    RECEIVED: 6,
-    NOTES: 7,
-    CLOSE_QUEUE: 8,
   },
 
   REQUESTS: {
@@ -169,6 +150,7 @@ const STATUS = {
   ACTIVE: 'ACTIVE',
   REMOVED: 'REMOVED',
   REMOVED_INVENTORY_DELETE: 'REMOVED_INVENTORY_DELETE',
-};
+}; // Status values used in the request ledger.
 
-// PUSH_TEST 2026-01-25T20:45:50.4999107-08:00
+// End of shared configuration.
+

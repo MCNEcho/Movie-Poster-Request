@@ -1,14 +1,13 @@
 /** FormSync.js **/
 
 function syncPostersToForm() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
+  queueManualPosterRefresh_({ form: true });
+  return { queued: true };
+}
+
+function syncPostersToForm_() {
     // Keep form structure aligned with setup and collect verified email addresses.
     ensureFormStructure_();
-
-    ensurePosterIdsInInventory_();  // Inventory is canonical source
-    updateInventoryLastUpdated_();
 
     const form = getOrCreateForm_();
     const posters = getPostersWithLabels_();  // Reads from Inventory
@@ -40,14 +39,14 @@ function syncPostersToForm() {
       .sort((a,b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
       .map(p => p.label);
 
-    // Update all 7 Add Poster dropdowns
-    for (let i = 1; i <= 7; i++) {
+    // Update all configured Add Poster dropdowns.
+    for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
       const posterTitle = `Request Poster (Add) ${i}`;
       setDropdownChoicesByTitle_(form, posterTitle, addChoices, false);
     }
 
-    // Update all 7 Remove Poster dropdowns
-    for (let i = 1; i <= 7; i++) {
+    // Update all configured Remove Poster dropdowns.
+    for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
       const removeTitle = `Remove Poster ${i}`;
       setDropdownChoicesByTitle_(form, removeTitle, removeChoices, false);
     }
@@ -56,7 +55,4 @@ function syncPostersToForm() {
     invalidateBoardMain_();
     invalidateBoardEmployees_();
 
-  } finally {
-    lock.releaseLock();
-  }
 }
