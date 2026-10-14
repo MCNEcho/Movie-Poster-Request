@@ -33,10 +33,11 @@ function handleFormSubmit(e) {
     const removeLabels = safeArray_(answers.removeLabels);
 
     // For logging (email-keyed)
-    const slotsBefore = countActiveSlotsByEmail_(empEmail);
+    const requestRows = readRequestRows_();
+    const slotsBefore = countActiveSlotsByEmail_(empEmail, requestRows);
 
-    const result = processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, addNotes);
-    const slotsAfter = countActiveSlotsByEmail_(empEmail);
+    const result = processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, addNotes, requestRows);
+    const slotsAfter = countActiveSlotsByEmail_(empEmail, requestRows);
 
     // Reset caches after write-heavy operations
     invalidateCachesAfterWrite_({ empEmail });
@@ -100,7 +101,7 @@ function readFormAnswers_(e) {
   // Get email from form's built-in email collection
   out.empEmail = String(e.response.getRespondentEmail() || '').trim().toLowerCase();
 
-  const addLabels = [];
+  const addBySlot = {};
   const addNotes = {};  // Map: posterLabel → note text
   const removeLabels = [];
 
@@ -113,8 +114,8 @@ function readFormAnswers_(e) {
     if (title === tName) {
       out.empName = resp;
     } else if (title.startsWith('Request Poster (Add)') && resp && String(resp).trim()) {
-      // Collect non-empty add selections from the 7 dropdowns
-      addLabels.push(String(resp).trim());
+      const match = title.match(/^Request Poster \(Add\) (\d+)$/);
+      if (match) addBySlot[Number(match[1])] = String(resp).trim();
     } else if (title.startsWith('Request Poster Note')) {
       // Capture notes and associate them with their slot numbers
       // Extract the slot number (e.g., "Request Poster Note 1" → 1)
@@ -130,12 +131,10 @@ function readFormAnswers_(e) {
     }
   });
 
-  // Now pair notes with their corresponding posters
-  // addLabels[0] was from slot 1, so pair with addNotes['slot_1'], etc.
-  addLabels.forEach((label, index) => {
-    const slotNum = index + 1;
-    const note = addNotes[`slot_${slotNum}`] || '';
-    addNotes[label] = note;  // Map poster label to note
+  const pairedSlots = pairPosterSlotsWithNotes_(addBySlot, addNotes);
+  const addLabels = pairedSlots.map(entry => entry.label);
+  pairedSlots.forEach(entry => {
+    if (entry.note && !addNotes[entry.label]) addNotes[entry.label] = entry.note;
   });
 
   // Deduplicate poster selections (same poster selected multiple times = process once)
@@ -155,6 +154,17 @@ function readFormAnswers_(e) {
   return out;
 }
 
+function pairPosterSlotsWithNotes_(addBySlot, notesBySlot) {
+  return Object.keys(addBySlot || {})
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(slot => ({
+      slot,
+      label: addBySlot[slot],
+      note: (notesBySlot || {})[`slot_${slot}`] || '',
+    }));
+}
+
 /**
  * Deduplicate poster selections: if same poster appears multiple times, keep only first occurrence
  * @param {string[]} labels - Array of poster labels
@@ -169,15 +179,15 @@ function deduplicatePosters_(labels) {
   });
 }
 
-function processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, addNotes = {}) {
+function processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, addNotes = {}, requestRows) {
   const labelToId = readJsonProp_(CONFIG.PROPS.LABEL_TO_ID, {});
   const decode = (lbl) => labelToId[String(lbl || '').trim()] || null;
 
   // Process removals first
-  const removedApplied = processRemovals_(empEmail, removeLabels, decode);
+  const removedApplied = processRemovals_(empEmail, removeLabels, decode, requestRows);
 
   // Process additions after removals
-  const { addedAccepted, deniedAdds } = processAdditions_(empEmail, empName, addLabels, decode, formTs, addNotes);
+  const { addedAccepted, deniedAdds } = processAdditions_(empEmail, empName, addLabels, decode, formTs, addNotes, requestRows);
 
   return {
     removedApplied,
@@ -191,7 +201,7 @@ function processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, 
  * Process removals from the form submission.
  * Returns array of label strings that were successfully removed.
  */
-function processRemovals_(empEmail, removeLabels, decode) {
+function processRemovals_(empEmail, removeLabels, decode, requestRows) {
   const idToCurrent = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
   const removedApplied = [];
 
@@ -203,7 +213,7 @@ function processRemovals_(empEmail, removeLabels, decode) {
     }
 
     Logger.log(`[processRemovals] Attempting to remove poster ${pid} (${lbl}) for ${empEmail}`);
-    const ok = setRequestStatusByEmail_(empEmail, pid, STATUS.REMOVED, now_());
+    const ok = setRequestStatusByEmail_(empEmail, pid, STATUS.REMOVED, now_(), requestRows);
     if (ok) {
       removedApplied.push(idToCurrent[pid] || String(lbl).trim());
       Logger.log(`[processRemovals] Successfully removed poster ${pid}`);
@@ -219,7 +229,7 @@ function processRemovals_(empEmail, removeLabels, decode) {
  * Process additions from the form submission.
  * Returns { addedAccepted, deniedAdds } arrays.
  */
-function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNotes = {}) {
+function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNotes = {}, requestRows) {
   const idToCurrent = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
   const activePosterMap = getActivePosterIdMap_();
 
@@ -230,9 +240,8 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNote
   Logger.log(`[processAdditions] Active Poster Map: ${JSON.stringify(activePosterMap)}`);
   Logger.log(`[processAdditions] Add Notes map: ${JSON.stringify(addNotes)}`);
 
-  const activeNow = countActiveSlotsByEmail_(empEmail);
-  let available = Math.max(0, CONFIG.MAX_ACTIVE - activeNow);
-  Logger.log(`[processAdditions] Current active slots: ${activeNow}, Available: ${available}`);
+  const activeNow = countActiveSlotsByEmail_(empEmail, requestRows);
+  Logger.log(`[processAdditions] Current active slots: ${activeNow}, Available: ${Math.max(0, CONFIG.MAX_ACTIVE - activeNow)}`);
 
   const deniedAdds = [];
   const addedAccepted = [];
@@ -259,7 +268,7 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNote
     }
 
     // Check for duplicates by email
-    const dedupCheck = canRequestPoster_(empEmail, pid);
+    const dedupCheck = canRequestPoster_(empEmail, pid, requestRows);
     if (!dedupCheck.allowed) {
       deniedAdds.push(`${show}: ${dedupCheck.reason}`);
       Logger.log(`[processAdditions] DENIED: "${show}" - ${dedupCheck.reason}`);
@@ -267,7 +276,7 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNote
     }
 
     // Check slot availability
-    if (available <= 0) {
+    if (!isWithinSlotLimit_(activeNow + addedAccepted.length, CONFIG.MAX_ACTIVE)) {
       deniedAdds.push(`${show}: limit (${CONFIG.MAX_ACTIVE}-slot)`);
       Logger.log(`[processAdditions] DENIED: "${show}" - no available slots`);
       continue;
@@ -275,9 +284,8 @@ function processAdditions_(empEmail, empName, addLabels, decode, formTs, addNote
 
     // All checks passed - add the request with note
     Logger.log(`[processAdditions] ACCEPTED: "${show}" - creating ledger row with note: "${note}"`);
-    createLedgerRow_(empEmail, empName, pid, formTs, note);
+    createLedgerRow_(empEmail, empName, pid, formTs, note, requestRows);
     addedAccepted.push(show);
-    available--;
   }
 
   Logger.log(`[processAdditions] Final result: ${addedAccepted.length} accepted, ${deniedAdds.length} denied`);

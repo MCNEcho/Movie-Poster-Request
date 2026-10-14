@@ -66,6 +66,40 @@ function testDedupConfig() {
   Logger.log('To test with real data, add test requests in Requests sheet');
 }
 
+function testLedgerAndFormHelpersInMemory_() {
+  const assert = (condition, message) => {
+    if (!condition) throw new Error(`Regression test failed: ${message}`);
+  };
+
+  const removedThenActiveRows = [
+    ['', 'xander@example.com', 'Xander A', 'poster-1', '', '', '', '', STATUS.REMOVED],
+    ['', 'xander@example.com', 'Xander A', 'poster-1', '', '', '', '', STATUS.ACTIVE],
+  ];
+  assert(findActiveRequestIndex_(removedThenActiveRows, 'Xander@example.com', 'poster-1') === 1,
+    'removal matching must skip old REMOVED rows and find the ACTIVE request');
+
+  const reRequestRows = [
+    ['', 'xander@example.com', 'Xander A', 'poster-1', '', '', '', '', STATUS.REMOVED],
+  ];
+  assert(canRequestPoster_('xander@example.com', 'poster-1', reRequestRows).allowed,
+    'an inactive historical request must not block a configured re-request');
+
+  const paired = pairPosterSlotsWithNotes_(
+    { 2: 'Second Movie', 5: 'Fifth Movie' },
+    { slot_2: 'note for second', slot_5: 'note for fifth' }
+  );
+  assert(paired.length === 2 && paired[0].slot === 2 && paired[0].note === 'note for second',
+    'sparse poster selections must retain their actual form slot when notes are paired');
+  assert(paired[1].slot === 5 && paired[1].note === 'note for fifth',
+    'later sparse slots must pair with their matching notes');
+
+  assert(isWithinSlotLimit_(CONFIG.MAX_ACTIVE - 1), 'one open slot must allow one more request');
+  assert(!isWithinSlotLimit_(CONFIG.MAX_ACTIVE), 'the configured maximum must reject an additional request');
+
+  Logger.log('PASS: in-memory ledger and form regression tests');
+  return true;
+}
+
 /**
  * ============================================================================
  * ONE-TIME MIGRATION / CLEANUP FUNCTION (Archive - no longer maintained)

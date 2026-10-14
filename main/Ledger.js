@@ -4,6 +4,13 @@ function getRequestsSheet_() {
   return getSheet_(CONFIG.SHEETS.REQUESTS);
 }
 
+function readRequestRows_() {
+  const sheet = getRequestsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
+}
+
 /**
  * Ensure all rows in Inventory have unique Poster IDs.
  * This is the canonical source of truth for poster management.
@@ -11,9 +18,9 @@ function getRequestsSheet_() {
 function ensurePosterIdsInInventory_() {
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const lastRow = inv.getLastRow();
-  if (lastRow < 2) return;
+  if (lastRow < 3) return;
 
-  const idsRange = inv.getRange(2, COLS.INVENTORY.POSTER_ID, lastRow - 1, 1);
+  const idsRange = inv.getRange(3, COLS.INVENTORY.POSTER_ID, lastRow - 2, 1);
   const ids = idsRange.getValues();
 
   let changed = false;
@@ -42,9 +49,8 @@ function hasEverRequestedByEmail_(empEmail, posterId) {
  * @param {string} posterId - Poster ID
  * @returns {Object} { allowed: boolean, reason: string }
  */
-function canRequestPoster_(empEmail, posterId) {
-  const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 9);
+function canRequestPoster_(empEmail, posterId, requestRows) {
+  const data = requestRows || getNonEmptyData_(getRequestsSheet_(), COLS.REQUESTS.STATUS);
 
   // Find all requests for this email/poster combination
   const requests = data.filter(r =>
@@ -90,9 +96,8 @@ function canRequestPoster_(empEmail, posterId) {
   return { allowed: true, reason: '' };
 }
 
-function countActiveSlotsByEmail_(empEmail) {
-  const sh = getRequestsSheet_();
-  const data = getNonEmptyData_(sh, 9);
+function countActiveSlotsByEmail_(empEmail, requestRows) {
+  const data = requestRows || getNonEmptyData_(getRequestsSheet_(), COLS.REQUESTS.STATUS);
   return data.filter(r =>
     String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim() === String(empEmail).toLowerCase().trim() &&
     String(r[COLS.REQUESTS.STATUS - 1]) === STATUS.ACTIVE
@@ -111,31 +116,35 @@ function getPosterIdsWithAnyActiveRequests_() {
   return out;
 }
 
-function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts) {
+function setRequestStatusByEmail_(empEmail, posterId, newStatus, ts, requestRows) {
   const sh = getRequestsSheet_();
   const lastRow = sh.getLastRow();
   if (lastRow < 2) return false;
 
-  const range = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn());
-  const values = range.getValues();
+  const rows = requestRows || sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+  const email = String(empEmail).toLowerCase().trim();
 
-  for (let i = 0; i < values.length; i++) {
-    const r = values[i];
-    const rEmail = String(r[COLS.REQUESTS.EMP_EMAIL - 1]).toLowerCase().trim();
-    const rPid = String(r[COLS.REQUESTS.POSTER_ID - 1]);
-    const rStatus = String(r[COLS.REQUESTS.STATUS - 1]);
+  const rowIndex = findActiveRequestIndex_(rows, email, posterId);
+  if (rowIndex < 0) return false;
 
-    if (rEmail === String(empEmail).toLowerCase().trim() && rPid === String(posterId)) {
-      if (newStatus === STATUS.REMOVED && rStatus !== STATUS.ACTIVE) return false;
+  sh.getRange(rowIndex + 2, COLS.REQUESTS.STATUS, 1, 2).setValues([[newStatus, ts]]);
+  rows[rowIndex][COLS.REQUESTS.STATUS - 1] = newStatus;
+  rows[rowIndex][COLS.REQUESTS.STATUS_TS - 1] = ts;
+  return true;
+}
 
-      r[COLS.REQUESTS.STATUS - 1] = newStatus;
-      r[COLS.REQUESTS.STATUS_TS - 1] = ts;
+function findActiveRequestIndex_(rows, empEmail, posterId) {
+  const email = String(empEmail || '').toLowerCase().trim();
+  const id = String(posterId || '').trim();
+  return rows.findIndex(row =>
+    String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').toLowerCase().trim() === email &&
+    String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim() === id &&
+    String(row[COLS.REQUESTS.STATUS - 1] || '').trim() === STATUS.ACTIVE
+  );
+}
 
-      range.setValues(values);
-      return true;
-    }
-  }
-  return false;
+function isWithinSlotLimit_(activeCount, maxActive = CONFIG.MAX_ACTIVE) {
+  return Number(activeCount) < Number(maxActive);
 }
 
 function getActivePosterIdMap_() {
@@ -160,7 +169,7 @@ function lookupPosterInfoById_(posterId) {
   return { title: found.title, release: found.release, label: found.label };
 }
 
-function createLedgerRow_(empEmail, empName, posterId, requestTs, note = '') {
+function createLedgerRow_(empEmail, empName, posterId, requestTs, note = '', requestRows) {
   const sh = getRequestsSheet_();
   const mpInfo = lookupPosterInfoById_(posterId);
   const idToCurrent = readJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, {});
@@ -181,6 +190,7 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs, note = '') {
   row[COLS.REQUESTS.NOTES - 1] = String(note || '').trim();
 
   sh.appendRow(row);
+  if (requestRows) requestRows.push(row);
 }
 
 /**
@@ -198,10 +208,9 @@ function closeActiveRequestsByPosterIds_(posterIds, newStatus, statusTs) {
   const idMap = {};
   ids.forEach(id => { idMap[id] = true; });
 
-  const range = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn());
+  const range = sh.getRange(2, 1, lastRow - 1, Math.max(sh.getLastColumn(), COLS.REQUESTS.NOTES));
   const values = range.getValues();
-
-  let changed = false;
+  const rowsToClose = [];
   let closedCount = 0;
   const empCounts = {};
 
@@ -211,9 +220,7 @@ function closeActiveRequestsByPosterIds_(posterIds, newStatus, statusTs) {
     const status = String(r[COLS.REQUESTS.STATUS - 1] || '').trim();
 
     if (idMap[pid] && status === STATUS.ACTIVE) {
-      r[COLS.REQUESTS.STATUS - 1] = newStatus;
-      r[COLS.REQUESTS.STATUS_TS - 1] = statusTs;
-      changed = true;
+      rowsToClose.push(i + 2);
       closedCount++;
 
       const email = String(r[COLS.REQUESTS.EMP_EMAIL - 1] || '').toLowerCase().trim();
@@ -221,7 +228,9 @@ function closeActiveRequestsByPosterIds_(posterIds, newStatus, statusTs) {
     }
   }
 
-  if (changed) range.setValues(values);
+  rowsToClose.forEach(rowNum => {
+    sh.getRange(rowNum, COLS.REQUESTS.STATUS, 1, 2).setValues([[newStatus, statusTs]]);
+  });
   return { closedCount, empCounts };
 }
 

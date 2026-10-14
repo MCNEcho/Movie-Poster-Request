@@ -60,11 +60,12 @@ function setCheckboxColumn_(sheet, col, startRow, numRows) {
   sheet.getRange(startRow, col, numRows - startRow + 1, 1).setDataValidation(rule);
 }
 
-function getNonEmptyData_(sheet, minCols) {
+function getNonEmptyData_(sheet, minCols, startRow = 2) {
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+  const firstRow = Math.max(1, Number(startRow) || 2);
+  if (lastRow < firstRow) return [];
   const lastCol = Math.max(minCols || 1, sheet.getLastColumn());
-  const vals = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  const vals = sheet.getRange(firstRow, 1, lastRow - firstRow + 1, lastCol).getValues();
   return vals.filter(r => r.some(v => v !== '' && v !== null));
 }
 
