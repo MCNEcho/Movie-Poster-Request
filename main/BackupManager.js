@@ -9,34 +9,38 @@
  * Main backup function - exports configured sheets to Drive
  * Called by nightly trigger or manually from menu
  */
-function performNightlyBackup() {
+function performNightlyBackup(isRetry = false) {
   if (!CONFIG.BACKUP.ENABLED) {
     Logger.log('[BACKUP] Backups are disabled in config');
     getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
-    deleteTriggersByHandler_('retryNightlyBackup_');
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
     return;
   }
 
   const backupDay = fmtDate_(now_(), 'yyyy-MM-dd');
+  const priorRetryState = readJsonProp_(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, null);
+  if (priorRetryState && priorRetryState.day !== backupDay) {
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+  } else if (priorRetryState && priorRetryState.day === backupDay && priorRetryState.stuck) {
+    Logger.log(`[BACKUP] Retry cap already reached for ${backupDay}; waiting for the next scheduled run.`);
+    return;
+  }
+
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(0)) {
-    Logger.log('[BACKUP] Script lock is busy; scheduling a retry in one minute.');
-    if (isMasterAccount_()) {
-      getProps_().setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY, 'true');
-      scheduleNightlyBackupRetry_(60 * 1000);
-    }
+    recordBackupFailure_(backupDay, 'Script lock is busy.', isRetry);
     return;
   }
   try {
     const props = getProps_();
     if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
-      Logger.log(`[BACKUP] Skipping duplicate backup trigger; a backup is already reserved/completed for ${backupDay}.`);
+      Logger.log(`[BACKUP] Skipping duplicate backup; already reserved/completed for ${backupDay}.`);
       props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
-      deleteTriggersByHandler_('retryNightlyBackup_');
+      props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
       return;
     }
     props.setProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE, backupDay);
-    props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
   } finally {
     lock.releaseLock();
   }
@@ -94,24 +98,16 @@ function performNightlyBackup() {
     Logger.log(`[BACKUP] Completed successfully in ${executionTime}ms`);
     Logger.log(`[BACKUP] Backed up ${backupResults.length} sheets: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
     Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
-    deleteTriggersByHandler_('retryNightlyBackup_');
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
     
   } catch (err) {
     const props = getProps_();
     if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
       props.deleteProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE);
     }
-    if (isMasterAccount_()) {
-      props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY, 'true');
-      scheduleNightlyBackupRetry_(5 * 60 * 1000);
-    }
+    recordBackupFailure_(backupDay, err && err.message ? err.message : err, isRetry);
     const executionTime = new Date().getTime() - startTime;
-    
-    // Log error
-    logError_(err, 'performNightlyBackup', {
-      timestamp: timestamp,
-      executionTime: executionTime
-    });
     
     // Log failure to Analytics
     logBackupEvent_({
@@ -121,25 +117,79 @@ function performNightlyBackup() {
     });
     
     Logger.log(`[BACKUP] Failed: ${err.message}`);
-    throw err;
   }
 }
 
-function retryNightlyBackup_() {
-  deleteTriggersByHandler_('retryNightlyBackup_');
-  getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
-  performNightlyBackup();
+const BACKUP_RETRY_BACKOFF_MINUTES = [5, 15, 60];
+const BACKUP_MAX_RETRIES_PER_DAY = 3;
+
+function backupRetryBackoffMinutes_(retryNumber) {
+  const index = Math.max(0, Math.min(Number(retryNumber) - 1, BACKUP_RETRY_BACKOFF_MINUTES.length - 1));
+  return BACKUP_RETRY_BACKOFF_MINUTES[index];
+}
+
+function backupRetryAllowed_(state, day) {
+  return !!state && state.day === day && !state.stuck && Number(state.retries || 0) < BACKUP_MAX_RETRIES_PER_DAY;
+}
+
+function backupRetryStateForFailure_(existing, day, isRetry, nowMs, errorMessage) {
+  const sameDay = !!(existing && existing.day === day);
+  const state = sameDay ? existing : { day, retries: 0 };
+  if (!sameDay) {
+    return {
+      day,
+      retries: 0,
+      nextAttemptAt: Number(nowMs) + BACKUP_RETRY_BACKOFF_MINUTES[0] * 60000,
+      lastError: String(errorMessage || '').slice(0, 300),
+      stuck: false,
+    };
+  }
+
+  const retries = Number(state.retries || 0) + 1;
+  if (retries >= BACKUP_MAX_RETRIES_PER_DAY) {
+    return { day, retries, nextAttemptAt: 0, lastError: String(errorMessage || '').slice(0, 300), stuck: true };
+  }
+  return {
+    day,
+    retries,
+    nextAttemptAt: Number(nowMs) + backupRetryBackoffMinutes_(retries + 1) * 60000,
+    lastError: String(errorMessage || '').slice(0, 300),
+    stuck: false,
+  };
+}
+
+function recordBackupFailure_(day, errorMessage, isRetry) {
+  if (!isMasterAccount_()) return;
+  const props = getProps_();
+  const current = readJsonProp_(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, null);
+  const next = backupRetryStateForFailure_(current, day, isRetry, Date.now(), errorMessage);
+  if (next.stuck) {
+    props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+    props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, JSON.stringify(next));
+    logError_(new Error(`Nightly backup failed after ${BACKUP_MAX_RETRIES_PER_DAY} retries today; will try again at the next scheduled run. Last error: ${next.lastError}`),
+      'performNightlyBackup', { day, stuck: true, retries: next.retries });
+    Logger.log('[BACKUP] Retry cap reached for today; retry state cleared until next scheduled run.');
+    return;
+  }
+
+  props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, JSON.stringify(next));
+  props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY, 'true');
+  Logger.log(`[BACKUP] Failure recorded for ${day}; retry ${next.retries + 1} due at ${new Date(next.nextAttemptAt).toISOString()}: ${next.lastError}`);
 }
 
 function processNightlyBackupRetryQueue_() {
   if (!isMasterAccount_()) return;
-  if (getProps_().getProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY) !== 'true') return;
-  performNightlyBackup();
-}
-
-function scheduleNightlyBackupRetry_(delayMs) {
-  if (!isMasterAccount_()) return;
-  ensureSingleOneOffTrigger_('retryNightlyBackup_', delayMs, true);
+  const props = getProps_();
+  if (props.getProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY) !== 'true') return;
+  const day = fmtDate_(now_(), 'yyyy-MM-dd');
+  const state = readJsonProp_(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, null);
+  if (!state || state.day !== day) {
+    props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+    props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
+    return;
+  }
+  if (!backupRetryAllowed_(state, day) || Number(state.nextAttemptAt || 0) > Date.now()) return;
+  performNightlyBackup(true);
 }
 
 /**

@@ -147,6 +147,11 @@ function ensureTriggers_() {
       deletedLegacyTriggers++;
       return;
     }
+    if (handler === 'processNightlyBackupRetryQueue_') {
+      ScriptApp.deleteTrigger(trigger);
+      deletedLegacyTriggers++;
+      return;
+    }
     if (handler === 'performNightlyBackup' || handler === 'processManualPosterRefresh_') return;
     if (handler === 'retryNightlyBackup_' || handler === 'retryManualPosterRefresh_') return;
     if (!uniqueHandlers.has(handler)) return;
@@ -195,14 +200,10 @@ function ensureTriggers_() {
   ScriptApp.newTrigger('performNightlyBackup').timeBased().atHour(2).everyDays(1).create();
 
   deleteTriggersByHandler_('processManualPosterRefresh_');
-  ScriptApp.newTrigger('processManualPosterRefresh_').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('processManualPosterRefresh_').timeBased().everyMinutes(10).create();
 
-  deleteTriggersByHandler_('processNightlyBackupRetryQueue_');
-  ScriptApp.newTrigger('processNightlyBackupRetryQueue_').timeBased().everyMinutes(5).create();
-
-  ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 5000, hasPendingManualPosterRefreshTasks_());
-  ensureSingleOneOffTrigger_('retryNightlyBackup_', 60000,
-    getProps_().getProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY) === 'true');
+  deleteTriggersByHandler_('retryNightlyBackup_');
+  ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 60000, hasPendingManualPosterRefreshTasks_());
 }
 
 function deleteTriggersByHandler_(handler) {

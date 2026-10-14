@@ -91,6 +91,30 @@ function testLedgerAndFormHelpersInMemory_() {
     'one freed slot must allow one more request');
   const formChoices = normalizeFormChoices_([' Movie  One ', 'movie one', 'Movie Two']);
   assert(formChoices.length === 2 && formChoices[0] === 'Movie One', 'form choices must dedupe ignoring case and repeated whitespace');
+  const baseHash = computeFormChoicesHash_(['A', 'B'], ['A'], 10);
+  assert(baseHash === computeFormChoicesHash_(['A', 'B'], ['A'], 10), 'identical form inputs must produce the same hash');
+  assert(baseHash !== computeFormChoicesHash_(['B', 'A'], ['A'], 10), 'choice order must affect the hash');
+  assert(baseHash !== computeFormChoicesHash_(['A', 'C'], ['A'], 10), 'choice content must affect the hash');
+  assert(baseHash !== computeFormChoicesHash_(['A', 'B'], ['A'], 9), 'slot count must affect the hash');
+  assert(areFormChoiceValuesEqual_(['', 'A'], ['', 'A']), 'identical choice arrays should compare equal');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['']), 'choice array lengths should be compared');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['', 'B']), 'choice array values should be compared');
+  const choiceHash = computeFormChoicesHash_(['A', 'B'], ['A'], 10);
+  assert(choiceHash === computeFormChoicesHash_(['A', 'B'], ['A'], 10), 'choice hash must be stable for identical inputs');
+  assert(choiceHash !== computeFormChoicesHash_(['B', 'A'], ['A'], 10), 'choice hash must change when choice order changes');
+  assert(choiceHash !== computeFormChoicesHash_(['A', 'C'], ['A'], 10), 'choice hash must change when labels change');
+  assert(choiceHash !== computeFormChoicesHash_(['A', 'B'], ['A'], 9), 'choice hash must change when form slot count changes');
+  assert(areFormChoiceValuesEqual_(['', 'A'], ['', 'A']), 'equal form choice values should compare true');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['']), 'form choice lengths must be compared');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['', 'B']), 'form choice values must be compared');
+  const baselineHash = computeFormChoicesHash_(['A', 'B'], ['A'], 10);
+  assert(baselineHash === computeFormChoicesHash_(['A', 'B'], ['A'], 10), 'identical Form choices must hash identically');
+  assert(baselineHash !== computeFormChoicesHash_(['B', 'A'], ['A'], 10), 'choice order must affect the hash');
+  assert(baselineHash !== computeFormChoicesHash_(['A', 'C'], ['A'], 10), 'changed labels must affect the hash');
+  assert(baselineHash !== computeFormChoicesHash_(['A', 'B'], ['A'], 9), 'FORM_SLOTS must affect the hash');
+  assert(areFormChoiceValuesEqual_(['', 'A'], ['', 'A']), 'identical choice arrays must compare equal');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['']), 'different choice-array lengths must compare unequal');
+  assert(!areFormChoiceValuesEqual_(['', 'A'], ['', 'B']), 'different choice values must compare unequal');
 
   let requestedStartRow = 0;
   const fakeSheet = {
@@ -138,9 +162,58 @@ function testLedgerAndFormHelpersInMemory_() {
     'acknowledging a claimed refresh must not erase a newer concurrently queued task');
   assert(shouldAcknowledgeManualPosterRefreshEntry_(claimedQueueEntry, { boards: true }, claimedQueueEntry.value),
     'successful refresh acknowledgement should remove the exact claimed queue version');
+  assert([1, 2, 3, 4, 5].map(refreshBackoffMinutes_).join(',') === '1,5,15,60,60', 'refresh retries must use capped backoff');
+  assert(!refreshAttemptIsStuck_(4) && refreshAttemptIsStuck_(5), 'refresh task should become stuck after five failures');
+  const failedEntry = { value: JSON.stringify({ task: 'form', attempts: 0, nonce: 'old' }), task: 'form' };
+  const failureUpdate = refreshFailureUpdate_(failedEntry, 'test error', 1000, () => 'new');
+  assert(failureUpdate.attempts === 1 && failureUpdate.nextAttemptAt === 61000 && failureUpdate.lastError === 'test error',
+    'failure metadata should include attempt count, first backoff, and last error');
+  assert(shouldStopRefreshWorker_(1000, 270999) === false && shouldStopRefreshWorker_(1000, 271000) === true,
+    'worker should stop at the 270-second budget boundary');
+  assert(!canUpdateRefreshTaskEntry_(failedEntry, JSON.stringify({ task: 'form', nonce: 'newer' })),
+    'failure bookkeeping must not overwrite a newer task nonce');
+  assert([1, 2, 3, 4, 5].map(refreshBackoffMinutes_).join(',') === '1,5,15,60,60',
+    'refresh retry backoff must be 1, 5, 15, 60, 60 minutes');
+  assert(!refreshAttemptIsStuck_(4) && refreshAttemptIsStuck_(5), 'refresh tasks must become stuck after five failures');
+  assert(!shouldStopRefreshWorker_(1000, 270999), 'refresh worker must continue before its budget');
+  assert(shouldStopRefreshWorker_(1000, 271000), 'refresh worker must stop at 270 seconds');
+  const failureEntry = { key: 'task', value: JSON.stringify({ task: 'form', nonce: 'old', attempts: 0 }) };
+  assert(!canUpdateRefreshTaskEntry_(failureEntry, JSON.stringify({ task: 'form', nonce: 'new' })),
+    'failure updates must not overwrite a task entry with a newer nonce');
+
   let lockWaitMs = null;
   assert(tryAcquireWithoutWaiting_({ tryLock: ms => { lockWaitMs = ms; return false; } }) === false && lockWaitMs === 0,
     'refresh worker lock acquisition must never wait or block submit handlers');
+  assert([1, 2, 3, 4, 5].map(refreshBackoffMinutes_).join(',') === '1,5,15,60,60', 'refresh backoff must cap at 60 minutes');
+  assert(!refreshAttemptIsStuck_(4) && refreshAttemptIsStuck_(5), 'refresh entry must become stuck at attempt five');
+  const lastRefreshFailure = refreshFailureUpdate_(
+    { task: 'form', value: JSON.stringify({ task: 'form', attempts: 4, nonce: 'old' }) },
+    'last failure', 1000, () => 'new'
+  );
+  assert(lastRefreshFailure.stuck && lastRefreshFailure.attempts === 5,
+    'the fifth refresh failure must mark the entry stuck');
+  assert(shouldStopRefreshWorker_(1000, 270999) === false && shouldStopRefreshWorker_(1000, 271000) === true,
+    'refresh worker budget must stop at 270 seconds');
+  const oldTask = { key: 'task', value: JSON.stringify({ task: 'form', nonce: 'old', attempts: 0 }) };
+  assert(!canUpdateRefreshTaskEntry_(oldTask, JSON.stringify({ task: 'form', nonce: 'new' })),
+    'a failed running task must not overwrite a newer queued nonce');
+
+  const day = '2026-10-14';
+  const nextDay = '2026-10-15';
+  let backupState = backupRetryStateForFailure_(null, day, false, 1000, 'initial failure');
+  assert(backupRetryAllowed_(backupState, day) && backupRetryBackoffMinutes_(1) === 5,
+    'a new day allows the initial 5-minute backup retry');
+  backupState = backupRetryStateForFailure_(backupState, day, true, 2000, 'retry one failed');
+  assert(backupRetryAllowed_(backupState, day) && backupRetryBackoffMinutes_(2) === 15,
+    'backup should allow the second retry with 15-minute backoff');
+  backupState = backupRetryStateForFailure_(backupState, day, true, 3000, 'retry two failed');
+  assert(backupRetryAllowed_(backupState, day) && backupRetryBackoffMinutes_(3) === 60,
+    'backup should allow the third retry with 60-minute backoff');
+  backupState = backupRetryStateForFailure_(backupState, day, true, 4000, 'retry three failed');
+  assert(backupState.stuck && !backupRetryAllowed_(backupState, day), 'backup must refuse a fourth retry in a day');
+  const tomorrowState = backupRetryStateForFailure_(backupState, nextDay, false, 5000, 'next-day failure');
+  assert(tomorrowState.day === nextDay && tomorrowState.retries === 0 && backupRetryAllowed_(tomorrowState, nextDay),
+    'backup retries must reset on a new day');
 
   Logger.log('PASS: in-memory ledger and form regression tests');
   return true;

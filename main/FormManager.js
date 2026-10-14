@@ -115,25 +115,44 @@ function setDropdownChoicesByTitle_(form, itemTitle, choices, required = false) 
 
   const items = form.getItems(FormApp.ItemType.LIST);
   let item = items.find(it => String(it.getTitle() || '').trim() === target);
-  if (!item) item = form.addListItem().setTitle(target);
+  if (!item) item = createListItem_(form, target);
+  return setListItemChoices_(item, choices, required);
+}
 
+function createListItem_(form, title) {
+  const item = form.addListItem().setTitle(title);
+  item.setChoiceValues(['— None available —']);
+  item.setRequired(false);
+  return item;
+}
+
+function setListItemChoices_(item, choices, required = false) {
   const dropdown = (typeof item.asListItem === 'function') ? item.asListItem() : item;
-
-  if (!choices || choices.length === 0) {
-    dropdown.setChoices([dropdown.createChoice('— None available —')]);
-    dropdown.setRequired(false);
-    return;
-  }
-
   const uniqueChoices = normalizeFormChoices_(choices);
-  if (uniqueChoices.length === 0) {
-    dropdown.setChoices([dropdown.createChoice('— None available —')]);
-    dropdown.setRequired(false);
-    return;
+  const values = uniqueChoices.length === 0
+    ? ['— None available —']
+    : (required ? uniqueChoices : ['', ...uniqueChoices]);
+  if (!areFormChoiceValuesEqual_(dropdown.getChoices().map(choice => choice.getValue()), values)) {
+    dropdown.setChoiceValues(values);
   }
-  const values = required ? uniqueChoices : ['', ...uniqueChoices];
-  dropdown.setChoiceValues(values);
-  dropdown.setRequired(!!required);
+  if (dropdown.isRequired() !== !!required) dropdown.setRequired(!!required);
+  return dropdown;
+}
+
+function areFormChoiceValuesEqual_(current, desired) {
+  return Array.isArray(current) && Array.isArray(desired) &&
+    current.length === desired.length &&
+    current.every((value, index) => value === desired[index]);
+}
+
+function computeFormChoicesHash_(addChoices, removeChoices, slots) {
+  const source = JSON.stringify({ add: addChoices, remove: removeChoices, slots });
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 function normalizeFormChoices_(choices) {
@@ -169,8 +188,32 @@ function setShortAnswerByTitle_(form, itemTitle, required = false) {
   return textItem;
 }
 
-function ensureFormStructure_() {
-  const form = getOrCreateForm_();
+function requiredFormItemTitles_() {
+  const titles = [CONFIG.FORM.Q_EMPLOYEE_NAME];
+  for (let slot = 1; slot <= CONFIG.FORM_SLOTS; slot++) {
+    titles.push(`Request Poster (Add) ${slot}`);
+    titles.push(`Request Poster Note ${slot}`);
+    titles.push(`Remove Poster ${slot}`);
+  }
+  return titles;
+}
+
+function areRequiredFormItemsMissing_(items) {
+  const has = (title, type) => (items || []).some(item =>
+    item.getType() === type && String(item.getTitle() || '').trim() === title
+  );
+  if (!has(CONFIG.FORM.Q_EMPLOYEE_NAME, FormApp.ItemType.TEXT)) return true;
+  for (let slot = 1; slot <= CONFIG.FORM_SLOTS; slot++) {
+    if (!has(`Request Poster (Add) ${slot}`, FormApp.ItemType.LIST)) return true;
+    if (!has(`Request Poster Note ${slot}`, FormApp.ItemType.TEXT)) return true;
+    if (!has(`Remove Poster ${slot}`, FormApp.ItemType.LIST)) return true;
+  }
+  return false;
+}
+
+function ensureFormStructure_(formArg, itemsArg) {
+  const form = formArg || getOrCreateForm_();
+  let items = itemsArg || form.getItems();
 
   form.setTitle(CONFIG.FORM_META.TITLE);
   form.setDescription(getFormDescription_());
@@ -180,9 +223,11 @@ function ensureFormStructure_() {
 
   // Ensure employee name text item (required)
   const nameTitle = CONFIG.FORM.Q_EMPLOYEE_NAME;
-  const nameItems = form.getItems(FormApp.ItemType.TEXT);
-  let nameItem = nameItems.find(it => String(it.getTitle() || '').trim() === nameTitle);
-  if (!nameItem) nameItem = form.addTextItem().setTitle(nameTitle);
+  let nameItem = items.find(it => String(it.getTitle() || '').trim() === nameTitle && it.getType() === FormApp.ItemType.TEXT);
+  if (!nameItem) {
+    nameItem = form.addTextItem().setTitle(nameTitle);
+    items.push(nameItem);
+  }
   const nameTextItem = (typeof nameItem.asTextItem === 'function') ? nameItem.asTextItem() : nameItem;
   nameTextItem.setRequired(true);
   const namePattern = "^[A-Za-z][A-Za-z'-]{1,}\\s+[A-Za-z]\\.?$";
@@ -192,7 +237,7 @@ function ensureFormStructure_() {
     .build());
 
   // Remove any deprecated questions and ensure no email field exists
-  form.getItems().forEach(item => {
+  items.slice().forEach(item => {
     const title = String(item.getTitle() || '').trim();
     if (title === 'Employee ID (Clock-In Password)' ||
       title === 'Subscribe to Notifications' ||
@@ -201,24 +246,29 @@ function ensureFormStructure_() {
         title === CONFIG.FORM.Q_ADD ||  // Remove old checkbox-based Add question
         title === CONFIG.FORM.Q_REMOVE) {  // Remove old checkbox-based Remove question
       form.deleteItem(item);
+      items = items.filter(existing => existing !== item);
     }
   });
 
-  // Create configured Add Poster dropdowns with optional notes.
+  // Create missing questions only; never replace choices on existing items here.
   for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
     const posterTitle = `Request Poster (Add) ${i}`;
     const noteTitle = `Request Poster Note ${i}`;
-    
-    // Set up dropdown for poster selection
-    setDropdownChoicesByTitle_(form, posterTitle, ['— placeholder —'], false);
-    
-    // Set up optional short answer for note
-    setShortAnswerByTitle_(form, noteTitle, false);
+    if (!items.some(item => item.getType() === FormApp.ItemType.LIST && String(item.getTitle() || '').trim() === posterTitle)) {
+      items.push(createListItem_(form, posterTitle));
+    }
+    if (!items.some(item => item.getType() === FormApp.ItemType.TEXT && String(item.getTitle() || '').trim() === noteTitle)) {
+      const noteItem = form.addTextItem().setTitle(noteTitle);
+      noteItem.setRequired(false);
+      items.push(noteItem);
+    }
   }
 
-  // Create configured Remove Poster dropdowns.
   for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
     const removeTitle = `Remove Poster ${i}`;
-    setDropdownChoicesByTitle_(form, removeTitle, ['— placeholder —'], false);
+    if (!items.some(item => item.getType() === FormApp.ItemType.LIST && String(item.getTitle() || '').trim() === removeTitle)) {
+      items.push(createListItem_(form, removeTitle));
+    }
   }
+  return { form, items };
 }

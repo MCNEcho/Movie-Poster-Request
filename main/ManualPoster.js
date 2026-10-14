@@ -260,9 +260,26 @@ function queueManualPosterRefresh_(requestedTasks = true, wakeDelayMs = 1000) {
 
   const props = getProps_();
   const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
-  entries.forEach(entry => {
-    props.setProperty(`${prefix}${entry.task}`, JSON.stringify({ task: entry.task, queuedAt: Date.now(), nonce: Utilities.getUuid() }));
-  });
+  const lock = LockService.getScriptLock();
+  if (tryAcquireWithoutWaiting_(lock)) {
+    try {
+      entries.forEach(entry => {
+        props.deleteProperty(`${prefix}PENDING_${entry.task}`);
+        writeFreshManualPosterRefreshTask_(props, prefix, entry.task);
+      });
+    } finally {
+      lock.releaseLock();
+    }
+  } else {
+    entries.forEach(entry => props.setProperty(`${prefix}PENDING_${entry.task}`, JSON.stringify({
+      task: entry.task,
+      queuedAt: Date.now(),
+      nonce: Utilities.getUuid(),
+      attempts: 0,
+      lastError: '',
+      nextAttemptAt: 0,
+    })));
+  }
 
   scheduleRefreshQueueWakeup_(wakeDelayMs);
   return true;
@@ -294,7 +311,19 @@ function createManualPosterRefreshQueueEntries_(requestedTasks, makeId) {
     .map(task => ({ id: makeId(), task, queuedAt: 0 }));
 }
 
+function writeFreshManualPosterRefreshTask_(props, prefix, task, queuedAt) {
+  props.setProperty(`${prefix}${task}`, JSON.stringify({
+    task,
+    queuedAt: Number(queuedAt) || Date.now(),
+    nonce: Utilities.getUuid(),
+    attempts: 0,
+    lastError: '',
+    nextAttemptAt: 0,
+  }));
+}
+
 function processManualPosterRefresh_() {
+  const workerStartedAt = Date.now();
   const lock = LockService.getScriptLock();
   if (!tryAcquireWithoutWaiting_(lock)) {
     Logger.log('[processManualPosterRefresh_] Script lock is busy; scheduling a short retry.');
@@ -319,6 +348,7 @@ function processManualPosterRefresh_() {
 
   if (!queueEntries.length) {
     deleteTriggersByHandler_('retryManualPosterRefresh_');
+    if (isMasterAccount_()) processNightlyBackupRetryQueue_();
     return;
   }
 
@@ -326,50 +356,188 @@ function processManualPosterRefresh_() {
     ['inventoryCleanup', 'Inventory removal scan', () => processQueuedInventoryRemovalScan_()],
     ['requestsCleanup', 'Requests deletion scan', () => processQueuedRequestsDeletionScan_()],
     ['boards', 'Boards', () => rebuildBoards_()],
+    ['employeeView', 'Employee View', () => syncEmployeeViewSpreadsheet_()],
     ['printOut', 'Print Out', () => buildPrintOutLayout_(true)],
-    ['form', 'Form', () => syncPostersToForm_()],
     ['posterOutside', 'Poster Outside', () => refreshPosterOutsideDropdowns_()],
     ['posterInside', 'Poster Inside', () => refreshPosterInsideDropdowns_()],
-    ['employeeView', 'Employee View', () => syncEmployeeViewSpreadsheet_()],
+    ['form', 'Form', () => syncPostersToForm_()],
   ];
 
   const pendingTasks = collectManualPosterRefreshTasks_(queueEntries);
-  const completedTasks = {};
-  refreshSteps.forEach(([task, name, refresh]) => {
-    if (!pendingTasks[task]) return;
+  const acknowledgements = [];
+  let timeBudgetReached = false;
+  for (const [task, name, refresh] of refreshSteps) {
+    if (!pendingTasks[task]) continue;
+    if (shouldStopRefreshWorker_(workerStartedAt, Date.now())) {
+      Logger.log('[processManualPosterRefresh_] Time budget reached; remaining tasks stay queued.');
+      timeBudgetReached = true;
+      break;
+    }
+    const entry = queueEntries.find(candidate => manualPosterRefreshEntryTask_(candidate) === task);
+    if (!entry || refreshEntryIsStuck_(entry) || refreshEntryIsNotDue_(entry, Date.now())) continue;
     if ((task === 'form' || task === 'employeeView') && !isMasterAccount_()) {
       Logger.log(`[processManualPosterRefresh_] Deferring ${name} refresh to the owner account.`);
-      return;
+      continue;
     }
     const stepStartedAt = Date.now();
     try {
       const result = refresh();
-      if ((task === 'inventoryCleanup' || task === 'requestsCleanup') && result === null) return;
-      if (task === 'employeeView' && result && result.success === false) return;
-      completedTasks[task] = true;
+      const stepError = refreshResultError_(task, result);
+      if (stepError) {
+        updateRefreshTaskFailure_(entry, stepError);
+        continue;
+      }
+      if (!acknowledgeRefreshTask_(entry)) acknowledgements.push(entry);
       Logger.log(`[processManualPosterRefresh_] ${name} refresh completed in ${Date.now() - stepStartedAt}ms`);
     } catch (err) {
-      logError_(err, 'processManualPosterRefresh_', `${name} refresh after manual data change`);
+      updateRefreshTaskFailure_(entry, err && err.message ? err.message : err);
     }
-  });
+  }
 
+  if (!timeBudgetReached && !shouldStopRefreshWorker_(workerStartedAt, Date.now()) && isMasterAccount_()) {
+    processNightlyBackupRetryQueue_();
+  }
+
+  acknowledgements.forEach(entry => {
+    if (!acknowledgeRefreshTask_(entry)) Logger.log(`[processManualPosterRefresh_] Completion acknowledgement remains queued for ${entry.task}.`);
+  });
+  finishRefreshWorker_(timeBudgetReached || shouldStopRefreshWorker_(workerStartedAt, Date.now()));
+}
+
+const REFRESH_WORKER_TIME_BUDGET_MS = 270000;
+const REFRESH_TASK_BACKOFF_MINUTES = [1, 5, 15, 60];
+const REFRESH_TASK_MAX_ATTEMPTS = 5;
+
+function shouldStopRefreshWorker_(startedAt, nowMs) {
+  return Number(nowMs) - Number(startedAt) >= REFRESH_WORKER_TIME_BUDGET_MS;
+}
+
+function refreshBackoffMinutes_(attempt) {
+  const index = Math.max(0, Math.min(Number(attempt) - 1, REFRESH_TASK_BACKOFF_MINUTES.length - 1));
+  return REFRESH_TASK_BACKOFF_MINUTES[index];
+}
+
+function refreshAttemptIsStuck_(attempts) {
+  return Number(attempts) >= REFRESH_TASK_MAX_ATTEMPTS;
+}
+
+function canUpdateRefreshTaskEntry_(entry, currentValue) {
+  return !!entry && currentValue === entry.value;
+}
+
+function refreshFailureUpdate_(entry, errorMessage, nowMs, makeNonce) {
+  let current;
+  try { current = JSON.parse(entry.value); } catch (err) { current = {}; }
+  const attempts = Number(current.attempts || 0) + 1;
+  const stuck = refreshAttemptIsStuck_(attempts);
+  return {
+    task: current.task || entry.task || '',
+    queuedAt: current.queuedAt || 0,
+    nonce: makeNonce(),
+    attempts,
+    lastError: String(errorMessage || 'Unknown refresh error').slice(0, 300),
+    nextAttemptAt: stuck ? 0 : Number(nowMs) + refreshBackoffMinutes_(attempts) * 60000,
+    stuck,
+  };
+}
+
+function refreshEntryIsNotDue_(entry, nowMs) {
+  try {
+    const parsed = JSON.parse(entry.value);
+    return Number(parsed.nextAttemptAt || 0) > Number(nowMs);
+  } catch (err) {
+    return false;
+  }
+}
+
+function refreshEntryIsStuck_(entry) {
+  try { return JSON.parse(entry.value).stuck === true; } catch (err) { return false; }
+}
+
+function refreshResultError_(task, result) {
+  if ((task === 'inventoryCleanup' || task === 'requestsCleanup') && result === null) return 'Could not acquire lock to scan for deleted rows.';
+  if (result && result.success === false) return result.message || 'Refresh step reported failure.';
+  return '';
+}
+
+function updateRefreshTaskFailure_(entry, errorMessage) {
+  const lock = LockService.getScriptLock();
   if (!tryAcquireWithoutWaiting_(lock)) {
-    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-    Logger.log('[processManualPosterRefresh_] Script lock became busy; queued entries remain for retry.');
+    Logger.log(`[processManualPosterRefresh_] Could not update retry state for ${entry.task}; keeping its queue entry.`);
+    scheduleManualPosterRefreshRetry_();
+    return false;
+  }
+  let update = null;
+  try {
+    const props = getProps_();
+    const currentValue = props.getProperty(entry.key);
+    if (!canUpdateRefreshTaskEntry_(entry, currentValue)) return false;
+
+    update = refreshFailureUpdate_(entry, errorMessage, Date.now(), () => Utilities.getUuid());
+    if (update.stuck) {
+      props.deleteProperty(entry.key);
+    } else {
+      props.setProperty(entry.key, JSON.stringify(update));
+    }
+  } finally {
+    lock.releaseLock();
+  }
+
+  if (!update) return false;
+  if (update.stuck) {
+    logError_(new Error(`Refresh task ${update.task} stuck after ${update.attempts} failed attempts: ${update.lastError}`),
+      'processManualPosterRefresh_', { task: update.task, stuck: true, attempts: update.attempts });
+  } else if (update.attempts === 1) {
+    logError_(new Error(`Refresh task ${update.task} failed: ${update.lastError}`),
+      'processManualPosterRefresh_', { task: update.task, attempts: update.attempts });
+  } else {
+    Logger.log(`[processManualPosterRefresh_] ${update.task} attempt ${update.attempts} failed; retrying after ${refreshBackoffMinutes_(update.attempts)} minute(s): ${update.lastError}`);
+  }
+  return true;
+}
+
+function acknowledgeRefreshTask_(entry) {
+  const lock = LockService.getScriptLock();
+  if (!tryAcquireWithoutWaiting_(lock)) return false;
+  try {
+    const props = getProps_();
+    if (props.getProperty(entry.key) !== entry.value) return false;
+    props.deleteProperty(entry.key);
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function finishRefreshWorker_(timeBudgetReached) {
+  const lock = LockService.getScriptLock();
+  if (!tryAcquireWithoutWaiting_(lock)) {
     scheduleManualPosterRefreshRetry_();
     return;
   }
   try {
-    deleteManualPosterRefreshEntries_(queueEntries, completedTasks);
-    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-    if (hasPendingManualPosterRefreshTasks_() && isMasterAccount_()) {
-      ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 60 * 1000, true);
-    } else if (!hasPendingManualPosterRefreshTasks_()) {
+    getProps_().deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
+    if (!isMasterAccount_()) return;
+    const hasPending = hasPendingManualPosterRefreshTasks_();
+    if (hasPending) {
+      const nextDelay = timeBudgetReached ? 60000 : nextRefreshRetryDelayMs_();
+      ensureSingleOneOffTrigger_('retryManualPosterRefresh_', nextDelay, true);
+    } else {
       deleteTriggersByHandler_('retryManualPosterRefresh_');
     }
   } finally {
     lock.releaseLock();
   }
+}
+
+function nextRefreshRetryDelayMs_() {
+  const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
+  const props = getProps_().getProperties();
+  const dueTimes = Object.keys(props).filter(key => key.startsWith(prefix)).map(key => {
+    try { return Number(JSON.parse(props[key]).nextAttemptAt || 0); } catch (err) { return 0; }
+  }).filter(time => time > 0);
+  if (!dueTimes.length) return 60000;
+  return Math.max(1000, Math.min(10 * 60 * 1000, Math.min(...dueTimes) - Date.now()));
 }
 
 function scheduleManualPosterRefreshRetry_() {
@@ -389,12 +557,37 @@ function readPendingManualPosterRefreshEntries_() {
   const props = getProps_();
   const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
   let all = props.getProperties();
+  const stagingPrefix = `${prefix}PENDING_`;
+  const stagedKeys = Object.keys(all).filter(key => key.startsWith(stagingPrefix));
+  stagedKeys.forEach(key => {
+    const stagedValue = all[key];
+    try {
+      const staged = JSON.parse(stagedValue);
+      const task = String(staged.task || key.substring(stagingPrefix.length)).trim();
+      const taskKey = `${prefix}${task}`;
+      const currentValue = props.getProperty(taskKey);
+      let currentQueuedAt = -1;
+      if (currentValue) {
+        try { currentQueuedAt = Number(JSON.parse(currentValue).queuedAt || 0); } catch (err) {}
+      }
+      if (!currentValue || Number(staged.queuedAt || 0) >= currentQueuedAt) {
+        props.setProperty(taskKey, JSON.stringify(Object.assign({}, staged, {
+          task,
+          nonce: Utilities.getUuid(),
+        })));
+      }
+    } catch (err) {
+      Logger.log(`[processManualPosterRefresh_] Ignoring malformed staged queue record ${key}.`);
+    }
+    if (props.getProperty(key) === stagedValue) props.deleteProperty(key);
+  });
+  all = props.getProperties();
   const legacyKey = 'MANUAL_POSTER_REFRESH_QUEUED';
   if (all[legacyKey]) {
     const legacyTasks = { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true };
     Object.keys(legacyTasks).forEach(task => {
       const key = `${prefix}${task}`;
-      if (!all[key]) props.setProperty(key, JSON.stringify({ task, queuedAt: Date.now(), nonce: Utilities.getUuid() }));
+      if (!all[key]) writeFreshManualPosterRefreshTask_(props, prefix, task);
     });
     props.deleteProperty(legacyKey);
     all = props.getProperties();

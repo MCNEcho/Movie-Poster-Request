@@ -6,53 +6,63 @@ function syncPostersToForm() {
 }
 
 function syncPostersToForm_() {
-    // Keep form structure aligned with setup and collect verified email addresses.
-    ensureFormStructure_();
+  let form = getOrCreateForm_();
+  let items = form.getItems();
+  let repairedStructure = false;
+  if (areRequiredFormItemsMissing_(items)) {
+    const repaired = ensureFormStructure_(form, items);
+    form = repaired.form;
+    items = repaired.items;
+    repairedStructure = true;
+  }
 
-    const form = getOrCreateForm_();
-    const posters = getPostersWithLabels_();  // Reads from Inventory
-
-    // Build label-to-ID and ID-to-label maps
-    const labelToId = readJsonProp_(CONFIG.PROPS.LABEL_TO_ID, {});
-    const idToCurrent = {};
-    posters.forEach(p => {
-      idToCurrent[p.posterId] = p.label;
-      if (!labelToId[p.label]) labelToId[p.label] = p.posterId;
-    });
-    writeJsonProp_(CONFIG.PROPS.LABEL_TO_ID, labelToId);
-    writeJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, idToCurrent);
-
-    // Invalidate caches affected by poster label/availability changes
-    invalidatePostersWithLabels_();
-    invalidatePosterAvailability_();
-
-    // Build Add choices (active posters, sorted by release)
-    const addChoices = posters
-      .filter(p => p.active)
-      .sort((a,b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
-      .map(p => p.label);
-
-    // Build Remove choices (posters with ACTIVE requests)
-    const activePosterIds = getPosterIdsWithAnyActiveRequests_();
-    const removeChoices = posters
-      .filter(p => activePosterIds[p.posterId])
-      .sort((a,b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
-      .map(p => p.label);
-
-    // Update all configured Add Poster dropdowns.
-    for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
-      const posterTitle = `Request Poster (Add) ${i}`;
-      setDropdownChoicesByTitle_(form, posterTitle, addChoices, false);
+  const listItems = new Map();
+  items.forEach(item => {
+    if (item.getType() === FormApp.ItemType.LIST) {
+      listItems.set(String(item.getTitle() || '').trim(), item);
     }
+  });
 
-    // Update all configured Remove Poster dropdowns.
-    for (let i = 1; i <= CONFIG.FORM_SLOTS; i++) {
-      const removeTitle = `Remove Poster ${i}`;
-      setDropdownChoicesByTitle_(form, removeTitle, removeChoices, false);
-    }
+  const posters = getPostersWithLabels_();
+  const labelToId = readJsonProp_(CONFIG.PROPS.LABEL_TO_ID, {});
+  const idToCurrent = {};
+  posters.forEach(p => {
+    idToCurrent[p.posterId] = p.label;
+    if (!labelToId[p.label]) labelToId[p.label] = p.posterId;
+  });
+  writeJsonProp_(CONFIG.PROPS.LABEL_TO_ID, labelToId);
+  writeJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, idToCurrent);
 
-    // Boards and form were updated; clear board caches for freshness
-    invalidateBoardMain_();
-    invalidateBoardEmployees_();
+  invalidatePostersWithLabels_();
+  invalidatePosterAvailability_();
 
+  const sortPosters = list => list
+    .sort((a, b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
+    .map(p => p.label);
+  const addChoices = normalizeFormChoices_(sortPosters(posters.filter(p => p.active)));
+  const activePosterIds = getPosterIdsWithAnyActiveRequests_();
+  const removeChoices = normalizeFormChoices_(sortPosters(posters.filter(p => activePosterIds[p.posterId])));
+  const choicesHash = computeFormChoicesHash_(addChoices, removeChoices, CONFIG.FORM_SLOTS);
+  const savedHash = getProps_().getProperty(CONFIG.PROPS.FORM_CHOICES_HASH);
+
+  if (savedHash === choicesHash && !repairedStructure) {
+    Logger.log('[syncPostersToForm_] Skipped Form writes; choices and slot count are unchanged.');
+    return { skipped: true, hash: choicesHash };
+  }
+
+  for (let slot = 1; slot <= CONFIG.FORM_SLOTS; slot++) {
+    const addTitle = `Request Poster (Add) ${slot}`;
+    const removeTitle = `Remove Poster ${slot}`;
+    const addItem = listItems.get(addTitle);
+    const removeItem = listItems.get(removeTitle);
+    if (!addItem || !removeItem) throw new Error(`Required Form dropdown is missing: ${!addItem ? addTitle : removeTitle}`);
+    setListItemChoices_(addItem, addChoices, false);
+    setListItemChoices_(removeItem, removeChoices, false);
+  }
+
+  getProps_().setProperty(CONFIG.PROPS.FORM_CHOICES_HASH, choicesHash);
+  invalidateBoardMain_();
+  invalidateBoardEmployees_();
+  Logger.log(`[syncPostersToForm_] Updated ${CONFIG.FORM_SLOTS * 2} Form dropdowns (hash ${choicesHash}).`);
+  return { skipped: false, hash: choicesHash };
 }

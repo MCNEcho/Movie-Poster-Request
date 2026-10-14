@@ -117,7 +117,7 @@ function detectInventoryRemovalsFromEdit_(e) {
   return false;
 }
 
-function detectAndProcessInventoryRemovals_(source, changeType) {
+function detectAndProcessInventoryRemovals_(source, changeType, queueRefresh = true) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(0)) {
     Logger.log(`[inventoryCleanup] Skipped ${source} removal scan because the script lock is busy.`);
@@ -130,13 +130,14 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
     lock.releaseLock();
   }
 
-  if (removed) queueManualPosterRefresh_(true);
+  if (removed && queueRefresh) queueManualPosterRefresh_(true);
   return removed;
 }
 
 function processQueuedInventoryRemovalScan_() {
-  const result = detectAndProcessInventoryRemovals_('queued', 'CONTENT_CLEAR');
+  const result = detectAndProcessInventoryRemovals_('queued', 'CONTENT_CLEAR', false);
   if (result === null) queueManualPosterRefresh_({ inventoryCleanup: true });
+  else if (result) queueManualPosterRefresh_(true);
   return result;
 }
 

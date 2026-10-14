@@ -11,6 +11,7 @@ Google Apps Script system for employee poster requests with strict slot limits, 
 
 ### Feature Highlights (from notes)
 - **Notes Feature:** Form includes optional notes field for each configured poster slot; notes stored in REQUESTS column 12, displayed in Main/Employees boards column C; ManualRequest supports notes with auto-population for customers ("Customer: [phone]").
+- **Form Sync:** Hash `{add, remove, slots}` and skip unchanged writes. Read Form questions once; compare choice arrays and update only changed dropdowns. Setup creates missing items but does not reset existing choices.
 - Nightly backups 2am to Drive folder (CSV or Sheet), 7-day retention, manual trigger available; log to Analytics/Error Log.
 - Theater display management: "Poster Outside" and "Poster Inside" tabs with dynamic dropdowns for tracking display locations.
 - UI/UX: admin menu grouped (Reports/Display Management/System) plus refresh tools; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
@@ -59,9 +60,12 @@ Rebuild boards (display notes in col C) → Sync form options
 5. **Per-Employee Slot Limit:** MAX_ACTIVE (10) limits each employee, NOT per-poster quantities
 6. **Dedup by Email+Poster:** Active duplicates are blocked; historical re-requests follow the configured allow/cooldown settings.
 7. **Lock-Based Concurrency:** Use the script lock only around critical ledger/snapshot writes; release it before form, board, display, or print refreshes. Never acquire the same lock from a nested helper.
+8. **Refresh Reliability:** One owner-installed 10-minute poller drains durable per-task queue properties. Runs stop at 4.5 minutes; tasks retry after 1/5/15/60 minutes and are marked stuck after five failures. Queue updates/acknowledgements compare the claimed nonce/value.
+9. **Request Deletion Snapshot:** Requests column M stores a stable Request ID; the hidden Request Deletion Snapshot sheet maps those IDs to audit metadata. Do not store growing request snapshots in ScriptProperties.
 
 ### Operational Defaults
 - BACKUP: nightly 2am, 7-day retention, CSV default, dedicated Drive folder, manual "Run Backup Now".
+- BACKUP RETRIES: shared refresh poller; up to three retries/day with 5/15/60-minute backoff, then wait for the next scheduled run. Retry state resets on a new day and is cleared if a duplicate run finds today's backup already complete/reserved.
 - CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate after writes to related data).
 
 ---
@@ -139,6 +143,7 @@ if (!canRequest.allowed) {
 // Persistent cache/mapping data:
 LABEL_TO_ID        // Poster title → Poster ID
 ID_TO_CURRENT_LABEL // Poster ID → current title (handles name changes)
+FORM_CHOICES_HASH  // Hash of current Add/Remove form choices and slot count
 HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 ```
 
@@ -198,6 +203,11 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] Analytics logs all events (check Analytics sheet)
 - [ ] Error paths logged to ERROR_LOG sheet
 - [ ] Backups run nightly without errors
+- [ ] Backup retries are capped at three per day using the shared poller
+- [ ] Unchanged Form choices skip Form writes; changed choices never reset to placeholders
+- [ ] Refresh worker respects 4.5-minute budget and per-task retry/stuck behavior
+- [ ] Request deletion analytics identify the exact stable request ID
+- [ ] Requests column M contains stable IDs and the hidden deletion snapshot maps those IDs to audit metadata
 - [ ] Health banner displays accurate cache hit rate + execution times
 - [ ] Notes field in form submissions saved to REQUESTS col 12 and displayed in boards col C
 - [ ] ManualRequest notes auto-populate with "Customer: [phone]" for customer entries
