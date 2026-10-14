@@ -148,6 +148,10 @@ function testLedgerAndFormHelpersInMemory_() {
   ]);
   assert(coalesced.boards && coalesced.form && Object.keys(coalesced).length === 2,
     'multiple durable queue entries must coalesce into one execution per task');
+  assert(manualPosterRefreshEntryTask_({ key: 'a', value: JSON.stringify({ task: 'boards' }) }) === 'boards',
+    'refresh worker must read a queued task name from its durable entry');
+  assert(manualPosterRefreshEntryTask_({ key: 'a', value: 'invalid json' }) === '',
+    'malformed refresh entries must not throw while reading their task name');
   const duplicateRetryPlan = planOneOffTriggerActions_(3, true);
   assert(duplicateRetryPlan.deleteCount === 2 && !duplicateRetryPlan.create,
     'retry trigger reconciliation must retain one existing trigger and delete extras');
@@ -197,6 +201,17 @@ function testLedgerAndFormHelpersInMemory_() {
   const oldTask = { key: 'task', value: JSON.stringify({ task: 'form', nonce: 'old', attempts: 0 }) };
   assert(!canUpdateRefreshTaskEntry_(oldTask, JSON.stringify({ task: 'form', nonce: 'new' })),
     'a failed running task must not overwrite a newer queued nonce');
+
+  const employeeHeader = buildEmployeeGroupHeader_(
+    { name: 'Alex R', contactType: 'EMPLOYEE', contact: 'alex@example.com' }, true, 2
+  );
+  assert(employeeHeader.includes('Alex R') && employeeHeader.includes('2/') && !employeeHeader.includes('alex@example.com'),
+    'employee board headers must keep the request count without exposing email addresses');
+  const customerHeader = buildEmployeeGroupHeader_(
+    { name: 'Customer', contactType: 'CUSTOMER', contact: '555-0100' }, false, 1
+  );
+  assert(customerHeader.includes('Customer') && !customerHeader.includes('555-0100'),
+    'public customer headers must not expose phone numbers');
 
   const day = '2026-10-14';
   const nextDay = '2026-10-15';

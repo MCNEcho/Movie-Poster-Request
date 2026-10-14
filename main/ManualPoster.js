@@ -632,6 +632,17 @@ function hasPendingManualPosterRefreshTasks_() {
   return Object.keys(getProps_().getProperties()).some(key => key.startsWith(prefix));
 }
 
+function manualPosterRefreshEntryTask_(entry) {
+  if (!entry) return '';
+  if (entry.task) return String(entry.task).trim();
+  try {
+    const queued = JSON.parse(entry.value);
+    return String(queued && queued.task || '').trim();
+  } catch (err) {
+    return '';
+  }
+}
+
 function collectManualPosterRefreshTasks_(entries) {
   const tasks = {};
   (entries || []).forEach(entry => {

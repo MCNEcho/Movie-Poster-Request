@@ -71,6 +71,7 @@ clasp push
 - **Concurrency:** Use the global script lock only for short critical ledger/snapshot writes. Boards, Form, Print Out, display, and Employee View refreshes are coalesced through one background worker.
 - **Refresh worker:** One owner-installed 10-minute poller drains durable per-task queue entries. Each run has a 4.5-minute budget; tasks back off for 1/5/15/60 minutes and become stuck after five failures. Form and Employee View tasks are deferred to the owner account.
 - **Form sync:** A stable hash skips Form writes when choices and slot count are unchanged. Changed syncs read questions once and update only dropdowns whose choices differ; existing choices are never reset to placeholders.
+- **Employee privacy:** The shared Employees board and Employee View show names and request counts, but never display employee email addresses or customer phone numbers. Contact details remain in the restricted Requests ledger for system processing.
 - **Backup retries:** The shared poller retries nightly backups at most three times per day with 5/15/60-minute backoff; retry state resets on the next date.
 - **Caching:** Expensive queries use a TTL cache. Caches are invalidated on related writes to avoid stale views.
 

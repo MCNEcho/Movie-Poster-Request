@@ -208,6 +208,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] Refresh worker respects 4.5-minute budget and per-task retry/stuck behavior
 - [ ] Request deletion analytics identify the exact stable request ID
 - [ ] Requests column M contains stable IDs and the hidden deletion snapshot maps those IDs to audit metadata
+- [ ] Employees board headers and employee-facing copy do not expose employee emails or customer phone numbers
 - [ ] Health banner displays accurate cache hit rate + execution times
 - [ ] Notes field in form submissions saved to REQUESTS col 12 and displayed in boards col C
 - [ ] ManualRequest notes auto-populate with "Customer: [phone]" for customer entries

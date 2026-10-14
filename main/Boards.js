@@ -142,9 +142,7 @@ function buildEmployeesBoard_() {
 
     const collision = group.contactType !== 'CUSTOMER' &&
       group.name && contactsByName[normalizeTitle_(group.name)]?.size > 1;
-    const header = group.contactType === 'CUSTOMER'
-      ? `${group.name || 'Customer'} — Customer (${group.contact || 'no phone'})`
-      : `${group.name || 'Employee'}${collision ? ' ⚠ name collision' : ''} — ${group.contact || 'no email'} (${list.length}/${CONFIG.MAX_ACTIVE})`;
+    const header = buildEmployeeGroupHeader_(group, collision, list.length);
     out.push([header, '', '']);
 
     list.forEach(r => {
@@ -174,6 +172,11 @@ function buildEmployeesBoard_() {
   used.setFontColor('#000000');
 
   styleBoardHeaders_(empSheet, 'employees');
+}
+
+function buildEmployeeGroupHeader_(group, collision, requestCount) {
+  if (group.contactType === 'CUSTOMER') return `${group.name || 'Customer'} — Customer`;
+  return `${group.name || 'Employee'}${collision ? ' ⚠ name collision' : ''} (${requestCount}/${CONFIG.MAX_ACTIVE})`;
 }
 
 function styleBoardHeaders_(sheet, mode) {
