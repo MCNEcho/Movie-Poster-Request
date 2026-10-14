@@ -13,7 +13,6 @@ const CACHE_CONFIG = {
   POSTER_AVAILABILITY: 'CACHE_POSTER_AVAILABILITY',
   BOARD_MAIN: 'CACHE_BOARD_MAIN',
   BOARD_EMPLOYEES: 'CACHE_BOARD_EMPLOYEES',
-  ACTIVE_SUBSCRIBERS: 'CACHE_ACTIVE_SUBSCRIBERS',
   POSTERS_WITH_LABELS: 'CACHE_POSTERS_WITH_LABELS',
   POSTER_ID_MAP: 'CACHE_POSTER_ID_MAP',
 };
@@ -208,36 +207,6 @@ function getBoardEmployeesData_Cached() {
  */
 function invalidateBoardEmployees_() {
   clearCache_(CACHE_CONFIG.BOARD_EMPLOYEES);
-}
-
-/**
- * Get or compute active subscribers with caching
- * @returns {Array<string>} Array of active subscriber emails
- */
-function getActiveSubscriberEmails_Cached() {
-  const key = CACHE_CONFIG.ACTIVE_SUBSCRIBERS;
-  let cache = getCache_(key);
-
-  if (Array.isArray(cache)) return cache;
-
-  // Compute
-  const subSheet = getSheet_(CONFIG.SHEETS.SUBSCRIBERS);
-  const data = getNonEmptyData_(subSheet, 2);
-
-  cache = data
-    .filter(row => row[0] === true) // Active checkbox
-    .map(row => String(row[1] || '').trim().toLowerCase())
-    .filter(Boolean);
-
-  setCache_(key, cache);
-  return cache;
-}
-
-/**
- * Invalidate active subscribers cache
- */
-function invalidateActiveSubscribers_() {
-  clearCache_(CACHE_CONFIG.ACTIVE_SUBSCRIBERS);
 }
 
 /**

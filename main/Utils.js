@@ -131,6 +131,17 @@ function getPostersWithLabels_() {
     p.label = dup ? `${p.title} (${rd})` : p.title;
   });
 
+  const labelCounts = {};
+  posters.forEach(p => {
+    const key = normalizeTitle_(p.label);
+    labelCounts[key] = (labelCounts[key] || 0) + 1;
+  });
+  posters.forEach(p => {
+    if (labelCounts[normalizeTitle_(p.label)] > 1) {
+      p.label = `${p.label} [${p.posterId}]`;
+    }
+  });
+
   return posters;
 }
 

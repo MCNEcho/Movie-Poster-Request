@@ -1,7 +1,7 @@
 # Copilot Instructions: Movie Poster Request System
 
 ## Project Overview
-Google Apps Script system for employee poster requests with strict slot limits (7), deduplication, auditability, batching announcements, backups, and automation across Sheets/Forms.
+Google Apps Script system for employee poster requests with strict slot limits, deduplication, auditability, backups, and automation across Sheets/Forms.
 
 **Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, MailApp/GmailApp, DriveApp, UrlFetchApp (QuickChart)
 
@@ -11,10 +11,9 @@ Google Apps Script system for employee poster requests with strict slot limits (
 
 ### Feature Highlights (from notes)
 - **Notes Feature:** Form includes optional notes field for each of 7 poster slots; notes stored in REQUESTS column 12, displayed in Main/Employees boards column C; ManualRequest supports notes with auto-population for customers ("Customer: [phone]").
-- Announcement batching/templates/dry-run with throttled retries; variables {{TITLE}}, {{RELEASE}}, {{STOCK}}, {{ACTIVE_COUNT}}, {{FORM_LINK}}, {{COUNT}}, {{POSTER_LIST}}. Defaults: batching on, size 5, 1s throttle, 3 retries.
 - Nightly backups 2am to Drive folder (CSV or Sheet), 7-day retention, manual trigger available; log to Analytics/Error Log.
 - Theater display management: "Poster Outside" and "Poster Inside" tabs with dynamic dropdowns for tracking display locations.
-- UI/UX: admin menu grouped (Reports/Print & Layout/Announcements/Advanced) plus Refresh All; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
+- UI/UX: admin menu grouped (Reports/Display Management/System) plus refresh tools; frozen headers removed; Requests/Request Order hidden by default; Print Out auto-formats with QR.
 
 ### Module Organization (CamelCase files)
 - **Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
@@ -34,7 +33,6 @@ Google Apps Script system for employee poster requests with strict slot limits (
 - **PrintOut.js** - Print layout generation, inventory syncing
 - **Documentation.js** - Auto-generated system documentation sheet
 - **EmployeeViewSync.js** - Sync to separate employee-facing spreadsheet
-- **Announcements.js** - Email queue processing (batched notifications)
 - **RefreshManager.js** - Consolidated refresh operations UI and management
 - **ManualRequest.js** - Historical request migration dialog with notes support (auto-populates "Customer: [phone]" for customer requests)
 - **ManualPoster.js** - Admin dialog for manually adding new posters to Inventory sheet
@@ -51,8 +49,6 @@ Parse answers → Validate name → Extract notes → Process removals → Proce
 Update Requests sheet (ledger with notes in col 12)
   ↓
 Rebuild boards (display notes in col C) → Sync form options
-  ↓
-Queue announcements (if new poster activated)
 ```
 
 ### Key Architectural Decisions
@@ -60,12 +56,11 @@ Queue announcements (if new poster activated)
 2. **Status-Based Filtering:** Requests marked ACTIVE/REMOVED (never deleted), enables historical queries
 3. **Inventory is Primary:** INVENTORY sheet is the canonical source for poster data (MOVIE_POSTERS sheet deprecated but kept for backward compatibility)
 4. **Inventory ≠ Constraint:** Inventory sheet is informational only; never blocks requests
-5. **Per-Employee Slot Limit:** MAX_ACTIVE (7) limits each employee, NOT per-poster quantities
+5. **Per-Employee Slot Limit:** MAX_ACTIVE (10) limits each employee, NOT per-poster quantities
 6. **Dedup by Email+Poster:** Each employee can request each poster once (historical block)
-7. **Lock-Based Concurrency:** 30-second lock on all sheet operations; no async parallelization
+7. **Lock-Based Concurrency:** Use the script lock only around critical ledger/snapshot writes; release it before form, board, display, or print refreshes. Never acquire the same lock from a nested helper.
 
 ### Operational Defaults
-- ANNOUNCEMENT: batching enabled (size 5), throttle 1s, 3 retries with backoff; preview available.
 - BACKUP: nightly 2am, 7-day retention, CSV default, dedicated Drive folder, manual "Run Backup Now".
 - CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate after writes to related data).
 
@@ -129,9 +124,8 @@ if (!canRequest.allowed) {
 ## Integration Points
 
 ### External Dependencies
-- **Google Forms API** - Read/write form items, responses
+- **Google Forms API** - Read/write form items, responses (script runner needs Editor access)
 - **Google Sheets API** - CRUD operations on 12+ sheets
-- **Google Mail API** - Send announcements (batched every 15 min)
 - **Google Drive API** - Create backup folder, store CSV/Sheet backups
 - **QuickChart API** - Generate QR codes (form link, employee view link)
 
@@ -149,7 +143,6 @@ if (!canRequest.allowed) {
 // Persistent cache/mapping data:
 LABEL_TO_ID        // Poster title → Poster ID
 ID_TO_CURRENT_LABEL // Poster ID → current title (handles name changes)
-ANNOUNCEMENT_QUEUE  // JSON array of pending announcements
 HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 ```
 
@@ -170,7 +163,7 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
 - **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics and event tracking
-- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster at top, Advanced submenu containing: Refresh Manager, Employee View Manager, Manually Add Request; Reports (Rebuild Boards/Sync Form Options/Refresh Documentation); Announcements (Preview Pending/Send Now); Display Management; System (Run Setup/Repair)
+- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster at top, Advanced submenu containing: Refresh Manager, Employee View Manager, Manually Add Request; Reports (Rebuild Boards/Sync Form Options/Refresh Documentation); Display Management; System (Run Setup/Repair, trigger cleanup, form access check, legacy announcement-data cleanup)
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu
@@ -206,7 +199,6 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] MAX_ACTIVE enforced per employee (test 8th request denied with "limit (7-slot)")
 - [ ] Boards rebuild automatically after form submit
 - [ ] Form options update after MOVIE_POSTERS sheet change
-- [ ] Announcements batch correctly (multiple new posters → single email)
 - [ ] Analytics logs all events (check Analytics sheet)
 - [ ] Error paths logged to ERROR_LOG sheet
 - [ ] Backups run nightly without errors

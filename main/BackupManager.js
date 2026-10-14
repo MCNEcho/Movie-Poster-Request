@@ -2,7 +2,7 @@
 
 /**
  * Nightly data backup/export to Google Drive
- * Backs up Requests and Subscribers sheets with retention management
+ * Backs up request and inventory sheets with retention management
  */
 
 /**

@@ -155,8 +155,11 @@ function showManualRequestDialog() {
         google.script.run
           .withSuccessHandler(function(result) {
             if (result.success) {
-              showStatus('Request added successfully!', 'success');
-              setTimeout(() => google.script.host.close(), 1500);
+              const refreshMessage = result.refreshQueued
+                ? 'Board and form refreshes are queued.'
+                : 'Refreshes could not be queued; use Refresh Manager to update views.';
+              showStatus('Request added successfully! ' + refreshMessage, 'success');
+              setTimeout(() => google.script.host.close(), 1800);
             } else {
               showStatus('Error: ' + result.message, 'error');
               isSubmitting = false;
@@ -203,8 +206,10 @@ function getActivePostersForManualEntry() {
 }
 
 function addManualRequest(contact, empName, posterId, customTimestamp, contactType = 'EMPLOYEE', notes = '') {
+  const startedAt = Date.now();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
+  let lockReleased = false;
 
   try {
     SpreadsheetApp.getActive().toast('⏳ Adding manual request...', 'Manual Request', 3);
@@ -303,21 +308,21 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
     if (contactTypeUpper === 'EMPLOYEE') {
       invalidateCachesAfterWrite_({ empEmail: contact });
     }
-    
-    // Rebuild boards to reflect new entry
-    SpreadsheetApp.getActive().toast('🔄 Updating boards and form...', 'Manual Request', 3);
-    rebuildBoards();
-    
-    // Form sync requires owner permissions - skip if access denied
+
+    // Release the ledger lock before enqueueing background view refreshes.
+    lock.releaseLock();
+    lockReleased = true;
+
+    let refreshQueued = false;
     try {
-      syncPostersToForm();
-    } catch (formErr) {
-      Logger.log(`[WARN] Form sync skipped (access denied): ${formErr.message}`);
-      // Non-critical - continue without form sync
+      queueManualPosterRefresh_(false);
+      refreshQueued = true;
+    } catch (queueErr) {
+      Logger.log(`[addManualRequest] Warning: background refresh could not be queued: ${queueErr.message}`);
     }
     
     const typeLabel = contactTypeUpper === 'EMPLOYEE' ? 'Employee' : 'Customer';
-    Logger.log(`[addManualRequest] Successfully added ${typeLabel} request: ${contact} - ${label}`);
+    Logger.log(`[addManualRequest] Successfully added ${typeLabel} request: ${contact} - ${label} (write path ${Date.now() - startedAt}ms)`);
     
     // Log to Analytics for audit trail
     try {
@@ -341,17 +346,17 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
     
     // Visual feedback after dialog closes
     SpreadsheetApp.getActive().toast(
-      `✅ ${typeLabel} Request added!\n${empName} → ${label}`,
+      `✅ ${typeLabel} Request added!\n${empName} → ${label}\n${refreshQueued ? 'Views will refresh in the background.' : 'Use Refresh Manager to update views.'}`,
       'Request Added',
       5
     );
     
-    return { success: true, message: 'Request added successfully' };
+    return { success: true, message: 'Request added successfully', refreshQueued };
     
   } catch (err) {
     Logger.log(`[addManualRequest] Error: ${err.message}`);
     return { success: false, message: `Error: ${err.message}` };
   } finally {
-    lock.releaseLock();
+    if (!lockReleased) lock.releaseLock();
   }
 }

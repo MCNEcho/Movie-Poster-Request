@@ -16,7 +16,8 @@ function getOrCreateForm_() {
     } catch (e) {
       // Form not accessible or ID invalid
       if (!isMasterAccount_()) {
-        throw new Error('Form access denied. Contact the master admin to manage the form.');
+        const runner = String(Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail() || 'unknown account');
+        throw new Error(`Form access denied for script runner ${runner}. Ask the form owner to grant this account Editor access, then rerun setup.`);
       }
       Logger.log('Form not found or inaccessible (ID: ' + existingId + '). Creating new form...');
       getProps_().deleteProperty(CONFIG.PROPS.FORM_ID);
@@ -119,7 +120,13 @@ function setDropdownChoicesByTitle_(form, itemTitle, choices, required = false) 
     return;
   }
 
-  const choiceObjs = choices.map(c => dropdown.createChoice(c));
+  const uniqueChoices = Array.from(new Set(choices.map(c => String(c || '').trim()).filter(Boolean)));
+  if (uniqueChoices.length === 0) {
+    dropdown.setChoices([dropdown.createChoice('— None available —')]);
+    dropdown.setRequired(false);
+    return;
+  }
+  const choiceObjs = uniqueChoices.map(c => dropdown.createChoice(c));
   // Always add an empty option for optional dropdowns
   if (!required) {
     choiceObjs.unshift(dropdown.createChoice(''));
@@ -144,19 +151,6 @@ function setShortAnswerByTitle_(form, itemTitle, required = false) {
   return textItem;
 }
 
-function ensureSubscribeQuestion_(form) {
-  const subTitle = CONFIG.FORM.Q_SUBSCRIBE;
-  const subItems = form.getItems(FormApp.ItemType.CHECKBOX);
-  let subscribeItem = subItems.find(it => String(it.getTitle() || '').trim() === subTitle);
-  if (!subscribeItem) {
-    subscribeItem = form.addCheckboxItem().setTitle(subTitle);
-  }
-  const subCb = (typeof subscribeItem.asCheckboxItem === 'function') ? subscribeItem.asCheckboxItem() : subscribeItem;
-  subCb.setChoices([subCb.createChoice('Yes, subscribe me to notifications')]);
-  subCb.setRequired(false);
-  return subCb;
-}
-
 function ensureFormStructure_() {
   const form = getOrCreateForm_();
 
@@ -177,7 +171,8 @@ function ensureFormStructure_() {
   // Remove any deprecated questions and ensure no email field exists
   form.getItems().forEach(item => {
     const title = String(item.getTitle() || '').trim();
-    if (title === 'Employee ID (Clock-In Password)' || 
+    if (title === 'Employee ID (Clock-In Password)' ||
+      title === 'Subscribe to Notifications' ||
         title.toLowerCase().includes('email') ||
         title.toLowerCase() === 'email address' ||
         title === CONFIG.FORM.Q_ADD ||  // Remove old checkbox-based Add question
@@ -203,7 +198,4 @@ function ensureFormStructure_() {
     const removeTitle = `Remove Poster ${i}`;
     setDropdownChoicesByTitle_(form, removeTitle, ['— placeholder —'], false);
   }
-
-  // Set up Subscribe question (optional)
-  ensureSubscribeQuestion_(form);
 }

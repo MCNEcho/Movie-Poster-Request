@@ -2,9 +2,9 @@
 
 const CONFIG = {
   VERSION: {
-    LABEL: 'v2026.05.26.1',
-    UPDATED_AT: '2026-05-26',
-    NOTES: 'Announcements + Employee View + PrintOut QR persistence updates',
+    LABEL: 'v2026.10.14.1',
+    UPDATED_AT: '2026-10-14',
+    NOTES: 'Announcement removal, trigger cleanup, and lock contention fixes',
   },
 
   TIMEZONE: 'America/Los_Angeles',
@@ -23,7 +23,6 @@ const CONFIG = {
     Q_EMPLOYEE_NAME: 'Name (First Name + Last Initial)',
     Q_ADD: 'Request Posters (Add)',
     Q_REMOVE: 'Remove Posters',
-    Q_SUBSCRIBE: 'Subscribe to Notifications',
   },
 
   SHEETS: {
@@ -36,7 +35,6 @@ const CONFIG = {
     POSTER_OUTSIDE: 'Poster Outside',
     POSTER_INSIDE: 'Poster Inside',
     REQUESTS: 'Requests',       // script-created
-    SUBSCRIBERS: 'Subscribers', // script-created
     DOCUMENTATION: 'Documentation',
     ERROR_LOG: 'Error Log',     // script-created - Task 1
     ANALYTICS: 'Analytics',     // script-created - Task 3
@@ -100,62 +98,10 @@ const CONFIG = {
 
     INVENTORY_SNAPSHOT: 'INVENTORY_SNAPSHOT_JSON',
     REQUESTS_SNAPSHOT: 'REQUESTS_SNAPSHOT_JSON',
+    MANUAL_POSTER_REFRESH_QUEUED: 'MANUAL_POSTER_REFRESH_QUEUED',
+    MANUAL_POSTER_REFRESH_RUNNING: 'MANUAL_POSTER_REFRESH_RUNNING',
 
-    ANNOUNCE_QUEUE: 'ANNOUNCE_QUEUE_JSON',
-    ANNOUNCED_IDS: 'ANNOUNCED_POSTER_IDS_JSON',
-    STOCK_SNAPSHOT: 'ANNOUNCE_STOCK_SNAPSHOT_JSON',
-    ANNOUNCE_LAST_BLOCK: 'ANNOUNCE_LAST_BLOCK',
-    ANNOUNCE_INITIALIZED: 'ANNOUNCE_INITIALIZED',
-    CUSTOM_ANNOUNCE_QUEUE: 'CUSTOM_ANNOUNCE_QUEUE_JSON',
     BACKUP_FOLDER_ID: 'BACKUP_FOLDER_ID',
-  },
-
-  // Announcement batching configuration
-  ANNOUNCEMENT: {
-    BATCH_ENABLED: true,
-    BATCH_SIZE: 5, // Max posters per email
-    THROTTLE_DELAY_MS: 1000, // Delay between emails
-    RETRY_ATTEMPTS: 3,
-    RETRY_INITIAL_DELAY_MS: 500,
-  },
-
-  // Email templates with variable support
-  TEMPLATES: {
-    DEFAULT: {
-      subject: 'We Have Added More Posters to the Request Form!',
-      body: `We Have Added More Posters to the Request Form!
-
-{{POSTER_LIST}}
-
-Total Active Posters: {{ACTIVE_COUNT}}
-
-Request here:
-{{FORM_LINK}}`
-    },
-    SINGLE_POSTER: {
-      subject: 'New Poster Available: {{TITLE}}',
-      body: `A new poster is now available!
-
-Title: {{TITLE}}
-Release Date: {{RELEASE}}
-Stock: {{STOCK}}
-
-Total Active Posters: {{ACTIVE_COUNT}}
-
-Request here:
-{{FORM_LINK}}`
-    },
-    BATCH: {
-      subject: 'New Posters Available - {{COUNT}} Added!',
-      body: `We've added {{COUNT}} new posters to the request form!
-
-{{POSTER_LIST}}
-
-Total Active Posters: {{ACTIVE_COUNT}}
-
-Request here:
-{{FORM_LINK}}`
-    }
   },
 };
 
@@ -215,7 +161,6 @@ const COLS = {
     NOTES: 10,
   },
 
-  SUBSCRIBERS: { ACTIVE: 1, EMAIL: 2, NAME: 3 },
 };
 
 const STATUS = {

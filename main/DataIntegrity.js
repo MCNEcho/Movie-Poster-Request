@@ -56,18 +56,13 @@ function runFullIntegrityCheck_() {
     results.totalIssuesFound += duplicateCheck.issuesFound;
     results.autoRepaired += duplicateCheck.autoRepaired;
 
-    // Check 4: Invalid email formats
-    const emailCheck = checkInvalidEmails_();
-    results.checksPerformed.push(emailCheck);
-    results.totalIssuesFound += emailCheck.issuesFound;
-
-    // Check 5: Inconsistent state
+    // Check 4: Inconsistent state
     const stateCheck = checkInconsistentState_();
     results.checksPerformed.push(stateCheck);
     results.totalIssuesFound += stateCheck.issuesFound;
     results.autoRepaired += stateCheck.autoRepaired;
 
-    // Check 6: Missing poster IDs
+    // Check 5: Missing poster IDs
     const idCheck = checkMissingPosterIds_();
     results.checksPerformed.push(idCheck);
     results.totalIssuesFound += idCheck.issuesFound;
@@ -259,47 +254,6 @@ function checkForDuplicates_() {
       });
 
       result.details.push(`Removed ${duplicateRows.length} duplicate requests`);
-    }
-
-  } catch (err) {
-    result.status = 'ERROR';
-    result.details.push(`Error: ${err.message}`);
-  }
-
-  logIntegrityCheck_(result);
-  return result;
-}
-
-/**
- * Check for invalid email formats in Subscribers sheet
- * @returns {object} Check results
- */
-function checkInvalidEmails_() {
-  const result = {
-    checkType: 'INVALID_EMAILS',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
-
-  try {
-    const subSheet = getSheet_(CONFIG.SHEETS.SUBSCRIBERS);
-    const data = getNonEmptyData_(subSheet, 2);
-
-    const invalidRows = [];
-
-    data.forEach((row, idx) => {
-      const email = String(row[1] || '').trim().toLowerCase();
-      if (email && !isValidEmail_(email)) {
-        invalidRows.push(idx + 2);
-        result.issuesFound++;
-      }
-    });
-
-    if (invalidRows.length > 0) {
-      result.status = 'REQUIRES_ACTION';
-      result.details.push(`Found ${invalidRows.length} invalid email addresses. Manual review needed.`);
     }
 
   } catch (err) {

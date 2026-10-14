@@ -32,13 +32,6 @@ function buildAdminMenu_() {
     .addItem('Sync Form Options', 'syncPostersToForm')
     .addItem('Refresh Documentation', 'buildDocumentationTab'));
   
-  // Announcements submenu
-  advancedMenu.addSubMenu(ui.createMenu('📧 Announcements')
-    .addItem('Preview Pending', 'previewPendingAnnouncement')
-    .addItem('Send Now', 'sendAnnouncementNow')
-    .addSeparator()
-    .addItem('Mark All Current as Announced (Reset Baseline)', 'markAllPostersAsAnnounced'));
-  
   // Display Management submenu
   advancedMenu.addSubMenu(ui.createMenu('🖼️ Display Management')
     .addItem('Manage Display Sheets', 'showDisplayManagerDialog'));
@@ -47,6 +40,8 @@ function buildAdminMenu_() {
   advancedMenu.addSubMenu(ui.createMenu('🔐 System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
     .addItem('🧷 Create Triggers', 'createTriggersNow_')
+    .addItem('🔎 Check Form Access', 'checkFormAccess_')
+    .addItem('🧹 Remove Legacy Announcement Data', 'removeLegacyAnnouncementArtifacts_')
     .addItem('Run Backup Now', 'manualBackupTrigger'));
   
   mainMenu.addSubMenu(advancedMenu);
@@ -75,71 +70,91 @@ function refreshAll_() {
 }
 
 function setupPosterSystem() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Task Group 1: Core Infrastructure (must run first)
+  ss.toast('⏳ Step 1/5: Initializing infrastructure...', 'Setup Progress', -1);
+  ensureSheetSchemas_();
+  applyAdminFormatting_();
+
+  // Form operations require owner permissions - skip if access denied
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // Task Group 1: Core Infrastructure (must run first)
-    ss.toast('⏳ Step 1/5: Initializing infrastructure...', 'Setup Progress', -1);
-    ensureSheetSchemas_();
-    applyAdminFormatting_();
-    
-    // Form operations require owner permissions - skip if access denied
-    try {
-      ensureFormStructure_();
-    } catch (formErr) {
-      Logger.log(`[WARN] Form structure setup skipped (access denied): ${formErr.message}`);
-      ss.toast('⚠ Form setup skipped (requires owner permissions)', 'Setup Progress', 3);
-    }
-    
-    ensureTriggers_();
-
-    // Task Group 2: Data Syncing
-    ss.toast('⏳ Step 2/5: Syncing data...', 'Setup Progress', -1);
-    ensurePosterIdsInInventory_();  // Inventory is now primary source
-    initializeInventorySnapshot_();  // Seed inventory snapshot for deletion detection
-    initializeRequestsSnapshot_();   // Seed requests snapshot for deletion detection
-    initializeFormUrlCache_();  // Cache Form URL (set once, persist forever)
-    initializeEmployeeViewUrlCache_();  // Cache Employee View URL (set once, persist forever)
-    
-    // Form sync requires owner permissions - skip if access denied
-    try {
-      syncPostersToForm();
-    } catch (formErr) {
-      Logger.log(`[WARN] Form sync skipped (access denied): ${formErr.message}`);
-      ss.toast('⚠ Form sync skipped (requires owner permissions)', 'Setup Progress', 3);
-    }
-
-    // Task Group 3: Setup employee view (must be before print layout to have all URLs)
-    ss.toast('⏳ Step 3/5: Setting up employee view...', 'Setup Progress', -1);
-    
-    // Employee View operations require owner permissions - skip if access denied
-    try {
-      setupEmployeeViewSpreadsheet();
-    } catch (empViewErr) {
-      Logger.log(`[WARN] Employee View setup skipped (access denied): ${empViewErr.message}`);
-      ss.toast('⚠ Employee View setup skipped (requires owner permissions)', 'Setup Progress', 3);
-    }
-
-    // Task Group 4: Visual Displays (with employee view URL now available)
-    ss.toast('⏳ Step 4/5: Generating views...', 'Setup Progress', -1);
-    rebuildBoards();
-    buildDocumentationTab();
-    buildPrintOutLayout_();  // Now has all URLs available - generates QR codes once
-    
-    // Task Group 5: Finalization
-    ss.toast('⏳ Step 5/5: Finalizing setup...', 'Setup Progress', -1);
-    updateInventoryLastUpdated_();
-    
-    ss.toast('✅ Setup complete!', 'Setup Complete', 5);
-    SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
-  } finally {
-    lock.releaseLock();
+    ensureFormStructure_();
+  } catch (formErr) {
+    Logger.log(`[WARN] Form structure setup skipped (access denied): ${formErr.message}`);
+    ss.toast('⚠ Form setup skipped (requires owner permissions)', 'Setup Progress', 3);
   }
+
+  // Task Group 2: Data Syncing
+  ss.toast('⏳ Step 2/5: Syncing data...', 'Setup Progress', -1);
+  ensurePosterIdsInInventory_();
+  initializeInventorySnapshot_();
+  initializeRequestsSnapshot_();
+  initializeFormUrlCache_();
+  initializeEmployeeViewUrlCache_();
+
+  // Form sync requires owner permissions - skip if access denied
+  try {
+    syncPostersToForm();
+  } catch (formErr) {
+    Logger.log(`[WARN] Form sync skipped (access denied): ${formErr.message}`);
+    ss.toast('⚠ Form sync skipped (requires owner permissions)', 'Setup Progress', 3);
+  }
+
+  // Task Group 3: Setup employee view (must be before print layout to have all URLs)
+  ss.toast('⏳ Step 3/5: Setting up employee view...', 'Setup Progress', -1);
+
+  // Employee View operations require owner permissions - skip if access denied
+  try {
+    setupEmployeeViewSpreadsheet();
+  } catch (empViewErr) {
+    Logger.log(`[WARN] Employee View setup skipped (access denied): ${empViewErr.message}`);
+    ss.toast('⚠ Employee View setup skipped (requires owner permissions)', 'Setup Progress', 3);
+  }
+
+  // Task Group 4: Visual Displays (with employee view URL now available)
+  ss.toast('⏳ Step 4/5: Generating views...', 'Setup Progress', -1);
+  rebuildBoards();
+  buildDocumentationTab();
+  buildPrintOutLayout_();
+
+  // Task Group 5: Finalization
+  ss.toast('⏳ Step 5/5: Finalizing setup...', 'Setup Progress', -1);
+  updateInventoryLastUpdated_();
+  ensureTriggers_();
+
+  ss.toast('✅ Setup complete!', 'Setup Complete', 5);
+  SpreadsheetApp.getUi().alert('✅ Setup Complete! All systems ready.');
 }
 
 function ensureTriggers_() {
+  const uniqueHandlers = new Set([
+    'handleFormSubmit',
+    'handleSheetEdit',
+    'handleSheetChange',
+    'performNightlyBackup',
+    'processManualPosterRefresh_',
+  ]);
+  const seen = new Set();
+  let deletedLegacyTriggers = 0;
+  let deletedDuplicateTriggers = 0;
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    const handler = trigger.getHandlerFunction();
+    if (handler === 'processAnnouncementQueue') {
+      ScriptApp.deleteTrigger(trigger);
+      deletedLegacyTriggers++;
+      return;
+    }
+    if (!uniqueHandlers.has(handler)) return;
+    if (seen.has(handler)) {
+      ScriptApp.deleteTrigger(trigger);
+      deletedDuplicateTriggers++;
+    } else {
+      seen.add(handler);
+    }
+  });
+  Logger.log(`[ensureTriggers_] Removed ${deletedDuplicateTriggers} duplicate trigger(s) and ${deletedLegacyTriggers} obsolete announcement trigger(s).`);
+
   const existing = ScriptApp.getProjectTriggers();
   const has = (handler) => existing.some(t => t.getHandlerFunction() === handler);
 
@@ -171,13 +186,6 @@ function ensureTriggers_() {
       .create();
   }
 
-  if (!has('processAnnouncementQueue')) {
-    ScriptApp.newTrigger('processAnnouncementQueue')
-      .timeBased()
-      .everyMinutes(5)
-      .create();
-  }
-
   if (!has('performNightlyBackup')) {
     ScriptApp.newTrigger('performNightlyBackup')
       .timeBased()
@@ -188,17 +196,82 @@ function ensureTriggers_() {
 }
 
 function createTriggersNow_() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
   try {
     ensureTriggers_();
     SpreadsheetApp.getActive().toast('✅ Triggers created/verified', 'Triggers', 4);
   } catch (err) {
     SpreadsheetApp.getActive().toast('❌ Error creating triggers: ' + err.message, 'Triggers', 6);
     logError_(err, 'createTriggersNow_', 'Manual trigger creation');
-  } finally {
-    lock.releaseLock();
+  }
+}
+
+function removeLegacyAnnouncementArtifacts_() {
+  const ss = SpreadsheetApp.getActive();
+  const removed = [];
+  const skipped = [];
+
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'processAnnouncementQueue') {
+      ScriptApp.deleteTrigger(trigger);
+      removed.push('announcement trigger');
+    }
+  });
+
+  const formId = getEffectiveFormId_();
+  if (formId) {
+    try {
+      const form = FormApp.openById(formId);
+      form.getItems().forEach(item => {
+        if (String(item.getTitle() || '').trim() === 'Subscribe to Notifications') {
+          form.deleteItem(item);
+          removed.push('form subscription question');
+        }
+      });
+    } catch (err) {
+      skipped.push(`form question (grant the script runner editor access, then retry: ${err.message})`);
+    }
+  }
+
+  const subscriberSheet = ss.getSheetByName('Subscribers');
+  if (subscriberSheet) {
+    ss.deleteSheet(subscriberSheet);
+    removed.push('Subscribers sheet and stored addresses');
+  }
+
+  [
+    'ANNOUNCE_QUEUE_JSON',
+    'ANNOUNCED_POSTER_IDS_JSON',
+    'ANNOUNCE_STOCK_SNAPSHOT_JSON',
+    'ANNOUNCE_LAST_BLOCK',
+    'ANNOUNCE_INITIALIZED',
+    'CUSTOM_ANNOUNCE_QUEUE_JSON',
+    'CACHE_ACTIVE_SUBSCRIBERS',
+  ].forEach(key => getProps_().deleteProperty(key));
+
+  const summary = [
+    removed.length ? `Removed: ${removed.join(', ')}.` : 'No legacy announcement artifacts were found.',
+    skipped.length ? `Skipped: ${skipped.join('; ')}.` : '',
+  ].filter(Boolean).join('\n');
+  SpreadsheetApp.getUi().alert('Announcement cleanup', summary, SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function checkFormAccess_() {
+  const runner = String(Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail() || 'unknown account');
+  const formId = getEffectiveFormId_();
+  if (!formId) {
+    SpreadsheetApp.getUi().alert('Form access check', 'No form ID is configured. Run setup as the form owner first.', SpreadsheetApp.getUi().ButtonSet.OK);
+    return;
+  }
+
+  try {
+    const form = FormApp.openById(formId);
+    SpreadsheetApp.getUi().alert('Form access check', `Access confirmed for ${runner}: ${form.getTitle()}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (err) {
+    SpreadsheetApp.getUi().alert(
+      'Form access check',
+      `The script runner (${runner}) cannot open this form. Ask the form owner to grant this account Editor access, then rerun setup.\n\n${err.message}`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
   }
 }
 
@@ -229,10 +302,6 @@ function ensureSheetSchemas_() {
     'Action Type','Status','Status Updated At','Contact Type','Notes'
   ]);
   requestsSheet.setFrozenRows(1);
-
-  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.SUBSCRIBERS, [
-    'Active?','Email','Name'
-  ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);
 
@@ -277,7 +346,6 @@ function hideInternalSheets_() {
     CONFIG.SHEETS.ANALYTICS,
     CONFIG.SHEETS.ANALYTICS_SUMMARY,
     CONFIG.SHEETS.DATA_INTEGRITY,
-    CONFIG.SHEETS.SUBSCRIBERS,
   ];
 
   internal.forEach(name => {
@@ -293,7 +361,7 @@ function hideInternalSheets_() {
  * Color scheme:
  * - BLUE (#4285F4): Primary user-facing sheets (Inventory, Main Board, Employees Board)
  * - CYAN (#00BCD4): Display/Print sheets (Poster Outside/Inside, Print Out)
- * - ORANGE (#FF9800): Configuration/Reference (Subscribers, Documentation)
+ * - ORANGE (#FF9800): Configuration/Reference (Documentation)
  * - YELLOW (#FFEB3B): Admin Tools (Request Order, Requests ledger)
  * - RED (#F44336): Error/Debug sheets (Error Log, Data Integrity)
  * - GREEN (#4CAF50): Analytics/Reporting (Analytics, Analytics Summary)
@@ -317,7 +385,7 @@ function applyTabColors_() {
   
   // Configuration/Reference - ORANGE (#FF9800)
   const orange = '#FF9800';
-  [CONFIG.SHEETS.SUBSCRIBERS, CONFIG.SHEETS.DOCUMENTATION].forEach(name => {
+  [CONFIG.SHEETS.DOCUMENTATION].forEach(name => {
     const sheet = ss.getSheetByName(name);
     if (sheet) sheet.setTabColor(orange);
   });

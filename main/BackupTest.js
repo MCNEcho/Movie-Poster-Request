@@ -63,7 +63,7 @@ function testSingleSheetBackupCsv() {
     
     const folderId = ensureBackupFolder_();
     const timestamp = fmtDate_(now_(), 'yyyy-MM-dd_HHmmss');
-    const sheetName = CONFIG.SHEETS.SUBSCRIBERS; // Use smaller sheet for testing
+    const sheetName = CONFIG.SHEETS.INVENTORY;
     
     const result = backupSheet_(sheetName, folderId, timestamp);
     
@@ -94,7 +94,7 @@ function testSingleSheetBackupSheet() {
     
     const folderId = ensureBackupFolder_();
     const timestamp = fmtDate_(now_(), 'yyyy-MM-dd_HHmmss');
-    const sheetName = CONFIG.SHEETS.SUBSCRIBERS; // Use smaller sheet for testing
+    const sheetName = CONFIG.SHEETS.INVENTORY;
     
     const result = backupSheet_(sheetName, folderId, timestamp);
     

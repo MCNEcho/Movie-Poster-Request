@@ -29,11 +29,6 @@ function resetAllTriggers() {
     .onChange()
     .create();
 
-  ScriptApp.newTrigger('processAnnouncementQueue')
-    .timeBased()
-    .everyMinutes(5)
-    .create();
-
   Logger.log("Triggers reset. FORM LIVE URL: " + form.getPublishedUrl());
 }
 
@@ -154,24 +149,21 @@ function cleanupInvalidNamesAndOverCap_() {
 
     if (!prior) {
       firstSeenByEmailPoster[dedupeKey] = { idx: i, reqTs };
-    } else {
-      // Keep the OLDEST request
-      if (reqTs < prior.reqTs) {
-        // Current is older => remove prior
-        const priorRow = values[prior.idx];
-        priorRow[COLS.REQUESTS.STATUS - 1] = STATUS.REMOVED;
-        priorRow[COLS.REQUESTS.STATUS_TS - 1] = ts;
-        changed = true;
+    } else if (reqTs < prior.reqTs) {
+      // Current is older => remove prior
+      const priorRow = values[prior.idx];
+      priorRow[COLS.REQUESTS.STATUS - 1] = STATUS.REMOVED;
+      priorRow[COLS.REQUESTS.STATUS_TS - 1] = ts;
+      changed = true;
 
-        // Current becomes the keeper
-        firstSeenByEmailPoster[dedupeKey] = { idx: i, reqTs };
-      } else {
-        // Prior is older => remove current
-        r[COLS.REQUESTS.STATUS - 1] = STATUS.REMOVED;
-        r[COLS.REQUESTS.STATUS_TS - 1] = ts;
-        changed = true;
-        continue; // do not count it towards activeByEmail
-      }
+      // Current becomes the keeper
+      firstSeenByEmailPoster[dedupeKey] = { idx: i, reqTs };
+    } else {
+      // Prior is older => remove current
+      r[COLS.REQUESTS.STATUS - 1] = STATUS.REMOVED;
+      r[COLS.REQUESTS.STATUS_TS - 1] = ts;
+      changed = true;
+      continue; // do not count it towards activeByEmail
     }
 
     // Collect remaining ACTIVE rows per email for 5-cap enforcement

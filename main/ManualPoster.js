@@ -78,8 +78,11 @@ function showManualPosterDialog() {
         google.script.run
           .withSuccessHandler(function(result) {
             if (result.success) {
-              showStatus('Poster added successfully! Row: ' + result.row, 'success');
-              setTimeout(() => google.script.host.close(), 1500);
+              const refreshMessage = result.refreshQueued
+                ? 'Form and display refreshes are running in the background.'
+                : 'Refreshes could not be queued; use Refresh Manager to update dependent views.';
+              showStatus('Poster added! ' + refreshMessage + ' Row: ' + result.row, 'success');
+              setTimeout(() => google.script.host.close(), 1800);
             } else {
               showStatus('Error: ' + result.message, 'error');
               isSubmitting = false;
@@ -115,8 +118,10 @@ function showManualPosterDialog() {
 }
 
 function addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes) {
+  const startedAt = Date.now();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
+  let lockReleased = false;
   
   try {
     SpreadsheetApp.getActive().toast('⏳ Adding poster to inventory...', 'Manual Poster', 3);
@@ -187,41 +192,20 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     
     // Update last updated timestamp
     updateInventoryLastUpdated_();
-    
-    // Automatically update dependent systems
-    Logger.log(`[addManualPoster] Updating Print Out, Form, and Display dropdowns...`);
-    try {
-      SpreadsheetApp.getActive().toast('🔄 Updating Print Out, Form, and Displays...', 'Manual Poster', 3);
-      refreshPrintOut(true); // skipQr=true: poster list changed but QR URLs are unchanged
-      syncPostersToForm();
-      refreshPosterOutsideDropdowns_();
-      refreshPosterInsideDropdowns_();
-      Logger.log(`[addManualPoster] All systems updated successfully`);
-    } catch (updateErr) {
-      Logger.log(`[addManualPoster] Warning: System update failed: ${updateErr.message}`);
-      // Don't fail the entire operation if updates fail - poster was successfully added
-    }
+
+    // Release the shared lock before slower cross-sheet, form, and display work.
+    lock.releaseLock();
+    lockReleased = true;
     
     // Visual feedback after dialog closes
     SpreadsheetApp.getActive().toast(
-      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}\n📄 Print Out, Form, & Displays updated`,
+      `✅ Poster added!\n${title}\nRelease: ${fmtDate_(release, 'MMM dd, yyyy')}`,
       'Poster Added',
       5
     );
     
-    Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title}`);
+    Logger.log(`[addManualPoster] Added poster at row ${nextRow}: ${title} (inventory write path ${Date.now() - startedAt}ms)`);
     
-    // Queue announcement for the newly added poster (must be inside lock).
-    // We call the lock-free impl directly since we already hold the script lock.
-    if (!!active && title && releaseDate) {
-      try {
-        reconcileAnnouncementsFromInventory_Impl_();
-        Logger.log('[addManualPoster] Announcement queue updated for new poster.');
-      } catch (annErr) {
-        Logger.log(`[addManualPoster] Warning: announcement queue update failed: ${annErr.message}`);
-      }
-    }
-
     // Log to Analytics for audit trail
     try {
       const analytics = ss.getSheetByName(CONFIG.SHEETS.ANALYTICS);
@@ -241,11 +225,20 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     } catch (analyticsErr) {
       Logger.log(`[WARN] Analytics logging failed: ${analyticsErr.message}`);
     }
+
+    let refreshQueued = false;
+    try {
+      queueManualPosterRefresh_();
+      refreshQueued = true;
+    } catch (queueErr) {
+      Logger.log(`[addManualPoster] Warning: background refresh could not be queued: ${queueErr.message}`);
+    }
     
     return { 
       success: true, 
       message: 'Poster added successfully',
-      row: nextRow 
+      row: nextRow,
+      refreshQueued,
     };
     
   } catch (err) {
@@ -257,6 +250,111 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
     }
     return { success: false, message: `Error: ${msg}` };
   } finally {
+    if (!lockReleased) lock.releaseLock();
+  }
+}
+
+function queueManualPosterRefresh_(includeInventoryViews = true) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const props = getProps_();
+    const tasks = readPendingManualPosterRefresh_();
+    tasks.boards = true;
+    tasks.form = true;
+    if (includeInventoryViews) {
+      tasks.printOut = true;
+      tasks.posterOutside = true;
+      tasks.posterInside = true;
+    }
+    props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED, JSON.stringify(tasks));
+
+    if (props.getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING) === 'true') return;
+
+    const triggers = ScriptApp.getProjectTriggers()
+      .filter(trigger => trigger.getHandlerFunction() === 'processManualPosterRefresh_');
+    if (triggers.length === 0) {
+      ScriptApp.newTrigger('processManualPosterRefresh_')
+        .timeBased()
+        .after(1000)
+        .create();
+    } else {
+      triggers.slice(1).forEach(trigger => ScriptApp.deleteTrigger(trigger));
+    }
+  } finally {
     lock.releaseLock();
   }
+}
+
+function processManualPosterRefresh_() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  let pendingTasks = {};
+  try {
+    const props = getProps_();
+    if (props.getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING) === 'true') return;
+
+    pendingTasks = readPendingManualPosterRefresh_();
+    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
+    if (Object.keys(pendingTasks).length > 0) {
+      props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING, 'true');
+    }
+
+    ScriptApp.getProjectTriggers()
+      .filter(trigger => trigger.getHandlerFunction() === 'processManualPosterRefresh_')
+      .forEach(trigger => ScriptApp.deleteTrigger(trigger));
+  } finally {
+    lock.releaseLock();
+  }
+
+  if (Object.keys(pendingTasks).length === 0) return;
+
+  const refreshSteps = [
+    ['boards', 'Boards', () => rebuildBoards()],
+    ['printOut', 'Print Out', () => refreshPrintOut(true)],
+    ['form', 'Form', () => syncPostersToForm()],
+    ['posterOutside', 'Poster Outside', () => refreshPosterOutsideDropdowns_()],
+    ['posterInside', 'Poster Inside', () => refreshPosterInsideDropdowns_()],
+  ];
+
+  let runAgain = true;
+  while (runAgain) {
+    refreshSteps.forEach(([task, name, refresh]) => {
+      if (!pendingTasks[task]) return;
+      const stepStartedAt = Date.now();
+      try {
+        refresh();
+        Logger.log(`[processManualPosterRefresh_] ${name} refresh completed in ${Date.now() - stepStartedAt}ms`);
+      } catch (err) {
+        logError_(err, 'processManualPosterRefresh_', `${name} refresh after manual data change`);
+      }
+    });
+
+    lock.waitLock(30000);
+    try {
+      const props = getProps_();
+      pendingTasks = readPendingManualPosterRefresh_();
+      runAgain = Object.keys(pendingTasks).length > 0;
+      props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
+      if (!runAgain) props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+}
+
+function readPendingManualPosterRefresh_() {
+  const raw = getProps_().getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') return parsed;
+    if (parsed !== true) return {};
+  } catch (err) {
+    if (raw !== 'true') return {};
+  }
+
+  // Upgrade pending jobs written by the earlier boolean queue implementation.
+  return { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true };
 }

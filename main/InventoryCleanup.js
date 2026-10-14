@@ -1,19 +1,61 @@
 /** InventoryCleanup.js **/
 
+function handleSheetEdit(e) {
+  if (!e || !e.range) return;
+
+  const sheet = e.range.getSheet();
+  if (!sheet || sheet.getName() !== CONFIG.SHEETS.INVENTORY || e.range.getRow() < 3) return;
+
+  const startCol = e.range.getColumn();
+  const endCol = startCol + e.range.getNumColumns() - 1;
+  const watchedCols = [
+    COLS.INVENTORY.ACTIVE,
+    COLS.INVENTORY.RELEASE,
+    COLS.INVENTORY.TITLE,
+    COLS.INVENTORY.POSTERS,
+    COLS.INVENTORY.POSTER_ID,
+  ];
+  if (!watchedCols.some(col => col >= startCol && col <= endCol)) return;
+
+  try {
+    updateInventoryLastUpdated_();
+    ensurePosterIdsInInventory_();
+    sortInventoryByReleaseDate_();
+    const removalHandled = detectInventoryRemovalsFromEdit_(e);
+    if (!removalHandled) processInventoryEdit_(e);
+  } catch (err) {
+    logError_(err, 'handleSheetEdit', 'Inventory edit processing');
+  }
+}
+
+function processInventoryEdit_(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  if (!sheet || sheet.getName() !== CONFIG.SHEETS.INVENTORY || e.range.getRow() < 3) return;
+
+  try {
+    syncPostersToForm();
+  } catch (err) {
+    logError_(err, 'processInventoryEdit_', 'Syncing form after inventory edit');
+  }
+
+  try {
+    rebuildBoards();
+  } catch (err) {
+    logError_(err, 'processInventoryEdit_', 'Rebuilding boards after inventory edit');
+  }
+}
+
 function handleSheetChange(e) {
   try {
     const changeType = e && e.changeType ? String(e.changeType) : '';
     Logger.log(`[handleSheetChange] Triggered with changeType: ${changeType || 'UNKNOWN'}`);
+
+    if (changeType !== 'REMOVE_ROW' && changeType !== 'OTHER') return;
     
     // Detect Inventory sheet row deletions
     detectAndProcessInventoryRemovals_('onChange', changeType);
 
-    // Programmatic edits (manual dialog, pastes, scripts) can bypass onEdit.
-    // Reconcile announcements from current Inventory state on OTHER changes.
-    if (changeType === 'OTHER') {
-      reconcileAnnouncementsFromInventory_();
-    }
-    
     // Detect Requests sheet row deletions
     detectAndProcessRequestsDeletions_(changeType);
   } catch (err) {
@@ -83,9 +125,6 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
       `[inventoryCleanup] Closed ${result.closedCount} request(s) across ${Object.keys(result.empCounts).length} employee(s)`
     );
 
-    // Prevent stale queued announcements and stock baselines for removed posters.
-    removeAnnouncementStateForPosterIds_(removedIds);
-
     // Log to Analytics sheet for audit trail
     try {
       const analytics = SpreadsheetApp.getActive().getSheetByName(CONFIG.SHEETS.ANALYTICS);
@@ -110,26 +149,36 @@ function detectAndProcessInventoryRemovals_(source, changeType) {
       Logger.log(`[inventoryCleanup] Analytics logging failed: ${err.message}`);
     }
 
-    rebuildBoards();
-    syncPostersToForm();
-
-    try {
-      refreshDisplayDropdowns_();
-    } catch (err) {
-      Logger.log(`[inventoryCleanup] Display dropdown refresh failed: ${err.message}`);
-    }
-
-    try {
-      buildPrintOutLayout_();
-    } catch (err) {
-      Logger.log(`[inventoryCleanup] Print Out refresh failed: ${err.message}`);
-    }
-
     writeJsonProp_(CONFIG.PROPS.INVENTORY_SNAPSHOT, currentSnapshot);
-    return true;
   } finally {
     lock.releaseLock();
   }
+
+  try {
+    rebuildBoards();
+  } catch (err) {
+    logError_(err, 'detectAndProcessInventoryRemovals_', 'Rebuilding boards after inventory removal');
+  }
+
+  try {
+    syncPostersToForm();
+  } catch (err) {
+    logError_(err, 'detectAndProcessInventoryRemovals_', 'Syncing form after inventory removal');
+  }
+
+  try {
+    refreshDisplayDropdowns_();
+  } catch (err) {
+    Logger.log(`[inventoryCleanup] Display dropdown refresh failed: ${err.message}`);
+  }
+
+  try {
+    buildPrintOutLayout_();
+  } catch (err) {
+    Logger.log(`[inventoryCleanup] Print Out refresh failed: ${err.message}`);
+  }
+
+  return true;
 }
 
 function buildInventoryPosterSnapshot_() {

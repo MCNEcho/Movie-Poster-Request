@@ -254,9 +254,6 @@ function refreshPosterInside() {
  * Executes all refresh operations in sequence (master refresh function)
  */
 function executeRefreshAll_() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  
   try {
     const ss = SpreadsheetApp.getActive();
     
@@ -311,8 +308,6 @@ function executeRefreshAll_() {
     ss.toast('❌ Error during refresh: ' + err.message, 'Error', 5);
     logError_(err, 'executeRefreshAll_', 'Running all refresh operations');
     throw err;
-  } finally {
-    lock.releaseLock();
   }
 }
 

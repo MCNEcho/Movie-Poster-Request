@@ -3,6 +3,7 @@
 function handleFormSubmit(e) {
   const lock = LockService.getScriptLock();
   let shouldSyncEmployeeView = false;
+  let shouldRefreshViews = false;
   lock.waitLock(30000);
 
   try {
@@ -12,9 +13,7 @@ function handleFormSubmit(e) {
 
     const empEmail = String(answers.empEmail || '').trim().toLowerCase();
     const nameRaw = String(answers.empName || '').trim();
-    const subscribeChecked = answers.subscribe === true;
-
-    Logger.log(`[handleFormSubmit] Email: ${empEmail}, Name: ${nameRaw}, Subscribe: ${subscribeChecked}, RemoveLabels: ${JSON.stringify(answers.removeLabels)}, AddLabels: ${JSON.stringify(answers.addLabels)}`);
+    Logger.log(`[handleFormSubmit] Email: ${empEmail}, Name: ${nameRaw}, RemoveLabels: ${JSON.stringify(answers.removeLabels)}, AddLabels: ${JSON.stringify(answers.addLabels)}`);
 
     if (!empEmail) {
       Logger.log(`[handleFormSubmit] No email found - exiting`);
@@ -32,14 +31,6 @@ function handleFormSubmit(e) {
     const addLabels = safeArray_(answers.addLabels);
     const addNotes = answers.addNotes || {};  // NEW: notes map
     const removeLabels = safeArray_(answers.removeLabels);
-
-    // Sync subscriber status from form
-    if (subscribeChecked) {
-      Logger.log(`[handleFormSubmit] Adding subscriber: ${empEmail}`);
-      addSubscriber_(empEmail, empName);
-      invalidateActiveSubscribers_();
-      Logger.log(`[handleFormSubmit] Subscriber added successfully`);
-    }
 
     // For logging (email-keyed)
     const slotsBefore = countActiveSlotsByEmail_(empEmail);
@@ -64,15 +55,21 @@ function handleFormSubmit(e) {
       notes: result.notes.join(' | '),
     });
 
-    Logger.log(`[handleFormSubmit] About to rebuild boards. Removals: ${result.removedApplied.join(', ')}, Additions: ${result.addedAccepted.join(', ')}`);
-    rebuildBoards();
-    Logger.log(`[handleFormSubmit] Boards rebuilt successfully`);
-    syncPostersToForm();
+    shouldRefreshViews = true;
     shouldSyncEmployeeView = true;
   } catch (err) {
     logError_(err, 'handleFormSubmit', 'Form submission');
   } finally {
     lock.releaseLock();
+  }
+
+  if (shouldRefreshViews) {
+    try {
+      rebuildBoards();
+      syncPostersToForm();
+    } catch (refreshErr) {
+      logError_(refreshErr, 'handleFormSubmit', 'Post-submission board/form refresh');
+    }
   }
 
   // Run Employee View sync outside the submission lock to avoid lock timeouts.
@@ -91,16 +88,14 @@ function handleFormSubmit(e) {
 }
 
 function readFormAnswers_(e) {
-  const out = { empEmail: '', empName: '', addLabels: [], removeLabels: [], addNotes: {}, subscribe: false };
+  const out = { empEmail: '', empName: '', addLabels: [], removeLabels: [], addNotes: {} };
   if (!e || !e.response) {
     Logger.log(`[readFormAnswers] No response object`);
     return out;
   }
 
   const tName = String(CONFIG.FORM.Q_EMPLOYEE_NAME || '').trim();
-  const tSub = String(CONFIG.FORM.Q_SUBSCRIBE || '').trim();
-
-  Logger.log(`[readFormAnswers] Expected field names - Name: "${tName}", Subscribe: "${tSub}"`);
+  Logger.log(`[readFormAnswers] Expected field name - Name: "${tName}"`);
 
   // Get email from form's built-in email collection
   out.empEmail = String(e.response.getRespondentEmail() || '').trim().toLowerCase();
@@ -117,22 +112,9 @@ function readFormAnswers_(e) {
 
     if (title === tName) {
       out.empName = resp;
-    } else if (title === tSub && resp && resp.length > 0) {
-      out.subscribe = true;
-    } else if (title.startsWith('Request Poster (Add)')) {
+    } else if (title.startsWith('Request Poster (Add)') && resp && String(resp).trim()) {
       // Collect non-empty add selections from the 7 dropdowns
-      if (resp && String(resp).trim()) {
-        const posterLabel = String(resp).trim();
-        addLabels.push(posterLabel);
-        
-        // Extract the slot number (e.g., "Request Poster (Add) 1" → 1)
-        const match = title.match(/Request Poster \(Add\) (\d+)/);
-        if (match) {
-          const slotNum = match[1];
-          // Try to get the corresponding note from the note field
-          // (Note: The note for this poster will be captured in the next pass)
-        }
-      }
+      addLabels.push(String(resp).trim());
     } else if (title.startsWith('Request Poster Note')) {
       // Capture notes and associate them with their slot numbers
       // Extract the slot number (e.g., "Request Poster Note 1" → 1)
@@ -142,11 +124,9 @@ function readFormAnswers_(e) {
         // Store note by slot number for later pairing
         addNotes[`slot_${slotNum}`] = String(resp).trim();
       }
-    } else if (title.startsWith('Remove Poster')) {
+    } else if (title.startsWith('Remove Poster') && resp && String(resp).trim()) {
       // Collect non-empty remove selections from the 7 dropdowns
-      if (resp && String(resp).trim()) {
-        removeLabels.push(String(resp).trim());
-      }
+      removeLabels.push(String(resp).trim());
     }
   });
 
@@ -319,33 +299,5 @@ function appendRequestOrderLog_(o) {
   row[COLS.REQUEST_ORDER.NOTES - 1] = o.notes;
   sh.appendRow(row);
 }
+// End of form submission helpers.
 
-/**
- * Add or update subscriber in Subscribers sheet if not already there
- */
-function addSubscriber_(empEmail, empName) {
-  try {
-    const sh = getSheet_(CONFIG.SHEETS.SUBSCRIBERS);
-    Logger.log(`[addSubscriber] Got sheet: ${CONFIG.SHEETS.SUBSCRIBERS}`);
-    
-    const data = getNonEmptyData_(sh, 3);
-    Logger.log(`[addSubscriber] Read ${data.length} existing rows`);
-    
-    // Check if already exists
-    const exists = data.some(r => String(r[COLS.SUBSCRIBERS.EMAIL - 1] || '').trim().toLowerCase() === empEmail);
-    Logger.log(`[addSubscriber] Email ${empEmail} already exists: ${exists}`);
-    if (exists) {
-      Logger.log(`[addSubscriber] Email already subscribed, returning`);
-      return;
-    }
-    
-    // Append new subscriber with ACTIVE checked and employee name
-    const row = [true, empEmail, empName];
-    Logger.log(`[addSubscriber] About to append subscriber: ${JSON.stringify(row)}`);
-    sh.appendRow(row);
-    Logger.log(`[addSubscriber] Row appended successfully`);
-  } catch (err) {
-    Logger.log(`[addSubscriber] ERROR: ${err.message}`);
-    throw err;
-  }
-}
