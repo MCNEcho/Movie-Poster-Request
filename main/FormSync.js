@@ -55,7 +55,10 @@ function syncPostersToForm_() {
     const removeTitle = `Remove Poster ${slot}`;
     const addItem = listItems.get(addTitle);
     const removeItem = listItems.get(removeTitle);
-    if (!addItem || !removeItem) throw new Error(`Required Form dropdown is missing: ${!addItem ? addTitle : removeTitle}`);
+    if (!addItem || !removeItem) {
+      const missingTitle = addItem ? removeTitle : addTitle;
+      throw new Error(`Required Form dropdown is missing: ${missingTitle}`);
+    }
     setListItemChoices_(addItem, addChoices, false);
     setListItemChoices_(removeItem, removeChoices, false);
   }

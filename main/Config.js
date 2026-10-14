@@ -2,7 +2,7 @@
 
 const CONFIG = {
   VERSION: {
-    LABEL: 'v2026.10.14.8',
+    LABEL: 'v2026.10.14.9',
     UPDATED_AT: '2026-10-14',
     NOTES: 'Fast no-op form sync and bounded refresh/backup retries',
   },
