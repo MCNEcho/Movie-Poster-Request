@@ -44,7 +44,7 @@ const CONFIG = {
     DATA_INTEGRITY: 'Data Integrity', // script-created - Task 5
   },
 
-  MAX_ACTIVE: 7,
+  MAX_ACTIVE: 10,
 
   // Deduplication configuration (Feature: Config flags for dedup rules)
   ALLOW_REREQUEST_AFTER_REMOVAL: true, // Allow re-requesting a poster after removal
