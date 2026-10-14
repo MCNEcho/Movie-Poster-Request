@@ -78,7 +78,6 @@ function buildPrintOutLayout_(skipQr) {
   sh.setColumnWidth(2, 520);
   sh.setColumnWidth(3, 260);
 
-  // --- Get ALL posters from Inventory sheet (active or not) ---
   // --- Get active posters from Inventory sheet ---
   const inv = getSheet_(CONFIG.SHEETS.INVENTORY);
   const invData = getNonEmptyData_(inv, 11, 3);

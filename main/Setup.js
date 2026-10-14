@@ -92,6 +92,7 @@ function setupPosterSystem() {
   ensurePosterIdsInInventory_();
   initializeInventorySnapshot_();
   initializeRequestsSnapshot_();
+  getProps_().deleteProperty('REQUESTS_SNAPSHOT_JSON');
   initializeFormUrlCache_();
   initializeEmployeeViewUrlCache_();
 
@@ -135,13 +136,7 @@ function ensureTriggers_() {
     throw new Error('Only the spreadsheet owner/master admin should install or reconcile project triggers.');
   }
 
-  const uniqueHandlers = new Set([
-    'handleFormSubmit',
-    'handleSheetEdit',
-    'handleSheetChange',
-    'performNightlyBackup',
-    'processManualPosterRefresh_',
-  ]);
+  const uniqueHandlers = new Set(['handleFormSubmit', 'handleSheetEdit', 'handleSheetChange']);
   const seen = new Set();
   let deletedLegacyTriggers = 0;
   let deletedDuplicateTriggers = 0;
@@ -152,6 +147,8 @@ function ensureTriggers_() {
       deletedLegacyTriggers++;
       return;
     }
+    if (handler === 'performNightlyBackup' || handler === 'processManualPosterRefresh_') return;
+    if (handler === 'retryNightlyBackup_' || handler === 'retryManualPosterRefresh_') return;
     if (!uniqueHandlers.has(handler)) return;
     if (seen.has(handler)) {
       ScriptApp.deleteTrigger(trigger);
@@ -162,8 +159,7 @@ function ensureTriggers_() {
   });
   Logger.log(`[ensureTriggers_] Removed ${deletedDuplicateTriggers} duplicate trigger(s) and ${deletedLegacyTriggers} obsolete announcement trigger(s).`);
 
-  const existing = ScriptApp.getProjectTriggers();
-  const has = (handler) => existing.some(t => t.getHandlerFunction() === handler);
+  const has = (handler) => ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === handler);
 
   let form = null;
   try {
@@ -193,13 +189,51 @@ function ensureTriggers_() {
       .create();
   }
 
-  if (!has('performNightlyBackup')) {
-    ScriptApp.newTrigger('performNightlyBackup')
-      .timeBased()
-      .atHour(2)  // Run at 2 AM
-      .everyDays(1)
-      .create();
+  // Recreate rather than selecting an arbitrary handler match: old versions
+  // used this handler for one-off lock retries as well as the daily schedule.
+  deleteTriggersByHandler_('performNightlyBackup');
+  ScriptApp.newTrigger('performNightlyBackup').timeBased().atHour(2).everyDays(1).create();
+
+  deleteTriggersByHandler_('processManualPosterRefresh_');
+  ScriptApp.newTrigger('processManualPosterRefresh_').timeBased().everyMinutes(5).create();
+
+  deleteTriggersByHandler_('processNightlyBackupRetryQueue_');
+  ScriptApp.newTrigger('processNightlyBackupRetryQueue_').timeBased().everyMinutes(5).create();
+
+  ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 5000, hasPendingManualPosterRefreshTasks_());
+  ensureSingleOneOffTrigger_('retryNightlyBackup_', 60000,
+    getProps_().getProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY) === 'true');
+}
+
+function deleteTriggersByHandler_(handler) {
+  ScriptApp.getProjectTriggers()
+    .filter(trigger => trigger.getHandlerFunction() === handler)
+    .forEach(trigger => ScriptApp.deleteTrigger(trigger));
+}
+
+function ensureSingleOneOffTrigger_(handler, delayMs, shouldExist) {
+  const lock = LockService.getUserLock();
+  if (!lock.tryLock(0)) {
+    Logger.log(`[ensureSingleOneOffTrigger_] Trigger reconciliation is already running for ${handler}.`);
+    return false;
   }
+  try {
+    const triggers = ScriptApp.getProjectTriggers().filter(trigger => trigger.getHandlerFunction() === handler);
+    const actions = planOneOffTriggerActions_(triggers.length, shouldExist);
+    triggers.slice(0, actions.deleteCount).forEach(trigger => ScriptApp.deleteTrigger(trigger));
+    if (actions.create) {
+      ScriptApp.newTrigger(handler).timeBased().after(delayMs).create();
+    }
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function planOneOffTriggerActions_(existingCount, shouldExist) {
+  const count = Math.max(0, Number(existingCount) || 0);
+  if (!shouldExist) return { deleteCount: count, create: false };
+  return { deleteCount: Math.max(0, count - 1), create: count === 0 };
 }
 
 function createTriggersNow_() {
@@ -290,9 +324,6 @@ function ensureSheetSchemas_() {
   if (!inv) inv = ss.insertSheet(CONFIG.SHEETS.INVENTORY);
   formatInventorySheet_();
 
-  // Movie Posters sheet is deprecated - no longer created during setup
-  // Kept in config for backward compatibility with existing deployments
-
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUEST_ORDER, [
     'Form Timestamp','Employee Email',
     'Requested Posters (Add) - raw','Removed Posters - raw',
@@ -306,9 +337,13 @@ function ensureSheetSchemas_() {
   const requestsSheet = ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUESTS, [
     'Request Timestamp','Employee Email','Employee Name','Poster ID',
     'Poster Label (at request)','Movie Title (snapshot)','Release Date (snapshot)',
-    'Action Type','Status','Status Updated At','Contact Type','Notes'
+    'Action Type','Status','Status Updated At','Contact Type','Notes','Request ID'
   ]);
   requestsSheet.setFrozenRows(1);
+
+  ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUEST_SNAPSHOT, [
+    'Request ID','Request Timestamp','Contact','Employee Name','Poster ID','Poster Label','Contact Type'
+  ]);
 
   ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DOCUMENTATION, ['']);
 
@@ -349,6 +384,7 @@ function hideInternalSheets_() {
   const internal = [
     CONFIG.SHEETS.REQUEST_ORDER,
     CONFIG.SHEETS.REQUESTS,
+    CONFIG.SHEETS.REQUEST_SNAPSHOT,
     CONFIG.SHEETS.ERROR_LOG,
     CONFIG.SHEETS.ANALYTICS,
     CONFIG.SHEETS.ANALYTICS_SUMMARY,

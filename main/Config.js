@@ -2,9 +2,9 @@
 
 const CONFIG = {
   VERSION: {
-    LABEL: 'v2026.10.14.2',
+    LABEL: 'v2026.10.14.6',
     UPDATED_AT: '2026-10-14',
-    NOTES: 'Serialized refreshes, form validation, and ledger reliability fixes',
+    NOTES: 'Bounded durable refresh queue, retry pollers, and stable request deletion IDs',
   },
 
   TIMEZONE: 'America/Los_Angeles',
@@ -34,6 +34,7 @@ const CONFIG = {
     POSTER_OUTSIDE: 'Poster Outside',
     POSTER_INSIDE: 'Poster Inside',
     REQUESTS: 'Requests',       // script-created
+    REQUEST_SNAPSHOT: 'Request Deletion Snapshot',
     DOCUMENTATION: 'Documentation',
     ERROR_LOG: 'Error Log',     // script-created - Task 1
     ANALYTICS: 'Analytics',     // script-created - Task 3
@@ -87,11 +88,12 @@ const CONFIG = {
     ID_TO_CURRENT_LABEL: 'ID_TO_CURRENT_LABEL_JSON',
 
     INVENTORY_SNAPSHOT: 'INVENTORY_SNAPSHOT_JSON',
-    REQUESTS_SNAPSHOT: 'REQUESTS_SNAPSHOT_JSON',
     INVENTORY_ROW_COUNT: 'INVENTORY_DATA_ROW_COUNT',
     REQUESTS_ROW_COUNT: 'REQUESTS_DATA_ROW_COUNT',
-    MANUAL_POSTER_REFRESH_QUEUED: 'MANUAL_POSTER_REFRESH_QUEUED',
+    MANUAL_POSTER_REFRESH_QUEUE_PREFIX: 'MANUAL_POSTER_REFRESH_TASK_',
     MANUAL_POSTER_REFRESH_RUNNING: 'MANUAL_POSTER_REFRESH_RUNNING',
+    DISPLAY_LABEL_BACKFILL_DONE: 'DISPLAY_LABEL_BACKFILL_DONE',
+    NIGHTLY_BACKUP_RETRY: 'NIGHTLY_BACKUP_RETRY_PENDING',
     DISPLAY_LABEL_TO_ID: 'DISPLAY_LABEL_TO_ID_JSON',
     LAST_NIGHTLY_BACKUP_DATE: 'LAST_NIGHTLY_BACKUP_DATE',
 
@@ -129,6 +131,7 @@ const COLS = {
     STATUS_TS: 10,
     CONTACT_TYPE: 11,     // 'EMPLOYEE' or 'CUSTOMER' (NEW: distinguishes contact type)
     NOTES: 12,            // Optional notes about the request (NEW: stores poster-specific notes)
+    REQUEST_ID: 13,       // Stable ledger row ID for deletion detection
   },
 
   REQUEST_ORDER: {

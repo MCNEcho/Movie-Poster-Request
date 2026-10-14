@@ -149,7 +149,7 @@ function readFormAnswers_(e) {
         addNotes[`slot_${slotNum}`] = String(resp).trim();
       }
     } else if (title.startsWith('Remove Poster') && resp && String(resp).trim()) {
-      // Collect non-empty remove selections from the 7 dropdowns
+      // Collect non-empty remove selections from the configured dropdown slots.
       removeLabels.push(String(resp).trim());
     }
   });

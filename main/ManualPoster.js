@@ -13,7 +13,7 @@ function showManualPosterDialog() {
       .error { background-color: #f8d7da; color: #721c24; }
       .required:after { content: " *"; color: red; }
     </style>
-    
+
     <h2>Add New Poster to Inventory</h2>
     
     <label class="required" for="title">Movie Title:</label>
@@ -66,7 +66,6 @@ function showManualPosterDialog() {
         const teaser = document.getElementById('teaser').value.trim();
         const notes = document.getElementById('notes').value.trim();
         const active = document.getElementById('active').checked;
-        
         if (!title || !releaseDate) {
           showStatus('Please fill in all required fields (Title and Release Date)', 'error');
           return;
@@ -255,72 +254,77 @@ function addManualPoster(active, releaseDate, title, company, posters, bus, mini
   }
 }
 
-function queueManualPosterRefresh_(requestedTasks = true) {
+function queueManualPosterRefresh_(requestedTasks = true, wakeDelayMs = 1000) {
+  const entries = createManualPosterRefreshQueueEntries_(requestedTasks, () => Utilities.getUuid());
+  if (!entries.length) return false;
+
+  const props = getProps_();
+  const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
+  entries.forEach(entry => {
+    props.setProperty(`${prefix}${entry.task}`, JSON.stringify({ task: entry.task, queuedAt: Date.now(), nonce: Utilities.getUuid() }));
+  });
+
+  scheduleRefreshQueueWakeup_(wakeDelayMs);
+  return true;
+}
+
+function scheduleRefreshQueueWakeup_(delayMs) {
+  if (!isMasterAccount_()) return false;
   const lock = LockService.getScriptLock();
-  lock.waitLock(3000);
+  if (!tryAcquireWithoutWaiting_(lock)) {
+    Logger.log('[queueManualPosterRefresh_] Wakeup trigger deferred; durable task entries will be picked up by the owner poller.');
+    return false;
+  }
   try {
-    const props = getProps_();
-    const tasks = readPendingManualPosterRefresh_();
-    const requested = requestedTasks === true
-      ? { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true }
-      : requestedTasks === false
-        ? { boards: true, form: true, employeeView: true }
-        : requestedTasks;
-    Object.keys(requested || {}).forEach(task => {
-      if (requested[task]) tasks[task] = true;
-    });
-    props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED, JSON.stringify(tasks));
-
-    const runningAt = Number(props.getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING) || 0);
-    if (runningAt && Date.now() - runningAt < 8 * 60 * 1000) return;
-    if (runningAt) props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-
-    const triggers = ScriptApp.getProjectTriggers()
-      .filter(trigger => trigger.getHandlerFunction() === 'processManualPosterRefresh_');
-    if (triggers.length === 0) {
-      ScriptApp.newTrigger('processManualPosterRefresh_')
-        .timeBased()
-        .after(1000)
-        .create();
-    } else {
-      triggers.slice(1).forEach(trigger => ScriptApp.deleteTrigger(trigger));
-    }
+    ensureSingleOneOffTrigger_('retryManualPosterRefresh_', delayMs, true);
+    return true;
   } finally {
     lock.releaseLock();
   }
 }
 
+function createManualPosterRefreshQueueEntries_(requestedTasks, makeId) {
+  const requested = requestedTasks === true
+    ? { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true }
+    : requestedTasks === false
+      ? { boards: true, form: true, employeeView: true }
+      : requestedTasks;
+  return Object.keys(requested || {})
+    .filter(task => requested[task])
+    .map(task => ({ id: makeId(), task, queuedAt: 0 }));
+}
+
 function processManualPosterRefresh_() {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(0)) {
+  if (!tryAcquireWithoutWaiting_(lock)) {
     Logger.log('[processManualPosterRefresh_] Script lock is busy; scheduling a short retry.');
     scheduleManualPosterRefreshRetry_();
     return;
   }
-  let pendingTasks = {};
+  const props = getProps_();
+  const runningAt = Number(props.getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING) || 0);
+  if (runningAt && Date.now() - runningAt < 8 * 60 * 1000) {
+    lock.releaseLock();
+    return;
+  }
+
+  let queueEntries;
   try {
-    const props = getProps_();
-    const runningAt = Number(props.getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING) || 0);
-    if (runningAt && Date.now() - runningAt < 8 * 60 * 1000) return;
     if (runningAt) props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-
-    pendingTasks = readPendingManualPosterRefresh_();
-    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
-    if (Object.keys(pendingTasks).length > 0) {
-      props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING, String(Date.now()));
-    }
-
-    ScriptApp.getProjectTriggers()
-      .filter(trigger => trigger.getHandlerFunction() === 'processManualPosterRefresh_')
-      .forEach(trigger => ScriptApp.deleteTrigger(trigger));
+    queueEntries = readPendingManualPosterRefreshEntries_();
+    if (queueEntries.length) props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING, String(Date.now()));
   } finally {
     lock.releaseLock();
   }
 
-  if (Object.keys(pendingTasks).length === 0) return;
+  if (!queueEntries.length) {
+    deleteTriggersByHandler_('retryManualPosterRefresh_');
+    return;
+  }
 
   const refreshSteps = [
     ['inventoryCleanup', 'Inventory removal scan', () => processQueuedInventoryRemovalScan_()],
+    ['requestsCleanup', 'Requests deletion scan', () => processQueuedRequestsDeletionScan_()],
     ['boards', 'Boards', () => rebuildBoards_()],
     ['printOut', 'Print Out', () => buildPrintOutLayout_(true)],
     ['form', 'Form', () => syncPostersToForm_()],
@@ -329,57 +333,121 @@ function processManualPosterRefresh_() {
     ['employeeView', 'Employee View', () => syncEmployeeViewSpreadsheet_()],
   ];
 
-  let runAgain = true;
-  while (runAgain) {
-    refreshSteps.forEach(([task, name, refresh]) => {
-      if (!pendingTasks[task]) return;
-      const stepStartedAt = Date.now();
-      try {
-        refresh();
-        Logger.log(`[processManualPosterRefresh_] ${name} refresh completed in ${Date.now() - stepStartedAt}ms`);
-      } catch (err) {
-        logError_(err, 'processManualPosterRefresh_', `${name} refresh after manual data change`);
-      }
-    });
-
-    if (!lock.tryLock(0)) {
-      getProps_().deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-      Logger.log('[processManualPosterRefresh_] Script lock became busy; leaving queued work for a retry.');
-      scheduleManualPosterRefreshRetry_();
+  const pendingTasks = collectManualPosterRefreshTasks_(queueEntries);
+  const completedTasks = {};
+  refreshSteps.forEach(([task, name, refresh]) => {
+    if (!pendingTasks[task]) return;
+    if ((task === 'form' || task === 'employeeView') && !isMasterAccount_()) {
+      Logger.log(`[processManualPosterRefresh_] Deferring ${name} refresh to the owner account.`);
       return;
     }
+    const stepStartedAt = Date.now();
     try {
-      const props = getProps_();
-      pendingTasks = readPendingManualPosterRefresh_();
-      runAgain = Object.keys(pendingTasks).length > 0;
-      props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
-      if (runAgain) props.setProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING, String(Date.now()));
-      else props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
-    } finally {
-      lock.releaseLock();
+      const result = refresh();
+      if ((task === 'inventoryCleanup' || task === 'requestsCleanup') && result === null) return;
+      if (task === 'employeeView' && result && result.success === false) return;
+      completedTasks[task] = true;
+      Logger.log(`[processManualPosterRefresh_] ${name} refresh completed in ${Date.now() - stepStartedAt}ms`);
+    } catch (err) {
+      logError_(err, 'processManualPosterRefresh_', `${name} refresh after manual data change`);
     }
+  });
+
+  if (!tryAcquireWithoutWaiting_(lock)) {
+    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
+    Logger.log('[processManualPosterRefresh_] Script lock became busy; queued entries remain for retry.');
+    scheduleManualPosterRefreshRetry_();
+    return;
+  }
+  try {
+    deleteManualPosterRefreshEntries_(queueEntries, completedTasks);
+    props.deleteProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_RUNNING);
+    if (hasPendingManualPosterRefreshTasks_() && isMasterAccount_()) {
+      ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 60 * 1000, true);
+    } else if (!hasPendingManualPosterRefreshTasks_()) {
+      deleteTriggersByHandler_('retryManualPosterRefresh_');
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 
 function scheduleManualPosterRefreshRetry_() {
-  ScriptApp.newTrigger('processManualPosterRefresh_')
-    .timeBased()
-    .after(5000)
-    .create();
+  if (isMasterAccount_()) ensureSingleOneOffTrigger_('retryManualPosterRefresh_', 5000, true);
 }
 
-function readPendingManualPosterRefresh_() {
-  const raw = getProps_().getProperty(CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUED);
-  if (!raw) return {};
+function tryAcquireWithoutWaiting_(lock) {
+  return lock.tryLock(0);
+}
 
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') return parsed;
-    if (parsed !== true) return {};
-  } catch (err) {
-    if (raw !== 'true') return {};
+function retryManualPosterRefresh_() {
+  deleteTriggersByHandler_('retryManualPosterRefresh_');
+  processManualPosterRefresh_();
+}
+
+function readPendingManualPosterRefreshEntries_() {
+  const props = getProps_();
+  const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
+  let all = props.getProperties();
+  const legacyKey = 'MANUAL_POSTER_REFRESH_QUEUED';
+  if (all[legacyKey]) {
+    const legacyTasks = { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true };
+    Object.keys(legacyTasks).forEach(task => {
+      const key = `${prefix}${task}`;
+      if (!all[key]) props.setProperty(key, JSON.stringify({ task, queuedAt: Date.now(), nonce: Utilities.getUuid() }));
+    });
+    props.deleteProperty(legacyKey);
+    all = props.getProperties();
   }
+  return Object.keys(all)
+    .filter(key => key.startsWith(prefix))
+    .map(key => ({ key, value: all[key] }));
+}
 
-  // Upgrade pending jobs written by the earlier boolean queue implementation.
-  return { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true };
+function deleteManualPosterRefreshEntries_(entries, completedTasks) {
+  const props = getProps_();
+  (entries || []).forEach(entry => {
+    let task = '';
+    try {
+      const parsed = JSON.parse(entry.value);
+      task = String(parsed.task || '').trim();
+    } catch (err) {
+      if (props.getProperty(entry.key) === entry.value) props.deleteProperty(entry.key);
+      return;
+    }
+    if (shouldAcknowledgeManualPosterRefreshEntry_(entry, completedTasks, props.getProperty(entry.key))) {
+      props.deleteProperty(entry.key);
+    }
+  });
+}
+
+function shouldAcknowledgeManualPosterRefreshEntry_(entry, completedTasks, currentValue) {
+  if (!entry || !completedTasks) return false;
+  let task = String(entry.task || '').trim();
+  if (!task) {
+    try {
+      task = String(JSON.parse(entry.value).task || '').trim();
+    } catch (err) {
+      return false;
+    }
+  }
+  return !!completedTasks[task] && currentValue === entry.value;
+}
+
+function hasPendingManualPosterRefreshTasks_() {
+  const prefix = CONFIG.PROPS.MANUAL_POSTER_REFRESH_QUEUE_PREFIX;
+  return Object.keys(getProps_().getProperties()).some(key => key.startsWith(prefix));
+}
+
+function collectManualPosterRefreshTasks_(entries) {
+  const tasks = {};
+  (entries || []).forEach(entry => {
+    try {
+      const queued = JSON.parse(entry.value);
+      if (queued && queued.task) tasks[queued.task] = true;
+    } catch (err) {
+      Logger.log(`[processManualPosterRefresh_] Ignoring malformed queued task ${entry.key}.`);
+    }
+  });
+  return tasks;
 }

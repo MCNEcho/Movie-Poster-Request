@@ -309,9 +309,10 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
     row[COLS.REQUESTS.STATUS_TS - 1] = requestTs;
     row[COLS.REQUESTS.CONTACT_TYPE - 1] = contactTypeUpper;
     row[COLS.REQUESTS.NOTES - 1] = String(notes || '').trim();
+    row[COLS.REQUESTS.REQUEST_ID - 1] = Utilities.getUuid();
 
     sh.appendRow(row);
-    updateRequestsDeletionSnapshotRow_(sh.getLastRow(), row);
+    updateRequestsDeletionSnapshotRow_(row);
 
     // Invalidate caches only for employees (contact is email)
     if (contactTypeUpper === 'EMPLOYEE') {

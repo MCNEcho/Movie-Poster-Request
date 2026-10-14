@@ -12,6 +12,8 @@
 function performNightlyBackup() {
   if (!CONFIG.BACKUP.ENABLED) {
     Logger.log('[BACKUP] Backups are disabled in config');
+    getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+    deleteTriggersByHandler_('retryNightlyBackup_');
     return;
   }
 
@@ -20,7 +22,8 @@ function performNightlyBackup() {
   if (!lock.tryLock(0)) {
     Logger.log('[BACKUP] Script lock is busy; scheduling a retry in one minute.');
     if (isMasterAccount_()) {
-      ScriptApp.newTrigger('performNightlyBackup').timeBased().after(60 * 1000).create();
+      getProps_().setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY, 'true');
+      scheduleNightlyBackupRetry_(60 * 1000);
     }
     return;
   }
@@ -28,9 +31,12 @@ function performNightlyBackup() {
     const props = getProps_();
     if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
       Logger.log(`[BACKUP] Skipping duplicate backup trigger; a backup is already reserved/completed for ${backupDay}.`);
+      props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+      deleteTriggersByHandler_('retryNightlyBackup_');
       return;
     }
     props.setProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE, backupDay);
+    props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
   } finally {
     lock.releaseLock();
   }
@@ -88,11 +94,16 @@ function performNightlyBackup() {
     Logger.log(`[BACKUP] Completed successfully in ${executionTime}ms`);
     Logger.log(`[BACKUP] Backed up ${backupResults.length} sheets: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
     Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
+    deleteTriggersByHandler_('retryNightlyBackup_');
     
   } catch (err) {
     const props = getProps_();
     if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
       props.deleteProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE);
+    }
+    if (isMasterAccount_()) {
+      props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY, 'true');
+      scheduleNightlyBackupRetry_(5 * 60 * 1000);
     }
     const executionTime = new Date().getTime() - startTime;
     
@@ -112,6 +123,23 @@ function performNightlyBackup() {
     Logger.log(`[BACKUP] Failed: ${err.message}`);
     throw err;
   }
+}
+
+function retryNightlyBackup_() {
+  deleteTriggersByHandler_('retryNightlyBackup_');
+  getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
+  performNightlyBackup();
+}
+
+function processNightlyBackupRetryQueue_() {
+  if (!isMasterAccount_()) return;
+  if (getProps_().getProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY) !== 'true') return;
+  performNightlyBackup();
+}
+
+function scheduleNightlyBackupRetry_(delayMs) {
+  if (!isMasterAccount_()) return;
+  ensureSingleOneOffTrigger_('retryNightlyBackup_', delayMs, true);
 }
 
 /**

@@ -208,6 +208,7 @@ function setupPosterInsideTab_() {
  */
 function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
   try {
+    backfillDisplayLabelToId_();
     // Get movie titles from Inventory tab
     const posters = getPostersWithLabels_();
     const titles = posters.map(p => p.label);
@@ -258,6 +259,40 @@ function setupMovieTitleDropdowns_(sheet, row, startCol, numCols) {
     Logger.log(`[setupMovieTitleDropdowns_] Error: ${err.message}`);
     throw err;
   }
+}
+
+function backfillDisplayLabelToId_() {
+  const props = getProps_();
+  if (props.getProperty(CONFIG.PROPS.DISPLAY_LABEL_BACKFILL_DONE) === 'true') return;
+
+  const candidates = {};
+  const addCandidate = (label, posterId) => {
+    const key = normalizeTitle_(label);
+    const id = String(posterId || '').trim();
+    if (!key || !id) return;
+    if (!candidates[key]) candidates[key] = new Set();
+    candidates[key].add(id);
+  };
+
+  getPostersWithLabels_().forEach(p => {
+    addCandidate(p.title, p.posterId);
+    addCandidate(p.label, p.posterId);
+  });
+
+  const requests = getNonEmptyData_(getRequestsSheet_(), COLS.REQUESTS.NOTES);
+  requests.forEach(row => {
+    const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+    addCandidate(row[COLS.REQUESTS.LABEL_AT_REQ - 1], posterId);
+    addCandidate(row[COLS.REQUESTS.TITLE_SNAP - 1], posterId);
+  });
+
+  const labelToId = readJsonProp_(CONFIG.PROPS.DISPLAY_LABEL_TO_ID, {});
+  Object.keys(candidates).forEach(key => {
+    if (candidates[key].size === 1) labelToId[key] = Array.from(candidates[key])[0];
+  });
+  writeJsonProp_(CONFIG.PROPS.DISPLAY_LABEL_TO_ID, labelToId);
+  props.setProperty(CONFIG.PROPS.DISPLAY_LABEL_BACKFILL_DONE, 'true');
+  Logger.log(`[backfillDisplayLabelToId_] Backfilled ${Object.keys(candidates).length} display title aliases; ambiguous titles were skipped.`);
 }
 
 function remapDisplaySelection_(value, previousLabelToId, currentIdToLabel, currentLabelToId, emptyFallback) {

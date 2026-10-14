@@ -11,17 +11,68 @@ function readRequestRows_() {
   return sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
 }
 
-function updateRequestsDeletionSnapshotRow_(sheetRow, row) {
-  const snapshot = readJsonProp_(CONFIG.PROPS.REQUESTS_SNAPSHOT, {});
-  snapshot[String(sheetRow)] = {
-    empName: String(row[COLS.REQUESTS.EMP_NAME - 1] || '').trim(),
-    contact: String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim(),
-    posterLabel: String(row[COLS.REQUESTS.LABEL_AT_REQ - 1] || '').trim(),
-    contactType: String(row[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').toUpperCase(),
-    status: String(row[COLS.REQUESTS.STATUS - 1] || '').trim(),
-  };
-  writeJsonProp_(CONFIG.PROPS.REQUESTS_SNAPSHOT, snapshot);
+function updateRequestsDeletionSnapshotRow_(row) {
+  const requestId = String(row[COLS.REQUESTS.REQUEST_ID - 1] || '').trim();
+  if (!requestId) throw new Error('Cannot snapshot a request without its stable Request ID.');
+  const ss = SpreadsheetApp.getActive();
+  let snapshotSheet = ss.getSheetByName(CONFIG.SHEETS.REQUEST_SNAPSHOT);
+  if (!snapshotSheet) {
+    snapshotSheet = ensureSheetWithHeaders_(ss, CONFIG.SHEETS.REQUEST_SNAPSHOT, [
+      'Request ID','Request Timestamp','Contact','Employee Name','Poster ID','Poster Label','Contact Type'
+    ]);
+    const snapshot = buildRequestsSnapshot_();
+    writeRequestsDeletionSnapshot_(snapshot);
+    snapshotSheet.hideSheet();
+    return;
+  }
+  if (snapshotSheet.getLastRow() < 2) {
+    writeRequestsDeletionSnapshot_(buildRequestsSnapshot_());
+    snapshotSheet.hideSheet();
+    return;
+  }
+  snapshotSheet.appendRow(requestSnapshotValues_(row));
   getProps_().setProperty(CONFIG.PROPS.REQUESTS_ROW_COUNT, String(Math.max(0, getRequestsSheet_().getLastRow() - 1)));
+}
+
+function requestSnapshotValues_(row) {
+  return [
+    String(row[COLS.REQUESTS.REQUEST_ID - 1] || '').trim(),
+    row[COLS.REQUESTS.REQ_TS - 1] || '',
+    String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim(),
+    String(row[COLS.REQUESTS.EMP_NAME - 1] || '').trim(),
+    String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim(),
+    String(row[COLS.REQUESTS.LABEL_AT_REQ - 1] || '').trim(),
+    String(row[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').toUpperCase(),
+  ];
+}
+
+function ensureRequestIds_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) throw new Error('Cannot migrate Request IDs while another ledger write is running.');
+  try {
+    ensureRequestIdsLocked_();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function ensureRequestIdsLocked_() {
+  const sheet = getRequestsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, COLS.REQUESTS.NOTES).getValues();
+  const idRange = sheet.getRange(2, COLS.REQUESTS.REQUEST_ID, lastRow - 1, 1);
+  const ids = idRange.getValues();
+  let changed = false;
+  ids.forEach((entry, index) => {
+    const hasRequestData = rows[index].some(value => value !== '' && value !== null);
+    if (hasRequestData && !String(entry[0] || '').trim()) {
+      entry[0] = Utilities.getUuid();
+      changed = true;
+    }
+  });
+  if (changed) idRange.setValues(ids);
 }
 
 /**
@@ -195,10 +246,11 @@ function createLedgerRow_(empEmail, empName, posterId, requestTs, note = '', req
   row[COLS.REQUESTS.STATUS_TS - 1] = requestTs;
   row[COLS.REQUESTS.CONTACT_TYPE - 1] = 'EMPLOYEE';
   row[COLS.REQUESTS.NOTES - 1] = String(note || '').trim();
+  row[COLS.REQUESTS.REQUEST_ID - 1] = Utilities.getUuid();
 
   sh.appendRow(row);
   if (requestRows) requestRows.push(row);
-  updateRequestsDeletionSnapshotRow_(sh.getLastRow(), row);
+  updateRequestsDeletionSnapshotRow_(row);
 }
 
 /**

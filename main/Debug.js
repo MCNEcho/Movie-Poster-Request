@@ -107,6 +107,40 @@ function testLedgerAndFormHelpersInMemory_() {
   assert(remapDisplaySelection_('Old Movie Title', { 'old movie title': 'P-1' },
     { 'P-1': 'New Movie Title' }, { 'new movie title': 'P-1' }, '') === 'New Movie Title',
     'display selections must follow stable poster IDs after title changes');
+  const deletedIds = findDeletedRequestIds_(
+    { requestA: { contact: 'a' }, requestB: { contact: 'b' }, requestC: { contact: 'c' } },
+    { requestA: { contact: 'a' }, requestC: { contact: 'c' }, requestD: { contact: 'd' } }
+  );
+  assert(deletedIds.length === 1 && deletedIds[0] === 'requestB',
+    'deletion reconciliation must identify the exact stable request ID, not shifted row numbers');
+  let queueId = 0;
+  const queued = createManualPosterRefreshQueueEntries_({ boards: true, form: true, boardsAgain: false }, () => `queue-${++queueId}`);
+  assert(queued.length === 2 && queued[0].task === 'boards' && queued[1].task === 'form',
+    'refresh queue requests must serialize one durable entry per requested task');
+  const coalesced = collectManualPosterRefreshTasks_([
+    { key: 'a', value: JSON.stringify({ task: 'boards' }) },
+    { key: 'b', value: JSON.stringify({ task: 'form' }) },
+    { key: 'c', value: JSON.stringify({ task: 'boards' }) },
+  ]);
+  assert(coalesced.boards && coalesced.form && Object.keys(coalesced).length === 2,
+    'multiple durable queue entries must coalesce into one execution per task');
+  const duplicateRetryPlan = planOneOffTriggerActions_(3, true);
+  assert(duplicateRetryPlan.deleteCount === 2 && !duplicateRetryPlan.create,
+    'retry trigger reconciliation must retain one existing trigger and delete extras');
+  const staleRetryPlan = planOneOffTriggerActions_(2, false);
+  assert(staleRetryPlan.deleteCount === 2 && !staleRetryPlan.create,
+    'retry trigger reconciliation must remove spent triggers when no retry is queued');
+  const missingRetryPlan = planOneOffTriggerActions_(0, true);
+  assert(missingRetryPlan.deleteCount === 0 && missingRetryPlan.create,
+    'a queued retry with no trigger must create exactly one');
+  const claimedQueueEntry = { key: 'MANUAL_POSTER_REFRESH_TASK_boards', value: JSON.stringify({ task: 'boards', nonce: 'claimed' }) };
+  assert(!shouldAcknowledgeManualPosterRefreshEntry_(claimedQueueEntry, { boards: true }, JSON.stringify({ task: 'boards', nonce: 'newer' })),
+    'acknowledging a claimed refresh must not erase a newer concurrently queued task');
+  assert(shouldAcknowledgeManualPosterRefreshEntry_(claimedQueueEntry, { boards: true }, claimedQueueEntry.value),
+    'successful refresh acknowledgement should remove the exact claimed queue version');
+  let lockWaitMs = null;
+  assert(tryAcquireWithoutWaiting_({ tryLock: ms => { lockWaitMs = ms; return false; } }) === false && lockWaitMs === 0,
+    'refresh worker lock acquisition must never wait or block submit handlers');
 
   Logger.log('PASS: in-memory ledger and form regression tests');
   return true;
