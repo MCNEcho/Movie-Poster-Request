@@ -159,7 +159,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .queueBoardsRefresh_();
+              .refreshBoardsFromDialog();
           }
           
           function refreshFormOptions() {
@@ -171,7 +171,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .queueFormRefresh_();
+              .refreshFormFromDialog();
           }
           
           function refreshPrintOut() {
@@ -183,7 +183,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .requestPrintOutRefresh_();
+              .refreshPrintOutFromDialog();
           }
           
           function refreshPosterOutside() {
@@ -195,7 +195,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .requestPosterOutsideRefresh_();
+              .refreshPosterOutside();
           }
           
           function refreshPosterInside() {
@@ -207,7 +207,7 @@ function showRefreshManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .requestPosterInsideRefresh_();
+              .refreshPosterInside();
           }
           
           function showStatus(message, isSuccess) {
@@ -232,6 +232,22 @@ function showRefreshManagerDialog() {
  */
 function refreshAllDisplays() {
   queueManualPosterRefresh_(true);
+}
+
+function refreshBoardsFromDialog() {
+  queueManualPosterRefresh_({ boards: true });
+  return { queued: true };
+}
+
+function refreshFormFromDialog() {
+  getProps_().deleteProperty(CONFIG.PROPS.FORM_CHOICES_HASH);
+  queueManualPosterRefresh_({ form: true });
+  return { queued: true };
+}
+
+function refreshPrintOutFromDialog() {
+  queueManualPosterRefresh_({ printOut: true });
+  return { queued: true };
 }
 
 /**
@@ -260,14 +276,6 @@ function requestPosterOutsideRefresh_() {
 
 function requestPosterInsideRefresh_() {
   queueManualPosterRefresh_({ posterInside: true });
-}
-
-/**
- * Executes all refresh operations in sequence (master refresh function)
- */
-function executeRefreshAll_() {
-  queueManualPosterRefresh_(true);
-  return { queued: true };
 }
 
 /**

@@ -1,6 +1,7 @@
 /** FormSync.js **/
 
 function syncPostersToForm() {
+  getProps_().deleteProperty(CONFIG.PROPS.FORM_CHOICES_HASH);
   queueManualPosterRefresh_({ form: true });
   return { queued: true };
 }
@@ -33,9 +34,6 @@ function syncPostersToForm_() {
   writeJsonProp_(CONFIG.PROPS.LABEL_TO_ID, labelToId);
   writeJsonProp_(CONFIG.PROPS.ID_TO_CURRENT_LABEL, idToCurrent);
 
-  invalidatePostersWithLabels_();
-  invalidatePosterAvailability_();
-
   const sortPosters = list => list
     .sort((a, b) => new Date(a.release) - new Date(b.release) || a.title.localeCompare(b.title))
     .map(p => p.label);
@@ -64,8 +62,6 @@ function syncPostersToForm_() {
   }
 
   getProps_().setProperty(CONFIG.PROPS.FORM_CHOICES_HASH, choicesHash);
-  invalidateBoardMain_();
-  invalidateBoardEmployees_();
   Logger.log(`[syncPostersToForm_] Updated ${CONFIG.FORM_SLOTS * 2} Form dropdowns (hash ${choicesHash}).`);
   return { skipped: false, hash: choicesHash };
 }

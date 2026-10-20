@@ -28,8 +28,8 @@ function buildAdminMenu_() {
   
   // Reports submenu
   advancedMenu.addSubMenu(ui.createMenu('📊 Reports')
-    .addItem('Rebuild Boards', 'queueBoardsRefresh_')
-    .addItem('Sync Form Options', 'queueFormRefresh_')
+    .addItem('Rebuild Boards', 'queueBoardsRefresh')
+    .addItem('Sync Form Options', 'queueFormRefresh')
     .addItem('Refresh Documentation', 'buildDocumentationTab'));
   
   // Display Management submenu
@@ -39,23 +39,14 @@ function buildAdminMenu_() {
   // System submenu (with Run Setup / Repair inside)
   advancedMenu.addSubMenu(ui.createMenu('🔐 System')
     .addItem('🔧 Run Setup / Repair', 'setupPosterSystem')
-    .addItem('🧷 Create Triggers', 'createTriggersNow_')
-    .addItem('🔎 Check Form Access', 'checkFormAccess_')
-    .addItem('🧹 Remove Legacy Announcement Data', 'removeLegacyAnnouncementArtifacts_')
+    .addItem('🧷 Create Triggers', 'createTriggersMenu')
+    .addItem('🔎 Check Form Access', 'checkFormAccess')
+    .addItem('🧹 Remove Legacy Announcement Data', 'removeLegacyAnnouncementArtifacts')
+    .addItem('Run Data Integrity Check', 'runDataIntegrityCheckMenu')
     .addItem('Run Backup Now', 'manualBackupTrigger'));
   
   mainMenu.addSubMenu(advancedMenu);
   mainMenu.addToUi();
-}
-
-/**
- * Refresh All: Executes the 3 main refresh operations
- * Rebuilds boards and syncs form options
- */
-function refreshAll_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  queueManualPosterRefresh_(true);
-  ss.toast('✅ Full refresh queued.', 'Refresh Manager', 5);
 }
 
 function queueBoardsRefresh_() {
@@ -64,8 +55,17 @@ function queueBoardsRefresh_() {
 }
 
 function queueFormRefresh_() {
+  getProps_().deleteProperty(CONFIG.PROPS.FORM_CHOICES_HASH);
   queueManualPosterRefresh_({ form: true });
   SpreadsheetApp.getActive().toast('Form options refresh queued.', 'Refresh Manager', 4);
+}
+
+function queueBoardsRefresh() {
+  return queueBoardsRefresh_();
+}
+
+function queueFormRefresh() {
+  return queueFormRefresh_();
 }
 
 function setupPosterSystem() {
@@ -92,13 +92,15 @@ function setupPosterSystem() {
   ensurePosterIdsInInventory_();
   initializeInventorySnapshot_();
   initializeRequestsSnapshot_();
+  // TODO(remove after production migration)
   getProps_().deleteProperty('REQUESTS_SNAPSHOT_JSON');
   initializeFormUrlCache_();
   initializeEmployeeViewUrlCache_();
 
   // Form sync requires owner permissions - skip if access denied
   try {
-    syncPostersToForm_();
+    getProps_().deleteProperty(CONFIG.PROPS.FORM_CHOICES_HASH);
+    queueManualPosterRefresh_({ form: true });
   } catch (formErr) {
     Logger.log(`[WARN] Form sync skipped (access denied): ${formErr.message}`);
     ss.toast('⚠ Form sync skipped (requires owner permissions)', 'Setup Progress', 3);
@@ -143,11 +145,13 @@ function ensureTriggers_() {
   ScriptApp.getProjectTriggers().forEach(trigger => {
     const handler = trigger.getHandlerFunction();
     if (handler === 'processAnnouncementQueue') {
+      // TODO(remove after production migration)
       ScriptApp.deleteTrigger(trigger);
       deletedLegacyTriggers++;
       return;
     }
     if (handler === 'processNightlyBackupRetryQueue_') {
+      // TODO(remove after production migration)
       ScriptApp.deleteTrigger(trigger);
       deletedLegacyTriggers++;
       return;
@@ -247,13 +251,19 @@ function createTriggersNow_() {
   }
 }
 
+function createTriggersMenu() {
+  return createTriggersNow_();
+}
+
 function removeLegacyAnnouncementArtifacts_() {
+  // TODO(remove after production migration)
   const ss = SpreadsheetApp.getActive();
   const removed = [];
   const skipped = [];
 
   ScriptApp.getProjectTriggers().forEach(trigger => {
     if (trigger.getHandlerFunction() === 'processAnnouncementQueue') {
+      // TODO(remove after production migration)
       ScriptApp.deleteTrigger(trigger);
       removed.push('announcement trigger');
     }
@@ -317,6 +327,14 @@ function checkFormAccess_() {
   }
 }
 
+function checkFormAccess() {
+  return checkFormAccess_();
+}
+
+function removeLegacyAnnouncementArtifacts() {
+  return removeLegacyAnnouncementArtifacts_();
+}
+
 function ensureSheetSchemas_() {
   const ss = SpreadsheetApp.getActive();
 
@@ -351,7 +369,6 @@ function ensureSheetSchemas_() {
   // System logging/monitoring sheets
   ensureErrorTrackingSheet_();
   ensureAnalyticsSheet_();
-  ensureAnalyticsSummarySheet_();
   ensureDataIntegritySheet_();
 
   // Remove all frozen headers and frozen columns from all sheets
@@ -388,7 +405,6 @@ function hideInternalSheets_() {
     CONFIG.SHEETS.REQUEST_SNAPSHOT,
     CONFIG.SHEETS.ERROR_LOG,
     CONFIG.SHEETS.ANALYTICS,
-    CONFIG.SHEETS.ANALYTICS_SUMMARY,
     CONFIG.SHEETS.DATA_INTEGRITY,
   ];
 
@@ -408,7 +424,7 @@ function hideInternalSheets_() {
  * - ORANGE (#FF9800): Configuration/Reference (Documentation)
  * - YELLOW (#FFEB3B): Admin Tools (Request Order, Requests ledger)
  * - RED (#F44336): Error/Debug sheets (Error Log, Data Integrity)
- * - GREEN (#4CAF50): Analytics/Reporting (Analytics, Analytics Summary)
+ * - GREEN (#4CAF50): Analytics/Reporting (Analytics)
  */
 function applyTabColors_() {
   const ss = SpreadsheetApp.getActive();
@@ -450,7 +466,7 @@ function applyTabColors_() {
   
   // Analytics/Reporting - GREEN (#4CAF50)
   const green = '#4CAF50';
-  [CONFIG.SHEETS.ANALYTICS, CONFIG.SHEETS.ANALYTICS_SUMMARY].forEach(name => {
+  [CONFIG.SHEETS.ANALYTICS].forEach(name => {
     const sheet = ss.getSheetByName(name);
     if (sheet) sheet.setTabColor(green);
   });

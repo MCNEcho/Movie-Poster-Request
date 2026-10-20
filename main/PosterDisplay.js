@@ -13,7 +13,7 @@
  */
 function setupPosterOutsideTab_() {
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(0)) throw new Error('System is busy. Try setting up Poster Outside again in a moment.');
   
   try {
     const ss = SpreadsheetApp.getActive();
@@ -120,7 +120,7 @@ function setupPosterOutsideTab_() {
  */
 function setupPosterInsideTab_() {
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(0)) throw new Error('System is busy. Try setting up Poster Inside again in a moment.');
   
   try {
     const ss = SpreadsheetApp.getActive();
@@ -364,6 +364,20 @@ function refreshDisplayDropdowns_() {
   return { queued: true };
 }
 
+function setupPosterOutsideFromDialog() {
+  setupPosterOutsideTab_();
+  return { success: true };
+}
+
+function setupPosterInsideFromDialog() {
+  setupPosterInsideTab_();
+  return { success: true };
+}
+
+function refreshDisplayDropdownsFromDialog() {
+  return refreshDisplayDropdowns_();
+}
+
 /**
  * Shows consolidated Display Manager dialog with all display management options
  */
@@ -466,7 +480,7 @@ function showDisplayManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .setupPosterOutsideTab_();
+              .setupPosterOutsideFromDialog();
           }
           
           function setupInside() {
@@ -478,7 +492,7 @@ function showDisplayManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .setupPosterInsideTab_();
+              .setupPosterInsideFromDialog();
           }
           
           function refreshDropdowns() {
@@ -490,7 +504,7 @@ function showDisplayManagerDialog() {
               .withFailureHandler(function(err) {
                 showStatus('❌ Error: ' + err.message, false);
               })
-              .refreshDisplayDropdowns_();
+              .refreshDisplayDropdownsFromDialog();
           }
           
           function showStatus(message, isSuccess) {
