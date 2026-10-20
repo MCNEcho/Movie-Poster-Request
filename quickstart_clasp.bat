@@ -96,7 +96,7 @@ REM -----------------------------
 echo.
 echo [INFO] Locating main folder...
 set "SCRIPT_DIR=%~dp0"
-for %%I in ("%SCRIPT_DIR%..") do set "REPO_DIR=%%~fI"
+for %%I in ("%SCRIPT_DIR%.") do set "REPO_DIR=%%~fI"
 set "MAIN_DIR=%REPO_DIR%\main"
 call :LOG "Computed MAIN_DIR: %MAIN_DIR%"
 
@@ -131,6 +131,22 @@ call :LOG "[OK] Working dir: %CD%"
 REM -----------------------------
 REM 5) Script ID + .clasp.json
 REM -----------------------------
+if not exist ".clasp.json" (
+  if not exist ".clasp.json.example" (
+    echo [ERROR] .clasp.json.example is missing from the main folder.
+    call :LOG "[ERROR] .clasp.json.example is missing"
+    goto :END_FAIL
+  )
+  copy ".clasp.json.example" ".clasp.json" >nul
+  if errorlevel 1 (
+    echo [ERROR] Could not copy .clasp.json.example.
+    call :LOG "[ERROR] Failed to copy clasp template"
+    goto :END_FAIL
+  )
+  echo [OK] Created local .clasp.json from the example template.
+  call :LOG "[OK] Copied .clasp.json.example to .clasp.json"
+)
+
 echo.
 echo [INFO] Find Script ID:
 echo  1) Open Apps Script project
@@ -143,6 +159,12 @@ set "SCRIPT_ID=%SCRIPT_ID:"=%"
 if "%SCRIPT_ID%"=="" (
   echo [ERROR] Script ID was empty.
   call :LOG "[ERROR] Script ID empty"
+  goto :END_FAIL
+)
+
+if /I not "%SCRIPT_ID%"=="1StDHPG3Yh7RrJ7_QRwdmKL_CVjOqXZePuhYwiQvcP9sAC7hDMmk__GIv" (
+  echo [ERROR] This test-branch helper is restricted to the verified TEST Apps Script project.
+  call :LOG "[ERROR] Refused non-test Script ID"
   goto :END_FAIL
 )
 
