@@ -211,7 +211,7 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
   empName = String(empName || '').trim();
   posterId = String(posterId || '').trim();
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(0)) return { success: false, message: 'System is busy. Please try adding the request again in a moment.' };
   let lockReleased = false;
 
   try {
@@ -313,11 +313,6 @@ function addManualRequest(contact, empName, posterId, customTimestamp, contactTy
 
     sh.appendRow(row);
     updateRequestsDeletionSnapshotRow_(row);
-
-    // Invalidate caches only for employees (contact is email)
-    if (contactTypeUpper === 'EMPLOYEE') {
-      invalidateCachesAfterWrite_({ empEmail: contact });
-    }
 
     // Release the ledger lock before enqueueing background view refreshes.
     lock.releaseLock();

@@ -4,7 +4,10 @@ function handleFormSubmit(e) {
   const startedAt = Date.now();
   const lock = LockService.getScriptLock();
   let refreshTasks = null;
-  lock.waitLock(30000);
+  if (!lock.tryLock(0)) {
+    logError_(new Error('Request processing lock is busy; submission was not processed. Please resubmit.'), 'handleFormSubmit', { lockBusy: true });
+    return;
+  }
 
   try {
     Logger.log(`[handleFormSubmit] TRIGGERED - processing form submission`);
@@ -68,9 +71,6 @@ function handleFormSubmit(e) {
 
     const result = processSubmission_(empEmail, empName, formTs, addLabels, removeLabels, addNotes, requestRows);
     const slotsAfter = countActiveSlotsByEmail_(empEmail, requestRows);
-
-    // Reset caches after write-heavy operations
-    invalidateCachesAfterWrite_({ empEmail });
 
     appendRequestOrderLog_({
       formTs,

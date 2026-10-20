@@ -9,7 +9,7 @@
  * Main backup function - exports configured sheets to Drive
  * Called by nightly trigger or manually from menu
  */
-function performNightlyBackup(isRetry = false) {
+function performNightlyBackup() {
   if (!CONFIG.BACKUP.ENABLED) {
     Logger.log('[BACKUP] Backups are disabled in config');
     getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
@@ -29,7 +29,7 @@ function performNightlyBackup(isRetry = false) {
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(0)) {
-    recordBackupFailure_(backupDay, 'Script lock is busy.', isRetry);
+    recordBackupFailure_(backupDay, 'Script lock is busy.');
     return;
   }
   try {
@@ -45,78 +45,70 @@ function performNightlyBackup(isRetry = false) {
     lock.releaseLock();
   }
 
-  const startTime = new Date().getTime();
-  const timestamp = fmtDate_(now_(), 'yyyy-MM-dd_HHmmss');
-  
-  try {
-    Logger.log('[BACKUP] Starting nightly backup...');
-    
-    // Ensure backup folder exists
-    const folderId = ensureBackupFolder_();
-    
-    // Backup only configured sheets
-    const backupResults = [];
-    const backupErrors = [];
-    
-    CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
-      try {
-        const result = backupSheet_(sheetName, folderId, timestamp);
-        if (result && result.name) {
-          backupResults.push(result.name);
-        } else {
-          Logger.log(`[BACKUP] Warning: backup returned invalid result for ${sheetName}`);
-          backupErrors.push({ sheet: sheetName, error: 'Invalid result structure' });
-        }
-      } catch (sheetErr) {
-        Logger.log(`[BACKUP] Failed to backup ${sheetName}: ${sheetErr.message}`);
-        backupErrors.push({ sheet: sheetName, error: sheetErr.message });
-        // Continue with remaining sheets
-      }
-    });
-    
-    // If all sheets failed, throw error
-    if (backupResults.length === 0 && CONFIG.BACKUP.SHEETS_TO_BACKUP.length > 0) {
-      const errorSummary = backupErrors.map(e => `${e.sheet}: ${e.error}`).join('; ');
-      throw new Error(`All sheet backups failed. Errors: ${errorSummary}`);
-    }
-    
-    // Apply retention policy
-    const deletedCount = applyRetentionPolicy_(folderId);
-    
-    const executionTime = new Date().getTime() - startTime;
-    
-    // Log success to Analytics
-    logBackupEvent_({
-      status: backupErrors.length > 0 ? 'PARTIAL_SUCCESS' : 'SUCCESS',
-      sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
-      files: backupResults,
-      errors: backupErrors,
-      deletedCount: deletedCount,
-      executionTime: executionTime
-    });
-    
-    Logger.log(`[BACKUP] Completed successfully in ${executionTime}ms`);
-    Logger.log(`[BACKUP] Backed up ${backupResults.length} sheets: ${CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ')}`);
-    Logger.log(`[BACKUP] Deleted ${deletedCount} old backups`);
+  const result = runBackupWork_();
+  if (result.success) {
     getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
     getProps_().deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE);
-    
-  } catch (err) {
+  } else {
     const props = getProps_();
     if (props.getProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE) === backupDay) {
       props.deleteProperty(CONFIG.PROPS.LAST_NIGHTLY_BACKUP_DATE);
     }
-    recordBackupFailure_(backupDay, err && err.message ? err.message : err, isRetry);
-    const executionTime = new Date().getTime() - startTime;
-    
-    // Log failure to Analytics
+    recordBackupFailure_(backupDay, result.message);
+  }
+}
+function runBackupWork_() {
+  const startedAt = Date.now();
+  const files = [];
+  const errors = [];
+  let deletedCount = 0;
+  let folderId = '';
+  try {
+    Logger.log('[BACKUP] Starting backup work...');
+    folderId = ensureBackupFolder_();
+    const timestamp = fmtDate_(now_(), 'yyyy-MM-dd_HHmmss');
+    CONFIG.BACKUP.SHEETS_TO_BACKUP.forEach(sheetName => {
+      try {
+        const result = backupSheet_(sheetName, folderId, timestamp);
+        if (result && result.name) files.push(result.name);
+        else errors.push({ sheet: sheetName, error: 'Invalid result structure' });
+      } catch (err) {
+        errors.push({ sheet: sheetName, error: err && err.message ? err.message : String(err) });
+      }
+    });
+
+    if (!files.length && CONFIG.BACKUP.SHEETS_TO_BACKUP.length) {
+      throw new Error(errors.map(item => `${item.sheet}: ${item.error}`).join('; ') || 'No backup files were created.');
+    }
+    deletedCount = applyRetentionPolicy_(folderId);
+    const success = errors.length === 0;
+    const message = success
+      ? `Backup complete: ${files.length} file(s) created; ${deletedCount} old backup(s) removed.`
+      : `Backup partially completed: ${files.length} file(s) created; ${errors.length} sheet(s) failed.`;
+    logBackupEvent_({
+      status: success ? 'SUCCESS' : 'PARTIAL_SUCCESS',
+      sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
+      files,
+      errors,
+      deletedCount,
+      executionTime: Date.now() - startedAt,
+    });
+    Logger.log(`[BACKUP] ${message}`);
+    return { success, files, errors, deletedCount, message, folderId };
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    errors.push({ sheet: '', error: message });
     logBackupEvent_({
       status: 'FAILURE',
-      error: err.message,
-      executionTime: executionTime
+      sheets: CONFIG.BACKUP.SHEETS_TO_BACKUP,
+      files,
+      errors,
+      deletedCount,
+      error: message,
+      executionTime: Date.now() - startedAt,
     });
-    
-    Logger.log(`[BACKUP] Failed: ${err.message}`);
+    Logger.log(`[BACKUP] Failed: ${message}`);
+    return { success: false, files, errors, deletedCount, message: `Backup failed: ${message}`, folderId };
   }
 }
 
@@ -132,7 +124,7 @@ function backupRetryAllowed_(state, day) {
   return !!state && state.day === day && !state.stuck && Number(state.retries || 0) < BACKUP_MAX_RETRIES_PER_DAY;
 }
 
-function backupRetryStateForFailure_(existing, day, isRetry, nowMs, errorMessage) {
+function backupRetryStateForFailure_(existing, day, nowMs, errorMessage) {
   const sameDay = !!(existing && existing.day === day);
   const state = sameDay ? existing : { day, retries: 0 };
   if (!sameDay) {
@@ -158,11 +150,11 @@ function backupRetryStateForFailure_(existing, day, isRetry, nowMs, errorMessage
   };
 }
 
-function recordBackupFailure_(day, errorMessage, isRetry) {
+function recordBackupFailure_(day, errorMessage) {
   if (!isMasterAccount_()) return;
   const props = getProps_();
   const current = readJsonProp_(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, null);
-  const next = backupRetryStateForFailure_(current, day, isRetry, Date.now(), errorMessage);
+  const next = backupRetryStateForFailure_(current, day, Date.now(), errorMessage);
   if (next.stuck) {
     props.deleteProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY);
     props.setProperty(CONFIG.PROPS.NIGHTLY_BACKUP_RETRY_STATE, JSON.stringify(next));
@@ -189,7 +181,7 @@ function processNightlyBackupRetryQueue_() {
     return;
   }
   if (!backupRetryAllowed_(state, day) || Number(state.nextAttemptAt || 0) > Date.now()) return;
-  performNightlyBackup(true);
+  performNightlyBackup();
 }
 
 /**
@@ -368,7 +360,8 @@ function logBackupEvent_(details) {
       details.executionTime || 0,
       0,
       0,
-      notes
+      0,
+      notes,
     ]);
   } catch (err) {
     Logger.log(`[WARN] Failed to log backup event: ${err.message}`);
@@ -381,34 +374,13 @@ function logBackupEvent_(details) {
  */
 function manualBackupTrigger() {
   const ui = SpreadsheetApp.getUi();
-  
-  if (!CONFIG.BACKUP.ENABLED) {
-    ui.alert('⚠️ Backups Disabled', 
-      'Backups are currently disabled in the configuration.', 
-      ui.ButtonSet.OK);
-    return;
-  }
-  
-  try {
-    const sheetList = CONFIG.BACKUP.SHEETS_TO_BACKUP.join(', ');
-    ui.alert('🔄 Starting Backup', 
-      `Creating backups of configured sheets:\n${sheetList}`, 
-      ui.ButtonSet.OK);
-    
-    performNightlyBackup();
-    
-    // Get backup folder for display
-    const folderId = getProps_().getProperty(CONFIG.PROPS.BACKUP_FOLDER_ID);
-    const folder = DriveApp.getFolderById(folderId);
-    const folderUrl = folder.getUrl();
-    
-    ui.alert('✅ Backup Complete', 
-      `Backups created successfully!\n\nSheets backed up: ${sheetList}\n\nView backups in Drive:\n${folderUrl}`, 
-      ui.ButtonSet.OK);
-      
-  } catch (err) {
-    ui.alert('❌ Backup Failed', 
-      `An error occurred during backup:\n\n${err.message}\n\nCheck the Error Log sheet for details.`, 
-      ui.ButtonSet.OK);
-  }
+  const result = agentRunManualBackup();
+  const folderUrl = result.folderId ? DriveApp.getFolderById(result.folderId).getUrl() : '';
+  const fileList = result.files.length ? `\n\nFiles:\n${result.files.join('\n')}` : '';
+  const driveLink = folderUrl ? `\n\nView backups in Drive:\n${folderUrl}` : '';
+  ui.alert(result.success ? 'Backup Result' : 'Backup Not Completed',
+    `${result.message}${fileList}${driveLink}`, ui.ButtonSet.OK);
 }
+
+// End of BackupManager.js.
+

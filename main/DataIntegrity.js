@@ -21,141 +21,80 @@ function ensureDataIntegritySheet_() {
   ];
   return ensureSheetWithHeaders_(ss, CONFIG.SHEETS.DATA_INTEGRITY, headers);
 }
-
-/**
- * Run all data integrity checks
- * @returns {object} Summary of checks performed
- */
 function runFullIntegrityCheck_() {
+  const checks = [
+    checkForOrphanedRequests_(),
+    checkInvalidActiveRequests_(),
+    checkForOverCapacity_(),
+    checkForDuplicates_(),
+    checkRequestIds_(),
+    checkMissingPosterIds_(),
+  ];
   const results = {
     timestamp: now_(),
-    checksPerformed: [],
-    totalIssuesFound: 0,
-    autoRepaired: 0,
-    requiresAdminAction: 0
+    checksPerformed: checks,
+    totalIssuesFound: checks.reduce((sum, check) => sum + check.issuesFound, 0),
+    autoRepaired: checks.reduce((sum, check) => sum + check.autoRepaired, 0),
+    requiresAdminAction: checks.filter(check => check.status === 'REQUIRES_ACTION')
+      .reduce((sum, check) => sum + check.issuesFound, 0),
   };
-
-  try {
-    Logger.log('[INTEGRITY] Starting full data integrity check...');
-
-    // Check 1: Orphaned requests
-    const orphanedCheck = checkForOrphanedRequests_();
-    results.checksPerformed.push(orphanedCheck);
-    results.totalIssuesFound += orphanedCheck.issuesFound;
-    results.autoRepaired += orphanedCheck.autoRepaired;
-
-    // Check 2: Required fields on active ledger rows
-    const invalidActiveCheck = checkInvalidActiveRequests_();
-    results.checksPerformed.push(invalidActiveCheck);
-    results.totalIssuesFound += invalidActiveCheck.issuesFound;
-    results.requiresAdminAction += invalidActiveCheck.issuesFound;
-
-    // Check 3: Over-capacity assignments
-    const overCapCheck = checkForOverCapacity_();
-    results.checksPerformed.push(overCapCheck);
-    results.totalIssuesFound += overCapCheck.issuesFound;
-    results.autoRepaired += overCapCheck.autoRepaired;
-
-    // Check 4: Duplicate active requests
-    const duplicateCheck = checkForDuplicates_();
-    results.checksPerformed.push(duplicateCheck);
-    results.totalIssuesFound += duplicateCheck.issuesFound;
-    results.autoRepaired += duplicateCheck.autoRepaired;
-
-    // Check 5: Inconsistent state
-    const stateCheck = checkInconsistentState_();
-    results.checksPerformed.push(stateCheck);
-    results.totalIssuesFound += stateCheck.issuesFound;
-    results.autoRepaired += stateCheck.autoRepaired;
-
-    // Check 6: Missing poster IDs
-    const idCheck = checkMissingPosterIds_();
-    results.checksPerformed.push(idCheck);
-    results.totalIssuesFound += idCheck.issuesFound;
-    results.autoRepaired += idCheck.autoRepaired;
-
-    Logger.log(`[INTEGRITY] Check complete. Issues found: ${results.totalIssuesFound}, Auto-repaired: ${results.autoRepaired}`);
-
-    return results;
-
-  } catch (err) {
-    Logger.log(`[ERROR] Full integrity check failed: ${err.message}`);
-    results.checksPerformed.push({
-      checkType: 'FATAL_ERROR',
-      status: 'FAILED',
-      error: err.message
-    });
-    return results;
-  }
+  Logger.log(`[INTEGRITY] Report-only check complete. Issues: ${results.totalIssuesFound}; generated inventory IDs: ${results.autoRepaired}.`);
+  return results;
 }
 
-/**
- * Find orphaned ACTIVE requests and close them without deleting audit rows.
- * @returns {object} Check results
- */
-function checkForOrphanedRequests_() {
-  const result = {
-    checkType: 'ORPHANED_REQUESTS',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
+function runDataIntegrityCheckMenu() {
+  const result = runFullIntegrityCheck_();
+  const summary = result.checksPerformed.map(check =>
+    `${check.checkType}: ${check.issuesFound} finding(s)${check.details.length ? ` — ${check.details.join('; ')}` : ''}`
+  ).join('\n');
+  SpreadsheetApp.getUi().alert(
+    'Data Integrity Check',
+    `Report-only check complete. Findings: ${result.totalIssuesFound}. Generated Inventory IDs: ${result.autoRepaired}.\n\n${summary}`,
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+  return result;
+}
 
-  try {
-    const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
-    const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
-    const lastRequestRow = requestsSheet.getLastRow();
-    const requestData = lastRequestRow < 2
-      ? []
-      : requestsSheet.getRange(2, 1, lastRequestRow - 1, Math.max(requestsSheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
-    const posterData = getNonEmptyData_(inventorySheet, COLS.INVENTORY.POSTER_ID, 3);
-    const validPosterIds = new Set(posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim()).filter(Boolean));
-    const orphanedRows = [];
+function readRequestsForIntegrity_() {
+  const sheet = getRequestsSheet_();
+  const lastRow = sheet.getLastRow();
+  const width = Math.max(sheet.getLastColumn(), COLS.REQUESTS.REQUEST_ID);
+  return lastRow < 2 ? [] : sheet.getRange(2, 1, lastRow - 1, width).getValues()
+    .map((row, index) => ({ row, rowNumber: index + 2 }));
+}
 
-    requestData.forEach((row, idx) => {
-      const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
-      const status = String(row[COLS.REQUESTS.STATUS - 1] || '').trim();
-      if (status === STATUS.ACTIVE && posterId && !validPosterIds.has(posterId)) {
-        orphanedRows.push(idx + 2);
-        result.issuesFound++;
-      }
-    });
+function integrityResult_(checkType) {
+  return { checkType, issuesFound: 0, autoRepaired: 0, details: [], status: 'PASS' };
+}
 
-    if (orphanedRows.length) {
-      result.status = 'REPAIRED';
-      result.autoRepaired = orphanedRows.length;
-      result.details.push(`Marked ${orphanedRows.length} orphaned request(s) removed; ledger rows preserved.`);
-      orphanedRows.forEach(rowNum => {
-        requestsSheet.getRange(rowNum, COLS.REQUESTS.STATUS, 1, 2)
-          .setValues([['REMOVED_ORPHANED', now_()]]);
-      });
-    }
-  } catch (err) {
-    result.status = 'ERROR';
-    result.details.push(`Error: ${err.message}`);
-  }
-
+function finishIntegrityCheck_(result) {
+  if (result.issuesFound && result.status === 'PASS') result.status = 'REQUIRES_ACTION';
   logIntegrityCheck_(result);
   return result;
 }
 
-function checkInvalidActiveRequests_() {
-  const result = {
-    checkType: 'INVALID_ACTIVE_REQUESTS',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS',
-  };
-
+function checkForOrphanedRequests_() {
+  const result = integrityResult_('ORPHANED_REQUESTS');
   try {
-    const requestsSheet = getRequestsSheet_();
-    const lastRow = requestsSheet.getLastRow();
-    const rows = lastRow < 2
-      ? []
-      : requestsSheet.getRange(2, 1, lastRow - 1, Math.max(requestsSheet.getLastColumn(), COLS.REQUESTS.NOTES)).getValues();
-    rows.forEach((row, index) => {
+    const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
+    const posterData = getNonEmptyData_(inventorySheet, COLS.INVENTORY.POSTER_ID, 3);
+    const validPosterIds = new Set(posterData.map(row => String(row[COLS.INVENTORY.POSTER_ID - 1] || '').trim()).filter(Boolean));
+    readRequestsForIntegrity_().forEach(({ row, rowNumber }) => {
+      const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+      const status = String(row[COLS.REQUESTS.STATUS - 1] || '').trim();
+      if (status === STATUS.ACTIVE && posterId && !validPosterIds.has(posterId)) {
+        result.issuesFound++;
+        result.details.push(`Requests row ${rowNumber} is ACTIVE but its poster ID is missing from Inventory.`);
+      }
+    });
+  } catch (err) { result.status = 'ERROR'; result.details.push(`Error: ${err.message}`); }
+  return finishIntegrityCheck_(result);
+}
+
+function checkInvalidActiveRequests_() {
+  const result = integrityResult_('INVALID_ACTIVE_REQUESTS');
+  try {
+    readRequestsForIntegrity_().forEach(({ row, rowNumber }) => {
       if (String(row[COLS.REQUESTS.STATUS - 1] || '').trim() !== STATUS.ACTIVE) return;
       const email = String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim();
       const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
@@ -163,187 +102,89 @@ function checkInvalidActiveRequests_() {
 
       result.issuesFound++;
       const missing = [!email && 'email/contact', !posterId && 'poster ID'].filter(Boolean).join(' and ');
-      result.details.push(`Requests row ${index + 2} is ACTIVE with no ${missing}.`);
+      result.details.push(`Requests row ${rowNumber} is ACTIVE with no ${missing}.`);
     });
-    if (result.issuesFound) result.status = 'REQUIRES_ACTION';
   } catch (err) {
     result.status = 'ERROR';
     result.details.push(`Error: ${err.message}`);
   }
-
-  logIntegrityCheck_(result);
-  return result;
+  return finishIntegrityCheck_(result);
 }
 
-/**
- * Check for over-capacity assignments (more than CONFIG.MAX_ACTIVE per employee)
- * @returns {object} Check results
- */
 function checkForOverCapacity_() {
-  const result = {
-    checkType: 'OVER_CAPACITY',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
-
+  const result = integrityResult_('OVER_CAPACITY');
   try {
-    const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
-    const data = getNonEmptyData_(requestsSheet, 9);
-
-    const employeeSlots = {};
-    const overCapRows = {};
-
-    data.forEach((row, idx) => {
-      const email = String(row[CONFIG.COLS.REQUESTS.EMP_EMAIL - 1] || '').toLowerCase();
-      const status = String(row[CONFIG.COLS.REQUESTS.STATUS - 1] || '').trim();
-
-      if (status === 'ACTIVE' && email) {
-        if (!employeeSlots[email]) employeeSlots[email] = [];
-        employeeSlots[email].push(idx + 2);
-      }
+    const employeeSlots = new Map();
+    readRequestsForIntegrity_().forEach(({ row, rowNumber }) => {
+      const contact = String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim().toLowerCase();
+      const contactType = String(row[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').trim().toUpperCase();
+      if (contactType === 'CUSTOMER' || String(row[COLS.REQUESTS.STATUS - 1] || '').trim() !== STATUS.ACTIVE || !contact) return;
+      const key = `${contactType}:${contact}`;
+      if (!employeeSlots.has(key)) employeeSlots.set(key, []);
+      employeeSlots.get(key).push(rowNumber);
     });
-
-    // Check for over-capacity
-    Object.entries(employeeSlots).forEach(([email, rows]) => {
+    employeeSlots.forEach((rows, contact) => {
       if (rows.length > CONFIG.MAX_ACTIVE) {
-        result.issuesFound += rows.length - CONFIG.MAX_ACTIVE;
-        overCapRows[email] = rows.slice(CONFIG.MAX_ACTIVE); // Keep oldest, mark newest as removed
-
-        // Auto-repair: Keep oldest slots, mark newest as removed
-        const rowsToRemove = rows.slice(CONFIG.MAX_ACTIVE);
-        rowsToRemove.forEach(rowNum => {
-          requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS).setValue('REMOVED_OVER_CAPACITY');
-          requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS_TS).setValue(fmtDate_(now_(), CONFIG.DATE_FORMAT));
-          result.autoRepaired++;
-        });
-
-        result.details.push(`${email}: Removed ${rowsToRemove.length} excess requests (kept oldest ${CONFIG.MAX_ACTIVE})`);
-        result.status = 'REPAIRED';
+        const excessRows = rows.slice(CONFIG.MAX_ACTIVE);
+        result.issuesFound += excessRows.length;
+        result.details.push(`${contact}: active requests exceed ${CONFIG.MAX_ACTIVE}; excess Requests rows: ${excessRows.join(', ')}.`);
       }
     });
-
   } catch (err) {
     result.status = 'ERROR';
     result.details.push(`Error: ${err.message}`);
   }
-
-  logIntegrityCheck_(result);
-  return result;
+  return finishIntegrityCheck_(result);
 }
 
-/**
- * Check for duplicate active requests per employee/poster
- * @returns {object} Check results
- */
 function checkForDuplicates_() {
-  const result = {
-    checkType: 'DUPLICATE_REQUESTS',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
-
+  const result = integrityResult_('DUPLICATE_REQUESTS');
   try {
-    const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
-    const data = getNonEmptyData_(requestsSheet, 9);
-
-    const seen = {};
-    const duplicateRows = [];
-
-    data.forEach((row, idx) => {
-      const email = String(row[CONFIG.COLS.REQUESTS.EMP_EMAIL - 1] || '').toLowerCase();
-      const posterId = String(row[CONFIG.COLS.REQUESTS.POSTER_ID - 1] || '').trim();
-      const status = String(row[CONFIG.COLS.REQUESTS.STATUS - 1] || '').trim();
-
-      const key = `${email}:${posterId}`;
-
-      if (status === 'ACTIVE') {
-        if (seen[key]) {
-          duplicateRows.push(idx + 2); // Mark for removal
-          result.issuesFound++;
-        } else {
-          seen[key] = true;
-        }
-      }
+    const seen = new Map();
+    readRequestsForIntegrity_().forEach(({ row, rowNumber }) => {
+      const contact = String(row[COLS.REQUESTS.EMP_EMAIL - 1] || '').trim().toLowerCase();
+      const contactType = String(row[COLS.REQUESTS.CONTACT_TYPE - 1] || 'EMPLOYEE').trim().toUpperCase();
+      const posterId = String(row[COLS.REQUESTS.POSTER_ID - 1] || '').trim();
+      if (contactType === 'CUSTOMER' || String(row[COLS.REQUESTS.STATUS - 1] || '').trim() !== STATUS.ACTIVE || !contact || !posterId) return;
+      const key = `${contactType}:${contact}:${posterId}`;
+      if (seen.has(key)) {
+        result.issuesFound++;
+        result.details.push(`Duplicate ACTIVE request at Requests row ${rowNumber}; earlier matching row ${seen.get(key)}.`);
+      } else seen.set(key, rowNumber);
     });
-
-    if (duplicateRows.length > 0) {
-      result.status = 'REPAIRED';
-      result.autoRepaired = duplicateRows.length;
-
-      // Auto-repair: Mark duplicates as removed
-      duplicateRows.forEach(rowNum => {
-        requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS).setValue('REMOVED_DUPLICATE');
-        requestsSheet.getRange(rowNum, CONFIG.COLS.REQUESTS.STATUS_TS).setValue(fmtDate_(now_(), CONFIG.DATE_FORMAT));
-      });
-
-      result.details.push(`Removed ${duplicateRows.length} duplicate requests`);
-    }
-
   } catch (err) {
     result.status = 'ERROR';
     result.details.push(`Error: ${err.message}`);
   }
-
-  logIntegrityCheck_(result);
-  return result;
+  return finishIntegrityCheck_(result);
 }
 
-/**
- * Check for inconsistent state between sheets
- * @returns {object} Check results
- */
-function checkInconsistentState_() {
-  const result = {
-    checkType: 'INCONSISTENT_STATE',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
-
+function checkRequestIds_() {
+  const result = integrityResult_('REQUEST_IDS');
   try {
-    const requestsSheet = getSheet_(CONFIG.SHEETS.REQUESTS);
-    const mainSheet = getSheet_(CONFIG.SHEETS.MAIN);
-    const employeesSheet = getSheet_(CONFIG.SHEETS.EMPLOYEES);
-
-    const requestData = getNonEmptyData_(requestsSheet, 9);
-    const activeCount = requestData.filter(r => String(r[CONFIG.COLS.REQUESTS.STATUS - 1]).trim() === 'ACTIVE').length;
-
-    // Simple check: make sure active count seems reasonable
-    if (activeCount < 0) {
-      result.status = 'FAILED';
-      result.issuesFound++;
-      result.details.push('Invalid active request count detected');
-    } else {
-      result.details.push(`Validated ${activeCount} active requests`);
-    }
-
+    const idsToRows = new Map();
+    readRequestsForIntegrity_().forEach(({ row, rowNumber }) => {
+      if (!row.some(value => value !== null && String(value).trim() !== '')) return;
+      const requestId = String(row[COLS.REQUESTS.REQUEST_ID - 1] || '').trim();
+      if (!requestId) {
+        result.issuesFound++;
+        result.details.push(`Requests row ${rowNumber} has no Request ID.`);
+        return;
+      }
+      if (idsToRows.has(requestId)) {
+        result.issuesFound++;
+        result.details.push(`Request ID ${requestId} is duplicated at Requests rows ${idsToRows.get(requestId)} and ${rowNumber}.`);
+      } else idsToRows.set(requestId, rowNumber);
+    });
   } catch (err) {
     result.status = 'ERROR';
     result.details.push(`Error: ${err.message}`);
   }
-
-  logIntegrityCheck_(result);
-  return result;
+  return finishIntegrityCheck_(result);
 }
 
-/**
- * Check for missing or invalid poster IDs
- * @returns {object} Check results
- */
 function checkMissingPosterIds_() {
-  const result = {
-    checkType: 'MISSING_POSTER_IDS',
-    issuesFound: 0,
-    autoRepaired: 0,
-    details: [],
-    status: 'PASS'
-  };
-
+  const result = integrityResult_('MISSING_POSTER_IDS');
   try {
     const inventorySheet = getSheet_(CONFIG.SHEETS.INVENTORY);
     const lastRow = inventorySheet.getLastRow();
@@ -372,7 +213,7 @@ function checkMissingPosterIds_() {
         inventorySheet.getRange(rowNum, COLS.INVENTORY.POSTER_ID).setValue(newId);
       });
 
-      result.details.push(`Generated ${missingRows.length} missing poster IDs`);
+      result.details.push(`Generated missing Inventory poster IDs in rows ${missingRows.join(', ')}.`);
     }
 
   } catch (err) {
@@ -380,8 +221,7 @@ function checkMissingPosterIds_() {
     result.details.push(`Error: ${err.message}`);
   }
 
-  logIntegrityCheck_(result);
-  return result;
+  return finishIntegrityCheck_(result);
 }
 
 /**
@@ -406,52 +246,5 @@ function logIntegrityCheck_(result) {
   }
 }
 
-/**
- * Validate email format
- * @param {string} email
- * @returns {boolean}
- */
-function isValidEmail_(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(String(email).trim().toLowerCase());
-}
+// End of DataIntegrity.js.
 
-/**
- * Generate data integrity report
- * @returns {string} Formatted report
- */
-function generateDataIntegrityReport_() {
-  try {
-    const integritySheet = getSheet_(CONFIG.SHEETS.DATA_INTEGRITY);
-    const data = getNonEmptyData_(integritySheet, 7);
-
-    const passCount = data.filter(r => r[2] === 'PASS').length;
-    const failCount = data.filter(r => r[2] === 'FAILED').length;
-    const repairCount = data.filter(r => r[2] === 'REPAIRED').length;
-    const totalIssuesFound = data.reduce((sum, r) => sum + (Number(r[3]) || 0), 0);
-    const totalRepaired = data.reduce((sum, r) => sum + (Number(r[5]) || 0), 0);
-
-    return `
-DATA INTEGRITY REPORT
-Generated: ${new Date()}
-======================================
-
-SUMMARY:
-- Checks Passed: ${passCount}
-- Checks Failed: ${failCount}
-- Checks Repaired: ${repairCount}
-
-ISSUES:
-- Total Issues Found: ${totalIssuesFound}
-- Auto-Repaired: ${totalRepaired}
-- Requires Admin Action: ${data.filter(r => r[6] === 'YES').length}
-
-LAST 5 CHECKS:
-${data.slice(-5).reverse().map((r, i) => `  ${i+1}. ${r[1]} - ${r[2]} (${r[3]} issues)`).join('\n')}
-
-See Data Integrity sheet for full details.
-    `.trim();
-  } catch (err) {
-    return `ERROR: Failed to generate report: ${err.message}`;
-  }
-}

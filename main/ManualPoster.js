@@ -119,7 +119,7 @@ function showManualPosterDialog() {
 function addManualPoster(active, releaseDate, title, company, posters, bus, mini, standee, teaser, notes) {
   const startedAt = Date.now();
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(0)) return { success: false, message: 'System is busy. Please try adding the poster again in a moment.' };
   let lockReleased = false;
   
   try {
@@ -374,7 +374,10 @@ function processManualPosterRefresh_() {
       break;
     }
     const entry = queueEntries.find(candidate => manualPosterRefreshEntryTask_(candidate) === task);
-    if (!entry || refreshEntryIsStuck_(entry) || refreshEntryIsNotDue_(entry, Date.now())) continue;
+    if (!entry) continue;
+    let stuck = false;
+    try { stuck = JSON.parse(entry.value).stuck === true; } catch (err) {}
+    if (stuck || refreshEntryIsNotDue_(entry, Date.now())) continue;
     if ((task === 'form' || task === 'employeeView') && !isMasterAccount_()) {
       Logger.log(`[processManualPosterRefresh_] Deferring ${name} refresh to the owner account.`);
       continue;
@@ -407,6 +410,14 @@ function processManualPosterRefresh_() {
 const REFRESH_WORKER_TIME_BUDGET_MS = 270000;
 const REFRESH_TASK_BACKOFF_MINUTES = [1, 5, 15, 60];
 const REFRESH_TASK_MAX_ATTEMPTS = 5;
+const MANUAL_POSTER_REFRESH_TASK_NAMES = [
+  'inventoryCleanup', 'requestsCleanup', 'boards', 'employeeView',
+  'printOut', 'posterOutside', 'posterInside', 'form',
+];
+
+function isKnownManualPosterRefreshTask_(task) {
+  return MANUAL_POSTER_REFRESH_TASK_NAMES.includes(String(task || '').trim());
+}
 
 function shouldStopRefreshWorker_(startedAt, nowMs) {
   return Number(nowMs) - Number(startedAt) >= REFRESH_WORKER_TIME_BUDGET_MS;
@@ -448,10 +459,6 @@ function refreshEntryIsNotDue_(entry, nowMs) {
   } catch (err) {
     return false;
   }
-}
-
-function refreshEntryIsStuck_(entry) {
-  try { return JSON.parse(entry.value).stuck === true; } catch (err) { return false; }
 }
 
 function refreshResultError_(task, result) {
@@ -584,6 +591,7 @@ function readPendingManualPosterRefreshEntries_() {
   all = props.getProperties();
   const legacyKey = 'MANUAL_POSTER_REFRESH_QUEUED';
   if (all[legacyKey]) {
+    // TODO(remove after production migration)
     const legacyTasks = { boards: true, form: true, printOut: true, posterOutside: true, posterInside: true, employeeView: true };
     Object.keys(legacyTasks).forEach(task => {
       const key = `${prefix}${task}`;
@@ -592,39 +600,24 @@ function readPendingManualPosterRefreshEntries_() {
     props.deleteProperty(legacyKey);
     all = props.getProperties();
   }
-  return Object.keys(all)
-    .filter(key => key.startsWith(prefix))
-    .map(key => ({ key, value: all[key] }));
-}
-
-function deleteManualPosterRefreshEntries_(entries, completedTasks) {
-  const props = getProps_();
-  (entries || []).forEach(entry => {
+  Object.keys(all).filter(key => key.startsWith(prefix) && !key.startsWith(stagingPrefix)).forEach(key => {
+    const value = all[key];
     let task = '';
     try {
-      const parsed = JSON.parse(entry.value);
-      task = String(parsed.task || '').trim();
+      task = String(JSON.parse(value).task || '').trim();
     } catch (err) {
-      if (props.getProperty(entry.key) === entry.value) props.deleteProperty(entry.key);
-      return;
+      Logger.log(`[processManualPosterRefresh_] Deleting malformed refresh queue entry ${key}.`);
     }
-    if (shouldAcknowledgeManualPosterRefreshEntry_(entry, completedTasks, props.getProperty(entry.key))) {
-      props.deleteProperty(entry.key);
+    if (task && !isKnownManualPosterRefreshTask_(task)) {
+      Logger.log(`[processManualPosterRefresh_] Deleting refresh queue entry ${key} for unknown task "${task}".`);
+      task = '';
     }
+    if (!task && props.getProperty(key) === value) props.deleteProperty(key);
   });
-}
-
-function shouldAcknowledgeManualPosterRefreshEntry_(entry, completedTasks, currentValue) {
-  if (!entry || !completedTasks) return false;
-  let task = String(entry.task || '').trim();
-  if (!task) {
-    try {
-      task = String(JSON.parse(entry.value).task || '').trim();
-    } catch (err) {
-      return false;
-    }
-  }
-  return !!completedTasks[task] && currentValue === entry.value;
+  all = props.getProperties();
+  return Object.keys(all)
+    .filter(key => key.startsWith(prefix) && !key.startsWith(stagingPrefix))
+    .map(key => ({ key, value: all[key] }));
 }
 
 function hasPendingManualPosterRefreshTasks_() {
