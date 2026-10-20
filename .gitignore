@@ -1,0 +1,13 @@
+# clasp: local project link and login tokens (never commit)
+main/.clasp.json
+.clasp.json
+.clasprc.json
+
+# Google OAuth client secrets
+*client_secret*.json
+
+# Log written by quickstart_clasp.bat
+setup_clasp_log.txt
+
+# Node
+node_modules/
