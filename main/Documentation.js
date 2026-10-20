@@ -71,36 +71,6 @@ function writeDocSection_(sh, r, title, bullets) {
 }
 
 /**
- * Generate dedup summary text based on CONFIG settings
- */
-function getDedupSummary_() {
-  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
-    return 'Dedupe is permanent: an employee can request the same poster only once ever.';
-  }
-  
-  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
-    return `Re-requests allowed after removal with ${CONFIG.REREQUEST_COOLDOWN_DAYS}-day cooldown period.`;
-  }
-  
-  return 'You can request the same poster again after removing it, with no waiting period.';
-}
-
-/**
- * Generate dedup rule description based on CONFIG settings
- */
-function getDedupRuleDescription_() {
-  if (!CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL) {
-    return '3. Deduplication: An employee can request each poster ONE TIME EVER. Historical requests block future requests.';
-  }
-  
-  if (CONFIG.REREQUEST_COOLDOWN_DAYS > 0) {
-    return `3. Deduplication: Employees can re-request posters after removal. Cooldown period: ${CONFIG.REREQUEST_COOLDOWN_DAYS} day${CONFIG.REREQUEST_COOLDOWN_DAYS === 1 ? '' : 's'} after removal.`;
-  }
-  
-  return '3. Deduplication: You can request the same poster again immediately after removing it. No waiting period.';
-}
-
-/**
  * Write form edit link section
  */
 function writeDocFormLink_(sh, r) {

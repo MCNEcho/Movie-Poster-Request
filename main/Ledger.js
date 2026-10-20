@@ -46,16 +46,6 @@ function requestSnapshotValues_(row) {
   ];
 }
 
-function ensureRequestIds_() {
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(0)) throw new Error('Cannot migrate Request IDs while another ledger write is running.');
-  try {
-    ensureRequestIdsLocked_();
-  } finally {
-    lock.releaseLock();
-  }
-}
-
 function ensureRequestIdsLocked_() {
   const sheet = getRequestsSheet_();
   const lastRow = sheet.getLastRow();

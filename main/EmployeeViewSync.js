@@ -136,11 +136,6 @@ function setupEmployeeViewSpreadsheet() {
   );
 }
 
-function openEmployeeViewSpreadsheet() {
-  const empSS = getEmployeeViewSpreadsheet_();
-  SpreadsheetApp.getUi().alert('Employee View URL:\n' + empSS.getUrl());
-}
-
 /**
  * Shows consolidated Employee View Manager dialog with all employee view operations
  */
@@ -346,15 +341,6 @@ function getEmployeeViewUrl() {
 function syncEmployeeView() {
   queueManualPosterRefresh_({ employeeView: true });
   return { success: true, queued: true, message: 'Employee View refresh queued.' };
-}
-
-// Keep private versions for backward compatibility
-function setupEmployeeViewWithReturn_() {
-  return setupEmployeeViewWithReturn();
-}
-
-function getEmployeeViewUrl_() {
-  return getEmployeeViewUrl();
 }
 
 /** Employees tab URL in employee-view spreadsheet (for QR/Print Out) */

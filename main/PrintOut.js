@@ -52,9 +52,9 @@ function buildPrintOutLayout_(skipQr) {
   }
 
   sh.getRange('A1').setValue('Form URL').setFontWeight('bold');
-  sh.getRange('B1').setValue(formUrl);
+  sh.getRange(CONFIG.PRINT.FORM_URL_CELL).setValue(formUrl);
   sh.getRange('A2').setValue('Employees View URL').setFontWeight('bold');
-  sh.getRange('B2').setValue(empUrl || '(Not set up - run Setup Employee View Spreadsheet)');
+  sh.getRange(CONFIG.PRINT.EMP_VIEW_URL_CELL).setValue(empUrl || '(Not set up - run Setup Employee View Spreadsheet)');
 
   // --- Row 4: Last Updated header ---
   sh.getRange('A4:B4').merge();
@@ -92,7 +92,7 @@ function buildPrintOutLayout_(skipQr) {
     .sort((a, b) => new Date(a.release) - new Date(b.release));
 
   // --- Insert poster rows starting at row 6 ---
-  const startRow = 6;
+  const startRow = CONFIG.PRINT.LIST_START_ROW;
   let lastPopulatedRow = startRow;
   if (activePosters.length > 0) {
     const rows = activePosters.map(p => [p.release, p.title]);

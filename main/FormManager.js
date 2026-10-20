@@ -86,39 +86,6 @@ function initializeFormUrlCache_() {
   }
 }
 
-function setCheckboxChoicesByTitle_(form, itemTitle, choices, required) {
-  const target = String(itemTitle || '').trim();
-  if (!target) throw new Error('Missing checkbox item title');
-
-  const items = form.getItems(FormApp.ItemType.CHECKBOX);
-  let item = items.find(it => String(it.getTitle() || '').trim() === target);
-  if (!item) item = form.addCheckboxItem().setTitle(target);
-
-  const cb = (typeof item.asCheckboxItem === 'function') ? item.asCheckboxItem() : item;
-
-  if (!choices || choices.length === 0) {
-    cb.setChoices([cb.createChoice('— None available —')]);
-    cb.setRequired(false);
-    return;
-  }
-
-  cb.setChoices(choices.map(c => cb.createChoice(c)));
-  cb.setRequired(!!required);
-}
-
-/**
- * Set or update a dropdown list item by title
- */
-function setDropdownChoicesByTitle_(form, itemTitle, choices, required = false) {
-  const target = String(itemTitle || '').trim();
-  if (!target) throw new Error('Missing dropdown item title');
-
-  const items = form.getItems(FormApp.ItemType.LIST);
-  let item = items.find(it => String(it.getTitle() || '').trim() === target);
-  if (!item) item = createListItem_(form, target);
-  return setListItemChoices_(item, choices, required);
-}
-
 function createListItem_(form, title) {
   const item = form.addListItem().setTitle(title);
   item.setChoiceValues(['— None available —']);
@@ -175,29 +142,6 @@ function normalizeFormChoices_(choices) {
 /**
  * Ensure or update a short answer text item by title
  */
-function setShortAnswerByTitle_(form, itemTitle, required = false) {
-  const target = String(itemTitle || '').trim();
-  if (!target) throw new Error('Missing short answer item title');
-
-  const items = form.getItems(FormApp.ItemType.TEXT);
-  let item = items.find(it => String(it.getTitle() || '').trim() === target);
-  if (!item) item = form.addTextItem().setTitle(target);
-
-  const textItem = (typeof item.asTextItem === 'function') ? item.asTextItem() : item;
-  textItem.setRequired(!!required);
-  return textItem;
-}
-
-function requiredFormItemTitles_() {
-  const titles = [CONFIG.FORM.Q_EMPLOYEE_NAME];
-  for (let slot = 1; slot <= CONFIG.FORM_SLOTS; slot++) {
-    titles.push(`Request Poster (Add) ${slot}`);
-    titles.push(`Request Poster Note ${slot}`);
-    titles.push(`Remove Poster ${slot}`);
-  }
-  return titles;
-}
-
 function areRequiredFormItemsMissing_(items) {
   const has = (title, type) => (items || []).some(item =>
     item.getType() === type && String(item.getTitle() || '').trim() === title
