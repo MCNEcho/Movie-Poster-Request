@@ -2,7 +2,7 @@
 
 Current project version is tracked in [VERSION.md](VERSION.md).
 
-A Google Apps Script system for employee poster requests with strict per-employee slot limits, duplicate prevention, request ledger auditability, queued view refreshes, nightly backups, and TTL-based caching for quota optimization.
+A Google Apps Script system for employee poster requests with per-employee slot limits, duplicate prevention, request-ledger auditability, queued view refreshes, and nightly backups.
 
 **Key Features:**
 - 10-slot per-employee limit with a matching configurable Form slot count
@@ -11,7 +11,6 @@ A Google Apps Script system for employee poster requests with strict per-employe
 - Theater display management ("Poster Outside" and "Poster Inside" tabs)
 - Ledger-based audit trail: all requests tracked, never deleted
 - Nightly backups to Google Drive with retention policies
-- Cache layer for read optimization
 - Comprehensive admin panel with one-click repair
 - Employee view sync to separate spreadsheet
 
@@ -19,7 +18,7 @@ A Google Apps Script system for employee poster requests with strict per-employe
 
 ### Prerequisites
 - Node.js (LTS) and npm installed
-- Google account with access to Google Apps Script, Sheets, Forms, Drive, and Gmail (for critical admin error alerts)
+- Google account with access to Google Apps Script, Sheets, Forms, and Drive
 - `clasp` installed globally:
 
 ```bash
@@ -31,13 +30,15 @@ Use the helper script to set up or link your Apps Script project.
 
 ```powershell
 # From repo root
-./scripts/quickstart_clasp.bat
+./quickstart_clasp.bat
 ```
 
 The script will guide you through:
 - Logging into Google (`clasp login`)
-- Creating or linking an Apps Script project
+- Linking an Apps Script project by Script ID
 - Pushing code to Apps Script
+
+The repository includes [main/.clasp.json.example](main/.clasp.json.example). The helper copies it to the ignored local `main/.clasp.json` when needed, then asks for a Script ID. Use the **test** project ID only; never commit the generated local file.
 
 ### Configure
 1. Open `main/Config.js` and set your environment:
@@ -47,17 +48,23 @@ The script will guide you through:
    - `CONFIG.ALLOW_REREQUEST_AFTER_REMOVAL` (allow re-requesting same poster after removal)
    - `CONFIG.REREQUEST_COOLDOWN_DAYS` (cooldown period if re-requests are allowed)
   - ScriptProperties keys for poster labels/IDs and queued refresh state
-  - Backup retention and cache TTL settings
+  - Backup retention settings
 2. Push code to your Apps Script project:
 
 ```bash
 clasp push
 ```
 
-3. In the Google Sheet, use the Admin Menu:
+3. Run the read-only regression helper against the test project:
+
+```bash
+clasp run --user test runRegressionTests
+```
+
+4. In the Google Sheet, use the Admin Menu:
    - Click **Poster Request System** → **Run Setup / Repair**
    - This creates all sheets, menus, triggers, and form
-4. First-time sync:
+5. First-time sync:
    - The form will be auto-created with options from the Inventory sheet
    - All boards and dashboards will be generated
 
@@ -73,7 +80,6 @@ clasp push
 - **Form sync:** A stable hash skips Form writes when choices and slot count are unchanged. Changed syncs read questions once and update only dropdowns whose choices differ; existing choices are never reset to placeholders.
 - **Employee privacy:** The shared Employees board and Employee View show names and request counts, but never display employee email addresses or customer phone numbers. Contact details remain in the restricted Requests ledger for system processing.
 - **Backup retries:** The shared poller retries nightly backups at most three times per day with 5/15/60-minute backoff; retry state resets on the next date.
-- **Caching:** Expensive queries use a TTL cache. Caches are invalidated on related writes to avoid stale views.
 
 ### Request Flow
 1. **Google Form Submission** → handled by `FormSubmit.js`
@@ -87,7 +93,6 @@ clasp push
 7. Rebuild Main and Employees boards from ledger data
 8. Update form options from Inventory sheet
 9. Queue dependent view refreshes so request processing does not wait on sheet/form refreshes
-10. Invalidate caches to ensure fresh data
 
 ### Operational Automations
 - **Backups** (`BackupManager.js`)
@@ -100,15 +105,13 @@ clasp push
 - `Config.js` – Central configuration, column mappings, sheet references, property keys
 - `Setup.js` – Initialization, Admin Menu building, trigger setup, repair routine
 - `Utils.js` – Common sheet operations, poster fetching, name validation
-- `CacheManager.js` – TTL cache with invalidation helpers
-- `ErrorHandler.js` – Centralized error logging and admin notifications
+- `ErrorHandler.js` – Centralized Error Log writing
 - `FormManager.js` – Google Form creation, field setup, email collection
 - `FormSync.js` – Dynamic form option updates from Inventory sheet
 - `FormSubmit.js` – Form submission processing, additions/removals, validation
 - `Ledger.js` – Request ledger queries, deduplication checks, slot counting
-- `Analytics.js` – Event logging and performance metrics
+- `Analytics.js` – Form submission audit logging
 - `BackupManager.js` – Nightly backups to Drive, retention policies
-- `BackupTest.js` – Backup testing suite
 - `Boards.js` – Main and Employees board generation from ledger
 - `PrintOut.js` – Print layout generation, QR code support, inventory syncing
 - `Documentation.js` – Auto-generated system documentation sheet
@@ -122,22 +125,15 @@ clasp push
 
 ### Admin Menu Structure
 - **➕ Add New Poster** – Dialog to manually add new posters to Inventory sheet
-- **Reports** (submenu)
-  - Rebuild Boards – Queue a serialized rebuild of Main and Employees boards
-  - Sync Form Options – Queue a form-options refresh from Inventory
-  - Refresh Documentation – Update system documentation sheet
-- **Print & Layout** (submenu)
-  - Update Print Out – Sync and refresh print layout sheet
-- **Display Management** (submenu)
-  - Manage Theater Displays – Configure "Poster Outside" and "Poster Inside" display tracking
 - **Advanced** (submenu)
-  - Manually Add Request – Dialog for historical request entry with optional notes
+  - Refresh Manager – Queue board, Form, Print Out, and display updates through public dialog handlers
   - Employee View Manager – Setup and manage employee-facing view
-  - Run Backup Now – Manually trigger nightly backup
-- **System** (submenu) 
-  - Run Setup / Repair – One-click initialization and repair
-  - Run Data Integrity Check – Detect and fix orphaned/duplicate requests
-- **Refresh All** – Queue serialized board, form, Print Out, display, and Employee View updates
+  - Manually Add Request – Dialog for historical request entry with optional notes
+  - **Reports** submenu – Rebuild Boards; forced Sync Form Options; Refresh Documentation
+  - **Display Management** submenu – Manage Display Sheets for Poster Outside/Inside
+  - **System** submenu – Run Setup / Repair; Create Triggers; Check Form Access; Remove Legacy Announcement Data; Run Backup Now; Run Data Integrity Check
+    - Data Integrity is report-only and identifies exact Requests rows; only missing Inventory Poster IDs may be generated
+- **Refresh Everything** (Refresh Manager dialog) – Queue serialized board, Form, Print Out, display, and Employee View updates
 
 ### UI/UX Features
 - **Optional Notes on Requests** – Each poster request can include optional notes (e.g., "Matinee only") that are stored and displayed in boards
@@ -160,10 +156,13 @@ clasp push
   - Direct edit link to the Google Form
   - Troubleshooting guide
   - Requests ledger column reference
-- **Analytics Tracking** – All events logged (submissions, rebuilds, errors, execution times)
-- **Error Logging** – Automated error capture with admin notifications for critical issues
+- **Analytics Tracking** – Form submissions and backup outcomes logged
+- **Error Logging** – Errors are captured in Error Log; no email notification is sent
 
 ### Testing & Verification
+- Run `clasp run --user test runRegressionTests` for the pure in-memory suite.
+- Compare `clasp run --user test agentSnapshotRequests` before and after `clasp run --user test agentRunIntegrityCheckReportOnly`; the Requests row count and hash should be identical.
+- Run `clasp run --user test agentRunManualBackup` twice, then `clasp run --user test agentReadLastNightlyBackupDate`; both backups should succeed and the nightly date should be unchanged. Check recent errors with `clasp run --user test agentReadErrorLogTail 20`.
 - [ ] Multiple employees can request the same poster (both appear ACTIVE in boards)
 - [ ] A single employee cannot request the same poster twice (historical block enforced)
 - [ ] Inventory counts never block requests (test with 1 poster, 10 requests)
@@ -171,7 +170,7 @@ clasp push
 - [ ] Optional notes are saved and displayed in boards
 - [ ] Boards rebuild automatically after form submission
 - [ ] Form options update after Inventory sheet changes
-- [ ] Analytics logs all events and performance metrics
+- [ ] Analytics logs Form submissions and backup outcomes
 - [ ] Errors are captured and logged to Error Log sheet
 - [ ] Nightly backups run without errors and retain 7 days of backups
 - [ ] Unchanged Form choices skip dropdown writes; changed choices never pass through placeholders
@@ -182,12 +181,11 @@ clasp push
 
 ### Troubleshooting
 - **One-click repair:** Admin Menu → **Run Setup / Repair** – Recreates all sheets, triggers, and form
-- **Check for issues:** Admin Menu → System → **Run Data Integrity Check** – Detects and auto-repairs duplicates and orphaned requests
+- **Check for issues:** Admin Menu → Advanced → System → **Run Data Integrity Check** – Reports duplicates, orphaned requests, over-capacity employees, and missing/duplicate Request IDs without editing Requests rows
 - **Inspect logs:** Extensions → Apps Script → Logs for detailed error traces
 - **Manual fixes:** Admin Menu → Advanced → **Manually Add Request** for corrections or migrations
 - **Form issues:** If form options are stale, run Admin Menu → Reports → **Sync Form Options**
-- **Board display issues:** Run Admin Menu → Refresh All to rebuild all boards and dashboards
-- **Cache stale data:** Cache TTL set in `Config.js`; invalidation happens automatically on sheet edits
+- **Board display issues:** Open Refresh Manager and click **Refresh Everything** to rebuild boards and other views
 
 ## Additional References
 - See [.github/copilot-instructions.md](.github/copilot-instructions.md) for in-depth developer guidance, code conventions, and architecture patterns

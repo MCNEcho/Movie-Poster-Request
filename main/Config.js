@@ -2,9 +2,9 @@
 
 const CONFIG = {
   VERSION: {
-    LABEL: 'v2026.10.14.11',
-    UPDATED_AT: '2026-10-14',
-    NOTES: 'Fast no-op form sync and bounded refresh/backup retries',
+    LABEL: 'v2026.10.19.1',
+    UPDATED_AT: '2026-10-19',
+    NOTES: 'Public refresh handlers, safe manual backup, report-only integrity checks',
   },
 
   TIMEZONE: 'America/Los_Angeles',
@@ -38,7 +38,6 @@ const CONFIG = {
     DOCUMENTATION: 'Documentation',
     ERROR_LOG: 'Error Log',     // script-created - Task 1
     ANALYTICS: 'Analytics',     // script-created - Task 3
-    ANALYTICS_SUMMARY: 'Analytics Summary', // script-created - Task 3
     DATA_INTEGRITY: 'Data Integrity', // script-created - Task 5
   },
 
@@ -48,9 +47,6 @@ const CONFIG = {
   ALLOW_REREQUEST_AFTER_REMOVAL: true, // Allow re-requesting a poster after removal
   REREQUEST_COOLDOWN_DAYS: 0, // Days to wait before re-request (0 = immediate if ALLOW_REREQUEST_AFTER_REMOVAL is true)
 
-  // Cache configuration (Task 2 - Performance Optimization)
-  CACHE_TTL_MINUTES: 5, // Cache time-to-live in minutes
-  
   // Analytics configuration (Task 3 - Logging & Monitoring)
   DATE_FORMAT: 'MM/dd/yyyy HH:mm:ss',
   
@@ -75,9 +71,6 @@ const CONFIG = {
   PRINT: {
     FORM_URL_CELL: 'B1',
     EMP_VIEW_URL_CELL: 'B2',
-    FORM_QR_CELL: 'D1',
-    EMP_QR_CELL: 'D2',
-    LAST_UPDATED_CELL: 'H1',
     LIST_START_ROW: 6,
   },
 

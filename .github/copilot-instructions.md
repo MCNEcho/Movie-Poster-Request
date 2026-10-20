@@ -3,7 +3,7 @@
 ## Project Overview
 Google Apps Script system for employee poster requests with strict slot limits, deduplication, auditability, backups, and automation across Sheets/Forms.
 
-**Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, GmailApp (critical admin error alerts), DriveApp, UrlFetchApp (QuickChart)
+**Tech Stack:** GAS (V8), Google Forms/Sheets, ScriptProperties, DriveApp, UrlFetchApp (QuickChart)
 
 ---
 
@@ -20,16 +20,14 @@ Google Apps Script system for employee poster requests with strict slot limits, 
 - **Config.js** - Central configuration (CONFIG object, column mappings, sheet references)
 - **Setup.js** - Initialization, admin menu, triggers, health banner
 - **Utils.js** - Sheet operations, poster fetching, name validation
-- **CacheManager.js** - TTL-based caching layer to reduce sheet quota usage
-- **ErrorHandler.js** - Centralized error logging and admin notifications
+- **ErrorHandler.js** - Centralized Error Log writing (no email notifications)
 - **FormManager.js** - Google Form creation and field setup
 - **FormSync.js** - Dynamic form option updates from Inventory sheet
 - **FormSubmit.js** - Form submission processing, validation, additions/removals
 - **Ledger.js** - Request ledger queries (counting, checking duplicates)
 - **Analytics.js** - Analytics tracking and logging
-- **DataIntegrity.js** - Data validation and auto-repair (orphaned requests, duplicates)
+- **DataIntegrity.js** - Report-only ledger checks; may generate missing Inventory poster IDs
 - **BackupManager.js** - Nightly backups to Google Drive with retention
-- **BackupTest.js** - Backup testing suite
 - **Boards.js** - Main and Employees board generation from ledger
 - **PrintOut.js** - Print layout generation, inventory syncing
 - **Documentation.js** - Auto-generated system documentation sheet
@@ -66,7 +64,6 @@ Rebuild boards (display notes in col C) → Sync form options
 ### Operational Defaults
 - BACKUP: nightly 2am, 7-day retention, CSV default, dedicated Drive folder, manual "Run Backup Now".
 - BACKUP RETRIES: shared refresh poller; up to three retries/day with 5/15/60-minute backoff, then wait for the next scheduled run. Retry state resets on a new day and is cleared if a duplicate run finds today's backup already complete/reserved.
-- CACHE TTL: CONFIG.CACHE_TTL_MINUTES (invalidate after writes to related data).
 
 ---
 
@@ -81,7 +78,7 @@ All settings in `Config.js` under `CONFIG` object:
 
 ### Column Reference Pattern
 ```javascript
-// Instead of magic numbers, use CONFIG.COLS
+// Instead of magic numbers, use COLS
 const email = r[COLS.REQUESTS.EMP_EMAIL - 1];  // 1-indexed columns
 const status = r[COLS.REQUESTS.STATUS - 1];
 const notes = r[COLS.REQUESTS.NOTES - 1];      // Column 12: optional notes
@@ -96,18 +93,11 @@ const contactType = r[COLS.REQUESTS.CONTACT_TYPE - 1]; // Column 11: EMPLOYEE or
 // Never reacquire the same script lock through a nested helper.
 ```
 
-### Caching Pattern (Task 2)
-```javascript
-// Expensive queries cached with TTL:
-countActiveSlots_Cached_(email)  // Uses cache
-// Invalidated on sheet edits: invalidateCachesAfterWrite_('poster')
-```
-
 ### Error Handling Pattern (Task 1)
 ```javascript
 // Use centralized error logger, not console.error
-logError_(error, 'functionName', 'context', 'CRITICAL|MEDIUM|LOW');
-// Logs to ERROR_LOG sheet + notifies admin if CRITICAL
+logError_(error, 'functionName', 'context');
+// Logs to ERROR_LOG sheet; no email notification is sent
 ```
 
 ### Dedup Logic Pattern (CRITICAL)
@@ -134,17 +124,17 @@ if (!canRequest.allowed) {
 - **Ledger → Boards** - Ledger.js queries → Boards.js visualizes
 - **Form changes → Boards** - FormSync.js updates form → FormSubmit.js processes → Boards.js rebuilds
 - **Sheet edits → Operations** - InventoryCleanup.js detects Inventory edits → FormSync.js (updates form options), Boards.js (rebuilds boards), PrintOut.js (refreshes print display)
-- **Analytics logging** - Analytics.js logs all events (submissions, rebuilds, anomalies)
+- **Analytics logging** - Analytics.js records form submissions; BackupManager.js records backup outcomes
 - **Display tracking** - PosterDisplay.js manages "Poster Outside" and "Poster Inside" tabs independently
 - **Refresh management** - RefreshManager.js provides consolidated UI for all refresh operations
 
 ### Stored Data (ScriptProperties)
 ```javascript
-// Persistent cache/mapping data:
+// Persistent mapping and queue data:
 LABEL_TO_ID        // Poster title → Poster ID
 ID_TO_CURRENT_LABEL // Poster ID → current title (handles name changes)
 FORM_CHOICES_HASH  // Hash of current Add/Remove form choices and slot count
-HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
+HEALTH_BANNER_DATA  // System metrics (execution times)
 ```
 
 ---
@@ -156,21 +146,22 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 2. Define config in `Config.js` if needed
 3. Add menu item in `Setup.js` buildAdminMenu_()
 4. Hook into appropriate trigger (form submit, sheet edit, timer)
-5. Follow error handling + caching patterns above
+5. Follow error handling and short-lock patterns above
 6. Test manually by submitting form and verifying expected behavior
 
 ### Debugging & Testing
 - **Manual Testing:** Submit test form → verify boards rebuild and form options sync
 - **Log Inspection:** Extensions → Apps Script → Logs
 - **Data Inspection:** Check Requests sheet (ledger), REQUEST_ORDER sheet (submission history)
-- **Analytics:** Check Analytics + Analytics Summary sheets for performance metrics and event tracking
-- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster at top, Advanced submenu containing: Refresh Manager, Employee View Manager, Manually Add Request; Reports (queued board rebuild/form sync, Refresh Documentation); Display Management; System (Run Setup/Repair, owner-only trigger reconciliation, form access check, one-time legacy announcement cleanup)
+- **Analytics:** Check the Analytics sheet for form-submission and backup events
+- **Admin Menu Map:** Poster Request System menu with ➕ Add New Poster, Advanced → Refresh Manager / Employee View Manager / Manually Add Request / Reports / Display Management / System. Reports include Rebuild Boards, forced Sync Form Options, and Refresh Documentation. System includes Setup/Repair, trigger reconciliation, Form access, legacy announcement cleanup, manual backup, and Run Data Integrity Check.
+- **Test workflow:** `clasp run --user test runRegressionTests`; use `agentSnapshotRequests` before/after `agentRunIntegrityCheckReportOnly` to verify the Requests ledger is unchanged.
 
 ### Fixing Broken State
 - **One-click repair:** "Run Setup / Repair" button in admin menu
 - **Manual data fix:** "Manually Add Request" for migration/corrections
 - **Full rebuild:** setupPosterSystem() recreates all sheets, triggers, form options
-- **Data integrity:** runFullIntegrityCheck_() detects & auto-repairs orphaned/duplicate requests
+- **Data integrity:** Run Data Integrity Check reports exact row findings without editing Requests. Only missing Inventory poster IDs may be generated.
 
 ---
 
@@ -209,7 +200,6 @@ HEALTH_BANNER_DATA  // System metrics (execution times, cache stats)
 - [ ] Request deletion analytics identify the exact stable request ID
 - [ ] Requests column M contains stable IDs and the hidden deletion snapshot maps those IDs to audit metadata
 - [ ] Employees board headers and employee-facing copy do not expose employee emails or customer phone numbers
-- [ ] Health banner displays accurate cache hit rate + execution times
 - [ ] Notes field in form submissions saved to REQUESTS col 12 and displayed in boards col C
 - [ ] ManualRequest notes auto-populate with "Customer: [phone]" for customer entries
 - [ ] Notes display correctly in Main and Employees boards
@@ -223,7 +213,7 @@ For understanding the system:
 2. **PROJECT_DOCUMENTATION.txt** - Full architecture & rationale
 3. **Ledger.js** + **FormSubmit.js** - Core request logic
 4. **Boards.js** - How requests become visualizations
-5. **Issue #19** - Known bugs, redundancies, and refactor opportunities
+5. **README.md** - Setup and test workflow
 
 ---
 
@@ -233,5 +223,3 @@ For understanding the system:
 - Use short lock-protected sections only for critical ledger/snapshot mutations; never hold the global lock during view refreshes.
 - Log important steps: `Logger.log('[functionName] message');`
 - Use `logError_()` for exceptions, not `console.error()`
-- Cache expensive queries with `setCache_()` / `getCache_()`
-- Invalidate related caches on writes: `invalidateCachesAfterWrite_('key')`
